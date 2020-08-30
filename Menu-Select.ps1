@@ -16,17 +16,6 @@ param (
 )
 
 
-function MultiStr ( [int] $count, [String] $str )
-{
-    $w = ""
-    for ($i = 0; $i -lt $count; $i++ )
-    {
-        $w += $str
-    }
-    return $w
-}
-
-
 function Min ( $Val1, $Val2 )
 {
     if ($Val1 -le $Val2)
@@ -56,7 +45,7 @@ function Max ( $Val1, $Val2 )
 function DisplayBox ( [int] $Left, [int] $Top, [int] $Width, [int] $Height )
 {
     [System.Console]::SetCursorPosition($Left, $Top)
-    Write-Host -NoNewline ($Menu.Border.UL+$(MultiStr ($Width-2) $Menu.Border.H)+$Menu.Border.UR)
+    Write-Host -NoNewline ($Menu.Border.UL+$($Menu.Border.H * ($Width-2))+$Menu.Border.UR)
     for ($r = 1; $r -le ($Height-2); $r++)
     {
         [System.Console]::SetCursorPosition($Left, $Top+$r)
@@ -65,7 +54,7 @@ function DisplayBox ( [int] $Left, [int] $Top, [int] $Width, [int] $Height )
         Write-Host -NoNewline $Menu.Border.V
     }
     [System.Console]::SetCursorPosition($Left, $Top+$Height-1)
-    Write-Host -NoNewline ($Menu.Border.LL+$(MultiStr ($Width-2) $Menu.Border.H)+$Menu.Border.LR)
+    Write-Host -NoNewline ($Menu.Border.LL+$($Menu.Border.H * ($Width-2))+$Menu.Border.LR)
 }
 
 
@@ -99,23 +88,23 @@ function ShowOverflow ()
     if ($Menu.View.Start -ne $Menu.Start)
     {
         [System.Console]::SetCursorPosition($Menu.Left + 1, $(getItemRow ($Menu.View.Start-1)))
-        Write-Host -NoNewline ($Menu.Border.H+$(MultiStr ($Menu.Width-2) $Menu.Border.U)+$Menu.Border.H)
+        Write-Host -NoNewline ($Menu.Border.H+$($Menu.Border.U * ($Menu.Width-2))+$Menu.Border.H)
     }
     else
     {
         [System.Console]::SetCursorPosition($Menu.Left + 1, $(getItemRow ($Menu.View.Start-1)))
-        Write-Host -NoNewline $(MultiStr ($Menu.Width) $Menu.Border.H)
+        Write-Host -NoNewline $($Menu.Border.H * ($Menu.Width))
     }
     #Write-Host -NoNewline (" ("+($Menu.Top).GetType()+")")
     if ($Menu.View.End -ne $Menu.End)
     {
         [System.Console]::SetCursorPosition($Menu.Left + 1, $(getItemRow ($Menu.View.End+1)))
-        Write-Host -NoNewline ($Menu.Border.H+$(MultiStr ($Menu.Width-2) $Menu.Border.D)+$Menu.Border.H)
+        Write-Host -NoNewline ($Menu.Border.H+$($Menu.Border.D * ($Menu.Width-2))+$Menu.Border.H)
     }
     else
     {
         [System.Console]::SetCursorPosition($Menu.Left + 1, $(getItemRow ($Menu.View.End+1)))
-        Write-Host -NoNewline $(MultiStr ($Menu.Width) $Menu.Border.H)
+        Write-Host -NoNewline $($Menu.Border.H * ($Menu.Width))
     }
 }
 
@@ -226,7 +215,7 @@ for ( $i = 0; $i -lt $Menu.Item.Count; $i++ )
 {
     if ( $Menu.Item[$i].Descr.Length -lt $Menu.Width)
     {
-        $Menu.Item[$i].Descr += ( MultiStr ($Menu.Width - $Menu.Item[$i].Descr.Length) ' ' )
+        $Menu.Item[$i].Descr += (' ' * ($Menu.Width - $Menu.Item[$i].Descr.Length))
     }
 }
 
