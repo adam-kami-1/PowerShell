@@ -63,6 +63,7 @@ param (
     [Parameter(ParameterSetName='Examples', Mandatory=$true)]
     [switch] ${Examples},
 
+    # Displays only the detailed descriptions of the specified parameters. Wildcards are permitted. This parameter has no effect on displays of conceptual ( About_ ) help.
     [Parameter(ParameterSetName='Parameters', Mandatory=$true)]
     [string] ${Parameter},
 
@@ -80,9 +81,13 @@ param (
     [Parameter(ParameterSetName='ShowWindow', Mandatory=$true)]
     [switch] ${ShowWindow},
     
-    # Displays only the detailed descriptions of the specified parameters. Wildcards are permitted. This parameter has no effect on displays of conceptual ( About_ ) help.
+    # Run my version of help
     [Parameter(Mandatory=$false)]
-    [Switch] $Test
+    [Switch] $Test,
+
+    # If -Test then rescan help files
+    [Parameter(Mandatory=$false)]
+    [Switch] $Rescan
 )
 
 function ToCamelCase ( [String] $Str )
@@ -255,16 +260,30 @@ function CheckXmlHelpFiles ( $ModuleName, $Path )
         {
             if ($ModuleName -eq '')
             {
-                $MN = $File.ToLower().Replace('.dll-help.xml', '')
-                $MN = $MN.Replace('powershell.commands', 'powershell')
-                $MN = $MN.Replace('powershell', 'PowerShell')
-                $MN = ToCamelCase $MN
-                if ($MN -eq 'System.Management.Automation')
+                $MN = $File.Remove($File.Length - '.dll-help.xml'.Length)
+                switch ($MN)
                 {
-                    $MN = 'Microsoft.PowerShell.Core'
+                    'System.Management.Automation'
+                        {
+                            $MN = 'Microsoft.PowerShell.Core'
+                        }
+                    'Microsoft.PowerShell.Consolehost'
+                        {
+                            $MN = 'Microsoft.PowerShell.Host'
+                        }
+                    'Microsoft.PowerShell.Commands.Diagnostics'
+                        {
+                            $MN = 'Microsoft.PowerShell.Diagnostics'
+                        }
+                    'Microsoft.PowerShell.Commands.Management'
+                        {
+                            $MN = 'Microsoft.PowerShell.Management'
+                        }
+                    'Microsoft.PowerShell.Commands.Utility'
+                        {
+                            $MN = 'Microsoft.PowerShell.Utility'
+                        }
                 }
-                # Microsoft.Wsman.Management -> Microsoft.WSMan.Management
-                # Microsoft.PowerShell.Consolehost -> Microsoft.PowerShell.Host
                 $Items += CheckXMLFile $MN $Path $File
             }
             else
@@ -321,7 +340,7 @@ if (-not $Test)
 
 ###########################################################
 # Find all *.help.txt and  *.dll-help.xml files HelpFiles
-if (Test-Path $env:HOME\.PS-pomoc.xml)
+if ((Test-Path $env:HOME\.PS-pomoc.xml) -and -not $Rescan)
 {
     $Help_Items = Import-Clixml -Path $env:HOME\.PS-pomoc.xml
 }
