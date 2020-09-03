@@ -1,4 +1,5 @@
-﻿<#
+﻿#!/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
+<#
 .SYNOPSIS
 pomoc displays full help on the selected item.
 .DESCRIPTION
@@ -21,7 +22,7 @@ param (
     #
     # The names of conceptual articles, such as `about_Objects`, must be entered in English, even in non-English versions of PowerShell.
     [Parameter(Position=0, ValueFromPipelineByPropertyName=$true)]
-    [String] $Name = '',
+    [System.String] $Name = '',
 
     # Gets help that explains how the cmdlet works in the specified provider path. Enter a PowerShell provider path.
     #
@@ -30,48 +31,48 @@ param (
     # To see the custom cmdlet help for a provider path, go to the provider path location and enter a `Get-Help` command or, from any path location, use the Path parameter of `Get-Help` to specify the provider path. You can also find custom cmdlet help online in the provider help section of the help articles.
     #
     # For more information about PowerShell providers, see about_Providers (./About/about_Providers.md).
-    [string] ${Path},
+    [System.String] ${Path},
 
     # Displays help only for items in the specified category and their aliases. Conceptual articles are in the HelpFile category.
     [ValidateSet('Alias','Cmdlet','Provider','General','FAQ','Glossary','HelpFile','ScriptCommand','Function','Filter','ExternalScript','All','DefaultHelp','Workflow','DscResource','Class','Configuration')]
-    [string[]] ${Category},
+    [System.String[]] ${Category},
 
     # Displays commands with the specified component value, such as Exchange . Enter a component name. Wildcard characters are per mitted. This parameter has no effect on displays of conceptual ( About_ ) help.
-    [string[]] ${Component},
+    [System.String[]] ${Component},
 
     # Displays help for items with the specified functionality. Enter the functionality. Wildcard characters are permitted. This parameter has no effect on displays of conceptual ( About_ ) help.
-    [string[]] ${Functionality},
+    [System.String[]] ${Functionality},
 
     # Displays help customized for the specified user role. Enter a role. Wildcard characters are permitted.
     #
     # Enter the role that the user plays in an organization. Some cmdlets display different text in their help files based on the value of this parameter. This parameter has no effect on help for the core cmdlets.
-    [string[]] ${Role},
+    [System.String[]] ${Role},
 
     # Adds parameter descriptions and examples to the basic help display. This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
     [Parameter(ParameterSetName='DetailedView', Mandatory=$true)]
-    [switch] ${Detailed},
+    [Switch] ${Detailed},
 
     # Displays the entire help article for a cmdlet. Full includes parameter descriptions and attributes, examples, input and output object types, and additional notes.
     #
     # This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
     [Parameter(ParameterSetName='AllUsersView')]
-    [switch] ${Full},
+    [Switch] ${Full},
 
     # Displays only the name, synopsis, and examples. To display only the examples, type `(Get-Help <cmdlet-name>).Examples`.
     #
     # This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
     [Parameter(ParameterSetName='Examples', Mandatory=$true)]
-    [switch] ${Examples},
+    [Switch] ${Examples},
 
     # Displays only the detailed descriptions of the specified parameters. Wildcards are permitted. This parameter has no effect on displays of conceptual ( About_ ) help.
     [Parameter(ParameterSetName='Parameters', Mandatory=$true)]
-    [string] ${Parameter},
+    [System.String] ${Parameter},
 
     # Displays the online version of a help article in the default browser. This parameter is valid only for cmdlet, function, workflow, and script help articles. You can't use the Online parameter with `Get-Help` in a remote session.
     #
     # For information about supporting this feature in help articles that you write, see about_Comment_Based_Help (./About/about_Comment_Based_Help.md), and Supporting Online Help (/powershell/scripting/developer/module/supporting-online-help), and Writing Help for PowerShell Cmdlets (/powershell/scripting/developer/help/writing-help-for-windows-powershell-cmdlets).
     [Parameter(ParameterSetName='Online', Mandatory=$true)]
-    [switch] ${Online},
+    [Switch] ${Online},
 
     # Displays the help topic in a window for easier reading. The window includes a Find search feature and a Settings box that lets you set options for the display, including options to display only selected sections of a help topic.
     #
@@ -79,7 +80,7 @@ param (
     #
     # This parameter was introduced in PowerShell 3.0.
     [Parameter(ParameterSetName='ShowWindow', Mandatory=$true)]
-    [switch] ${ShowWindow},
+    [Switch] ${ShowWindow},
     
     # Run my version of help
     [Parameter(Mandatory=$false)]
@@ -90,7 +91,7 @@ param (
     [Switch] $Rescan
 )
 
-function ToCamelCase ( [String] $Str )
+function ToCamelCase ( [System.String] $Str )
 {
     $ChArr = $Str.ToCharArray()
     $Str = ''
@@ -108,11 +109,56 @@ function ToCamelCase ( [String] $Str )
     return $Str
 } # ToCamelCase #
 
+function Max ( $Val1, $Val2 )
+{
+    if ($Val1 -ge $Val2)
+    {
+        return $Val1
+    }
+    else
+    {
+        return $Val2
+    }
+} # Max #
+
+
+function Min ( $Val1, $Val2 )
+{
+    if ($Val1 -le $Val2)
+    {
+        return $Val1
+    }
+    else
+    {
+        return $Val2
+    }
+} # Min #
+
+
+Function VerCmp ( [System.String] $Version1, [System.String] $Version2 )
+{
+    $Ver1 = $Version1.Split('.')
+    $Ver2 = $Version2.Split('.')
+    for ($i = 0; $i -lt (Min $Ver1.Count $Ver2.Count); $i++)
+    {
+        if ($Ver1[$i] -ne $Ver2[$i])
+        {
+            return $Ver1[$i] - $Ver2[$i]
+        }
+    }
+    if ($Ver1.Count -eq $Ver2.Count)
+    {
+        return 0
+    }
+    return $Ver1.Count - $Ver2.Count
+} # VerCmp #
+
+
 #####################################################################
 # Displaying stuff
 #####################################################################
 
-function DisplayTxtHelpFile ($Item)
+function DisplayTxtHelpFile ( [System.Collections.Hashtable] $Item )
 {
     $Help = Get-Content $Item.File
     Write-Host "Help File"$Item.File"contains"$Help.Count"lines"
@@ -174,13 +220,13 @@ function DisplayTxtHelpFile ($Item)
     }
 } # DisplayTxtHelpFile #
 
-function DisplayXmlHelpFile ($Item)
+function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item )
 {
     Write-Host ("Displaying file: "+$Item.File+" Item no: "+$Item.Index)
     Write-Host ("Item name: "+$Item.Name+" Synopsis: "+$Item.Synopsis)
 } # DisplayXmlHelpFile #
 
-function DisplayHelpItem ($Item)
+function DisplayHelpItem ( [System.Collections.Hashtable] $Item )
 {
     switch ($Item.Format)
     {
@@ -201,31 +247,51 @@ function DisplayHelpItem ($Item)
 #####################################################################
 
 
-function CheckTxtHelpFiles ( $ModuleName, $Path )
+$HelpInfo = @{ Items = @(); ItemIndex = @{}; Functions = @{} }
+
+function AddItem ( [System.Boolean] $MarkFunc, [System.Collections.Hashtable] $Item )
 {
-    $Items = @()
+    # $Item = [pscustomobject]$I
+    # Write-Host ("Adding Item "+$Item.Name)
+    if ($HelpInfo.ItemIndex[$Item.Name] -eq $null)
+    {
+        if ($HelpInfo.Functions[$Item.Name] -ne $null)
+        {
+            $Item.Category = 'Function'
+            if ($MarkFunc)
+            {
+                $HelpInfo.Functions[$Item.Name] = $null
+            }
+        }
+        $HelpInfo.ItemIndex[$Item.Name] = $HelpInfo.Items.Count
+        $HelpInfo.Items += $Item
+    }
+} # AddItem #
+
+
+function CheckTxtHelpFiles ( [System.String] $ModuleName, [System.String] $Path )
+{
     $Files = (Get-ChildItem $Path\*.help.txt).Name
     if ($Files.Count -gt 0)
     {
         foreach ($File in $Files)
         {
-            $Items += [pscustomobject]@{Name = $File.Replace('.help.txt','');
-                                        ModuleName = $ModuleName;
-                                        File = "$Path\$File";
-                                        Format = 'txt';
-                                        Index = -1;
-                                        Category = 'HelpFile';
-                                        Synopsis = ''; # SHORT DESCRIPTION
-                                        }
+            AddItem $true @{Name = $File.Replace('.help.txt','');
+                            ModuleName = $ModuleName;
+                            File = "$Path\$File";
+                            Format = 'txt';
+                            Index = -1;
+                            Category = 'HelpFile';
+                            Synopsis = ''}
         }
     }
-    return $Items
+    return
 } # CheckTxtHelpFiles #
 
-function CheckXMLFile ( $ModuleName, $Path, $File )
+
+function CheckXMLFile ( [System.Collections.Hashtable] $LocalFuncs, [System.String] $ModuleName, [System.String] $Path, [System.String] $File )
 {
-    $Items = @()
-    $XML = [xml](Get-Content "$Path\$File")
+    $XML = [System.Xml.XmlDocument](Get-Content "$Path\$File")
     if ($XML.helpItems -ne $null)
     {
         if ($XML.helpItems.command -ne $null)
@@ -235,32 +301,57 @@ function CheckXMLFile ( $ModuleName, $Path, $File )
                 for ($Index = 0; $Index -lt ($XML.helpItems.command).Count; $Index++)
                 {
                     $command = ($XML.helpItems.command)[$Index]
-                    $Items += [pscustomobject]@{Name = $command.details.name;
-                                                ModuleName = $ModuleName;
-                                                File = "$Path\$File";
-                                                Format = 'xml';
-                                                Index = $Index;
-                                                Category = 'Cmdlet';
-                                                Synopsis = $command.details.description.para
-                                                }
+                    $Category = 'Cmdlet'
+                    if ($LocalFuncs[$command.details.name] -ne $null)
+                    {
+                        $Category = 'Function'
+                        $LocalFuncs[$command.details.name] = $null
+                    }
+                    AddItem $true @{Name = $command.details.name;
+                                    ModuleName = $ModuleName;
+                                    File = "$Path\$File";
+                                    Format = 'xml';
+                                    Index = $Index;
+                                    Category = $Category;
+                                    Synopsis = $command.details.description.para}
                 }
             }
         }
     }
-    return $Items
+    foreach ($Function in $LocalFuncs.keys)
+    {
+        if ($LocalFuncs[$Function] -ne $null)
+        {
+            AddItem $false @{Name = $Function;
+                             ModuleName = $ModuleName;
+                             File = '';
+                             Format = '';
+                             Index = -1;
+                             Category = 'Function';
+                             Synopsis = '...'}
+        }
+    }
 } # CheckXMLFile #
 
-function CheckXmlHelpFiles ( $ModuleName, $Path )
+
+function CheckXmlHelpFiles ( [System.Object[]] $LocalFunctions, [System.String] $ModuleName, [System.String] $Path, [System.String] $Pattern )
 {
-    $Items = @()
-    $Files = (Get-ChildItem $Path\*.dll-help.xml).Name
+    $LocalFuncs = @{}
+    if ($LocalFunctions -ne $null)
+    {
+        for ($i = 0; $i -lt $LocalFunctions.Count; $i++)
+        {
+            $LocalFuncs[$LocalFunctions[$i]] = 'Function'
+        }
+    }
+    $Files = (Get-ChildItem $Path\*$Pattern).Name
     if ($Files.Count -gt 0)
     {
         foreach ($File in $Files)
         {
             if ($ModuleName -eq '')
             {
-                $MN = $File.Remove($File.Length - '.dll-help.xml'.Length)
+                $MN = $File.Remove($File.Length - $Pattern.Length)
                 switch ($MN)
                 {
                     'System.Management.Automation'
@@ -284,33 +375,108 @@ function CheckXmlHelpFiles ( $ModuleName, $Path )
                             $MN = 'Microsoft.PowerShell.Utility'
                         }
                 }
-                $Items += CheckXMLFile $MN $Path $File
+                CheckXMLFile $LocalFuncs $MN $Path $File
             }
             else
             {
-                $Items += CheckXMLFile $ModuleName $Path $File
+                CheckXMLFile $LocalFuncs $ModuleName $Path $File
             }
         }
     }
-    return $Items
 } # CheckXmlHelpFiles #
+
+
+function CheckModule ( [System.String] $Path, [System.String] $ModuleName, [System.String] $Version)
+{
+    if ($Version -eq '')
+    {
+        $Path = "$Path\$ModuleName"
+    }
+    else
+    {
+        $Path = "$Path\$ModuleName\$Version"
+    }
+    $LocalFuncs = @()
+    if (Test-Path "$Path\$ModuleName.psd1")
+    {
+        $LocalFuncs = (Import-PowerShellDataFile -Path "$Path\$ModuleName.psd1" -ErrorAction SilentlyContinue).FunctionsToExport
+    }
+    CheckTxtHelpFiles $ModuleName "$Path\$PSUICulture"
+    #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.dll-help.xml'
+    #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.cdxml-help.xml'
+    #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.psd1-help.xml'
+    #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.psm1-help.xml'
+    CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '-help.xml'
+} # CheckModule #
+
 
 function FindHelpFiles ()
 {
-    $Help_Items = @()
-
-    $Help_Items += CheckTxtHelpFiles '' $PSHOME\$PSUICulture
-    $Help_Items += CheckXmlHelpFiles '' $PSHOME\$PSUICulture
-    foreach ($Module in ((Get-Childitem $PSHOME\Modules -Directory).Name))
+    Get-ChildItem function: | ForEach-Object { $HelpInfo.Functions[$_.Name] = 'Function' }
+    CheckTxtHelpFiles '' $PSHOME\$PSUICulture
+    $LocalFuncs = @()
+    CheckXmlHelpFiles $LocalFuncs '' $PSHOME\$PSUICulture '.dll-help.xml'
+    CheckXmlHelpFiles $LocalFuncs '' $PSHOME\$PSUICulture '-help.xml'
+    foreach ($ModulePath in (($env:PSModulePath).Split(';')))
     {
-        #Write-Host "Checking module: $Module"
-        if (Test-Path $PSHOME\Modules\$Module\$PSUICulture)
+        foreach ($Module in ((Get-Childitem $ModulePath -Directory).Name))
         {
-            $Help_Items += CheckTxtHelpFiles $Module $PSHOME\Modules\$Module\$PSUICulture
-            $Help_Items += CheckXmlHelpFiles $Module $PSHOME\Modules\$Module\$PSUICulture
+            #if ($Module -eq 'BranchCache') {
+            #    Write-Host "Checking module: $Module"
+            #}
+            $Version = ''
+            foreach ($SubDir in ((Get-Childitem $ModulePath\$Module -Directory).Name))
+            {
+                if ($SubDir -eq $PSUICulture)
+                {
+                    CheckModule $ModulePath $Module ''
+                }
+                elseif ($SubDir -match '^([0-9]\.)+[0-9]+$')
+                {
+                    if ((VerCmp $Version $SubDir) -le 0)
+                    {
+                        $Version = $SubDir
+                    }
+                }
+            }
+            if ($Version -ne '')
+            {
+                #Write-Host "Checking module: $Module\$SubDir"
+                CheckModule $ModulePath $Module $Version
+            }
         }
     }
-    return $Help_Items
+    Get-ChildItem alias: | 
+        ForEach-Object `
+        {
+            # Alias  $_.Name  ->  $_.Definition
+            #
+            if ($HelpInfo.ItemIndex[$_.Definition] -ne $null)
+            {
+                $Item = $HelpInfo.Items[$HelpInfo.ItemIndex[$_.Definition]]
+                AddItem $true @{Name = $_.Name;
+                                ModuleName = $Item.ModuleName;
+                                File = $Item.File;
+                                Format = $Item.Format;
+                                Index = $Item.Index;
+                                Category = 'Alias';
+                                Synopsis = $_.Definition}
+            }
+        }
+    foreach ($Function in $HelpInfo.Functions.keys)
+    {
+        if ($HelpInfo.Functions[$Function] -ne $null)
+        {
+            AddItem $false @{Name = $Function;
+                             ModuleName = '';
+                             File = '';
+                             Format = '';
+                             Index = -1;
+                             Category = 'Function';
+                             Synopsis = '...'}
+        }
+    }
+    $HelpInfo.Functions = @{}
 } # FindHelpFiles #
 
 
@@ -324,7 +490,8 @@ function FindHelpFiles ()
 #$outputEncoding=[System.Console]::OutputEncoding
 
 #$Test = $true
-#$Name = 'about_functions'
+#$Rescan = $true
+#$Name = 'Add-Computer'
 #$Name = 'Get-Help'
 #$Name = '*'
 
@@ -342,25 +509,28 @@ if (-not $Test)
 # Find all *.help.txt and  *.dll-help.xml files HelpFiles
 if ((Test-Path $env:HOME\.PS-pomoc.xml) -and -not $Rescan)
 {
-    $Help_Items = Import-Clixml -Path $env:HOME\.PS-pomoc.xml
+    $HelpInfo = Import-Clixml -Path $env:HOME\.PS-pomoc.xml
 }
 else
 {
-    $Help_Items = FindHelpFiles
-    Export-Clixml -Path $env:HOME\.PS-pomoc.xml -InputObject ($Help_Items | Sort-Object -Property Name)
+    FindHelpFiles
+    Export-Clixml -Path $env:HOME\.PS-pomoc.xml -Encoding UTF8 -InputObject $HelpInfo
 }
 
 
 ###########################################################
 # Display the first matching Help Item (it's a temporary solution)
-$found = @()
-for ($i = 0; $i -lt $Help_Items.Count; $i++)
+if ($HelpInfo.ItemIndex[$Name] -ne $null)
 {
-    if ($Help_Items[$i].Name -like $Name)
+    DisplayHelpItem $HelpInfo.Items[$HelpInfo.ItemIndex[$Name]]
+    return
+}
+$found = @()
+for ($i = 0; $i -lt $HelpInfo.Items.Count; $i++)
+{
+    if ($HelpInfo.Items[$i].Name -like $Name)
     {
         $found += $i
-        #DisplayHelpItem $Help_Items[$i]
-        #return
     }
 }
 switch ($found.Count)
@@ -369,21 +539,21 @@ switch ($found.Count)
         {
             Write-Error "Unable to find $Name"
         }
-    1
-        {
-            DisplayHelpItem $Help_Items[$found[0]]
-        }
+    #1
+    #    {
+    #        DisplayHelpItem $HelpInfo.Items[$found[0]]
+    #    }
     default
         {
             for ($i = 0; $i -lt $found.Count; $i++)
             {
-                #Write-Host $Help_Items[$found[$i]].Name
-                [pscustomobject]@{Name = $Help_Items[$found[$i]].Name;
-                                  Category = $Help_Items[$found[$i]].Category;
-                                  Module = $Help_Items[$found[$i]].ModuleName;
-                                  Synopsis = $Help_Items[$found[$i]].Synopsis;
-                                  File = $Help_Items[$found[$i]].File;
-                                  Index = $Help_Items[$found[$i]].Index
+                #Write-Host $HelpInfo.Items[$found[$i]].Name
+                [pscustomobject]@{Name = $HelpInfo.Items[$found[$i]].Name;
+                                  Category = $HelpInfo.Items[$found[$i]].Category;
+                                  Module = $HelpInfo.Items[$found[$i]].ModuleName;
+                                  Synopsis = $HelpInfo.Items[$found[$i]].Synopsis;
+                                  File = $HelpInfo.Items[$found[$i]].File;
+                                  Index = $HelpInfo.Items[$found[$i]].Index
                                  }
             }
         }
