@@ -1,5 +1,4 @@
-﻿#!/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
-<#
+﻿<#
 .SYNOPSIS
 pomoc displays full help on the selected item.
 .DESCRIPTION
@@ -48,26 +47,6 @@ param (
     # Enter the role that the user plays in an organization. Some cmdlets display different text in their help files based on the value of this parameter. This parameter has no effect on help for the core cmdlets.
     [System.String[]] ${Role},
 
-    # Adds parameter descriptions and examples to the basic help display. This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
-    [Parameter(ParameterSetName='DetailedView', Mandatory=$true)]
-    [Switch] ${Detailed},
-
-    # Displays the entire help article for a cmdlet. Full includes parameter descriptions and attributes, examples, input and output object types, and additional notes.
-    #
-    # This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
-    [Parameter(ParameterSetName='AllUsersView')]
-    [Switch] ${Full},
-
-    # Displays only the name, synopsis, and examples. To display only the examples, type `(Get-Help <cmdlet-name>).Examples`.
-    #
-    # This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
-    [Parameter(ParameterSetName='Examples', Mandatory=$true)]
-    [Switch] ${Examples},
-
-    # Displays only the detailed descriptions of the specified parameters. Wildcards are permitted. This parameter has no effect on displays of conceptual ( About_ ) help.
-    [Parameter(ParameterSetName='Parameters', Mandatory=$true)]
-    [System.String] ${Parameter},
-
     # Displays the online version of a help article in the default browser. This parameter is valid only for cmdlet, function, workflow, and script help articles. You can't use the Online parameter with `Get-Help` in a remote session.
     #
     # For information about supporting this feature in help articles that you write, see about_Comment_Based_Help (./About/about_Comment_Based_Help.md), and Supporting Online Help (/powershell/scripting/developer/module/supporting-online-help), and Writing Help for PowerShell Cmdlets (/powershell/scripting/developer/help/writing-help-for-windows-powershell-cmdlets).
@@ -90,6 +69,31 @@ param (
     [Parameter(Mandatory=$false)]
     [Switch] $Rescan
 )
+
+
+#!/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
+
+#    # Adds parameter descriptions and examples to the basic help display. This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
+#    [Parameter(ParameterSetName='DetailedView', Mandatory=$true)]
+#    [Switch] ${Detailed},
+
+#    # Displays the entire help article for a cmdlet. Full includes parameter descriptions and attributes, examples, input and output object types, and additional notes.
+#    #
+#    # This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
+#    [Parameter(ParameterSetName='AllUsersView')]
+#    [Switch] ${Full},
+
+#    # Displays only the name, synopsis, and examples. To display only the examples, type `(Get-Help <cmdlet-name>).Examples`.
+#    #
+#    # This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
+#    [Parameter(ParameterSetName='Examples', Mandatory=$true)]
+#    [Switch] ${Examples},
+
+#    # Displays only the detailed descriptions of the specified parameters. Wildcards are permitted. This parameter has no effect on displays of conceptual ( About_ ) help.
+#    [Parameter(ParameterSetName='Parameters', Mandatory=$true)]
+#    [System.String] ${Parameter},
+
+
 
 function ToCamelCase ( [System.String] $Str )
 {
@@ -158,6 +162,84 @@ Function VerCmp ( [System.String] $Version1, [System.String] $Version2 )
 # Displaying stuff
 #####################################################################
 
+function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format, [System.String] $Text = '')
+{
+    $Indent = '    '
+    switch ($Format)
+    {
+        'empty'
+            {
+                Write-Output ('')
+            }
+        'para'
+            {
+                Write-Output (($Indent * $IndentLevel)+$Text)
+                Write-Output ('')
+            }
+        'code'
+            {
+                Write-Output (($Indent * $IndentLevel)+$Text)
+            }
+        'sect'
+            {
+                Write-Output (($Indent * $IndentLevel)+$Text)
+            }
+        'subsect'
+            {
+                Write-Output (($Indent * $IndentLevel)+$Text)
+            }
+    }
+} # DisplayParagraph #
+
+
+function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item )
+{
+    $XML = [System.Xml.XmlDocument](Get-Content $Item.File)
+    $command = ($XML.helpItems.command)[$Item.Index]
+
+    Write-Host ("Displaying file: "+$Item.File+" Item no: "+$Item.Index)
+    #Write-Host ("Item name: "+$Item.Name)
+    #Write-Host ("Synopsis: "+$Item.Synopsis)
+    #Write-Host ("Category: "+$Item.Category)
+
+    DisplayParagraph 0 sect "NAME"
+    DisplayParagraph 1 para $Item.Name
+
+    DisplayParagraph 0 sect "SYNOPSIS"
+    DisplayParagraph 1 para $Item.Synopsis
+    # Synopsis = $command.details.description.para
+
+    DisplayParagraph 0 sect "SYNTAX"
+    DisplayParagraph 1 para 'Syntax will be described later !!!'
+
+    DisplayParagraph 0 sect "DESCRIPTION"
+    for ($i = 0; $i -lt $command.description.para.Count; $i++)
+    {
+        DisplayParagraph 1 para $command.description.para[$i]
+    }
+
+    DisplayParagraph 0 sect "PARAMETERS"
+    DisplayParagraph 1 para 'Parameters will be described later !!!'
+
+    DisplayParagraph 0 sect "INPUTS"
+    DisplayParagraph 1 para 'Inputs will be described later !!!'
+
+    DisplayParagraph 0 sect "OUTPUTS"
+    DisplayParagraph 1 para 'Outputs will be described later !!!'
+
+    DisplayParagraph 0 sect "NOTES"
+    DisplayParagraph 1 para 'Notes will be described later !!!'
+
+    DisplayParagraph 0 sect "EXAMPLES"
+    DisplayParagraph 1 para 'Parameters will be described later !!!'
+
+    DisplayParagraph 0 sect "RELATED LINKS"
+    DisplayParagraph 1 para 'Related links will be described later !!!'
+
+    DisplayParagraph 0 sect "REMARKS"
+    DisplayParagraph 1 para 'Remarks will be described later !!!'
+} # DisplayXmlHelpFile #
+
 function DisplayTxtHelpFile ( [System.Collections.Hashtable] $Item )
 {
     $Help = Get-Content $Item.File
@@ -219,12 +301,6 @@ function DisplayTxtHelpFile ( [System.Collections.Hashtable] $Item )
         }
     }
 } # DisplayTxtHelpFile #
-
-function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item )
-{
-    Write-Host ("Displaying file: "+$Item.File+" Item no: "+$Item.Index)
-    Write-Host ("Item name: "+$Item.Name+" Synopsis: "+$Item.Synopsis)
-} # DisplayXmlHelpFile #
 
 function DisplayHelpItem ( [System.Collections.Hashtable] $Item )
 {
@@ -313,6 +389,9 @@ function CheckXMLFile ( [System.Collections.Hashtable] $LocalFuncs, [System.Stri
                                     Format = 'xml';
                                     Index = $Index;
                                     Category = $Category;
+                                    Component = '';
+                                    Functionality = '';
+                                    Role = '';
                                     Synopsis = $command.details.description.para}
                 }
             }
@@ -328,13 +407,16 @@ function CheckXMLFile ( [System.Collections.Hashtable] $LocalFuncs, [System.Stri
                              Format = '';
                              Index = -1;
                              Category = 'Function';
+                             Component = '';
+                             Functionality = '';
+                             Role = '';
                              Synopsis = '...'}
         }
     }
 } # CheckXMLFile #
 
 
-function CheckXmlHelpFiles ( [System.Object[]] $LocalFunctions, [System.String] $ModuleName, [System.String] $Path, [System.String] $Pattern )
+function CheckXmlHelpFiles ( [System.String[]] $LocalFunctions, [System.String] $ModuleName, [System.String] $Path, [System.String] $Pattern )
 {
     $LocalFuncs = @{}
     if ($LocalFunctions -ne $null)
@@ -460,6 +542,9 @@ function FindHelpFiles ()
                                 Format = $Item.Format;
                                 Index = $Item.Index;
                                 Category = 'Alias';
+                                Component = '';
+                                Functionality = '';
+                                Role = '';
                                 Synopsis = $_.Definition}
             }
         }
@@ -473,6 +558,9 @@ function FindHelpFiles ()
                              Format = '';
                              Index = -1;
                              Category = 'Function';
+                             Component = '';
+                             Functionality = '';
+                             Role = '';
                              Synopsis = '...'}
         }
     }
@@ -485,14 +573,14 @@ function FindHelpFiles ()
 # Main body
 #####################################################################
 
-# Below is used by function help ()
+# Below two lines are in function help ()
 #Set the outputencoding to Console::OutputEncoding. More.com doesn't work well with Unicode.
 #$outputEncoding=[System.Console]::OutputEncoding
 
-#$Test = $true
+$Test = $true
 #$Rescan = $true
 #$Name = 'Add-Computer'
-#$Name = 'Get-Help'
+$Name = 'Get-Help'
 #$Name = '*'
 
 
@@ -519,16 +607,20 @@ else
 
 
 ###########################################################
-# Display the first matching Help Item (it's a temporary solution)
-if ($HelpInfo.ItemIndex[$Name] -ne $null)
+
+# Empty parameter $Name means: list all help items
+if ($Name -eq '')
 {
-    DisplayHelpItem $HelpInfo.Items[$HelpInfo.ItemIndex[$Name]]
-    return
+    $Name = '*'
 }
 $found = @()
 for ($i = 0; $i -lt $HelpInfo.Items.Count; $i++)
 {
-    if ($HelpInfo.Items[$i].Name -like $Name)
+    if (($HelpInfo.Items[$i].Name -like $Name) -and
+        (($Category.Count -eq 0) -or ($Category -contains $HelpInfo.Items[$i].Category)) -and
+        (($Component.Count -eq 0) -or ($Component -contains $HelpInfo.Items[$i].Component)) -and
+        (($Functionality.Count -eq 0) -or ($Functionality -contains $HelpInfo.Items[$i].Functionality)) -and
+        (($Role.Count -eq 0) -or ($Role -contains $HelpInfo.Items[$i].Role)))
     {
         $found += $i
     }
@@ -539,10 +631,10 @@ switch ($found.Count)
         {
             Write-Error "Unable to find $Name"
         }
-    #1
-    #    {
-    #        DisplayHelpItem $HelpInfo.Items[$found[0]]
-    #    }
+    1
+        {
+            DisplayHelpItem $HelpInfo.Items[$found[0]]
+        }
     default
         {
             for ($i = 0; $i -lt $found.Count; $i++)
