@@ -191,37 +191,58 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
             }
         {($_ -eq 'para') -or
          ($_ -eq 'hangpara') -or
-         ($_ -eq 'comppara')}
+         ($_ -eq 'comppara') -or
+         ($_ -eq 'listpara')}
             {
                 $Lines = @()
-                while ($Text.Length -gt $TextWidth)
+                if ($Text.Length -gt 0)
                 {
-                    $Line = $Text.Substring(0, $TextWidth)
-                    $NextLine = ''
-                    while ($Line.Substring($Line.Length-1, 1) -ne ' ')
+                    while ($Text.Length -gt $TextWidth)
                     {
-                        $NextLine = $NextLine.Insert(0, $Line.Substring($Line.Length-1, 1))
-                        $Line = $Line.Substring(0, $Line.Length-1)
+                        $Line = $Text.Substring(0, $TextWidth)
+                        $NextLine = ''
+                        if ($Line.IndexOf(' ') -ne -1)
+                        {
+                            while (($Line.Length -gt 0) -and ($Line.Substring($Line.Length-1, 1) -ne ' '))
+                            {
+                                $NextLine = $NextLine.Insert(0, $Line.Substring($Line.Length-1, 1))
+                                $Line = $Line.Substring(0, $Line.Length-1)
+                            }
+                        }
+                        $Lines += @($Line.TrimEnd())
+                        $Text = $NextLine+$Text.Substring($TextWidth)
+                        if ((($_ -eq 'hangpara') -or ($_ -eq 'listpara')) -and ($Lines.Count -eq 1))
+                        {
+                            if ($_ -eq 'listpara')
+                            {
+                                $TextWidth -= 2
+                            }
+                            else
+                            {
+                                $TextWidth -= 4
+                            }
+                        }
                     }
-                    $Lines += @($Line.TrimEnd())
-                    $Text = $NextLine+$Text.Substring($TextWidth)
-                    if (($_ -eq 'hangpara') -and ($Lines.Count -eq 1))
+                    $Lines += @($Text)
+                    $no = 0
+                    foreach ($Line in $Lines)
                     {
-                        $TextWidth -= $Indent
+                        $Work.Output += @((' ' * $Indent)+$Line)
+                        $no++
+                        if ((($_ -eq 'hangpara') -or ($_ -eq 'listpara')) -and ($no -eq 1))
+                        {
+                            if ($_ -eq 'listpara')
+                            {
+                                $Indent += 2
+                            }
+                            else
+                            {
+                                $Indent += 4
+                            }
+                        }
                     }
                 }
-                $Lines += @($Text)
-                $no = 0
-                foreach ($Line in $Lines)
-                {
-                    $Work.Output += @((' ' * $Indent)+$Line)
-                    $no++
-                    if (($_ -eq 'hangpara') -and ($no -eq 1))
-                    {
-                        $Indent += 4
-                    }
-                }
-                if ($_ -ne 'comppara')
+                if (($_ -ne 'comppara') -and ($_ -ne 'listpara'))
                 {
                     $Work.Output += @('')
                 }
@@ -242,17 +263,64 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
 } # DisplayParagraph #
 
 
+function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel, [System.String[]] $collection )
+{
+    $WasColon = $false
+    foreach ($Para in $collection)
+    {
+        if (-not $WasColon)
+        {
+            if ($Para.Substring($Para.Length-1, 1) -eq ':')
+            {
+                # List heading paragraph
+                $WasColon = $true
+                DisplayParagraph $IndentLevel comppara $Para
+            }
+            else
+            {
+                # Regular paragraph
+                DisplayParagraph $IndentLevel para $Para
+            }
+        }
+        else
+        {
+            if ($Para.Substring(0, 2) -eq '- ')
+            {
+                # List item
+                DisplayParagraph $IndentLevel listpara $Para
+            }
+            else
+            {
+                # End of the list
+                $WasColon = $false
+                # Regular paragraph
+                DisplayParagraph $IndentLevel para $Para
+            }
+        }
+    }
+    if ($WasColon)
+    {
+        DisplayParagraph $IndentLevel empty
+    }
+} # DisplayCollectionOfParagraphs #
+
+
 function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
-# [System.Collections.Hashtable] $Item )
 {
     DisplayParagraph 0 empty
 
+    # ========================================
+    # Section NAME
     DisplayParagraph 0 sect "NAME"
     DisplayParagraph 1 para $command.details.name
 
+    # ========================================
+    # Section SYNOPSIS
     DisplayParagraph 0 sect "SYNOPSIS"
     DisplayParagraph 1 para $command.details.description.para
 
+    # ========================================
+    # Section SYNTAX
     if (($command.syntax -ne $null) -and
         ($command.syntax.syntaxItem -ne $null) -and
         ($command.syntax.syntaxItem.Count -ne 0) -and
@@ -295,15 +363,44 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
         DisplayParagraph 1 para 'Common Parameters will be described later !!!'
     }
 
+    # ========================================
+    # Section DESCRIPTION
     DisplayParagraph 0 sect "DESCRIPTION"
-    foreach ($Para in $command.description.para)
+    DisplayCollectionOfParagraphs 1 $command.description.para
+    
+    # ========================================
+    # Section PARAMETERS
+    if (($command.parameters -ne $null) -and
+        ($command.parameters.parameter -ne $null) -and
+        ($command.parameters.parameter.Count -ne 0) -and
+        ($command.parameters.parameter[0] -ne $null))
     {
-        DisplayParagraph 1 para $Para
+        DisplayParagraph 0 sect "PARAMETERS"
+        foreach ($parameter in $command.parameters.parameter)
+        {
+            $Required = $parameter.required
+            $Position = $parameter.position
+            $DefVal = $parameter.defaultValue
+            $PipelineInput = $parameter.pipelineInput
+            $Globbing = $parameter.globbing
+            DisplayParagraph 1 comppara ('-'+$parameter.name+' <'+$parameter.type.name+'>')
+            if ($parameter.name -eq 'Online')
+            {
+                Write-Host 'Parameter -Online, mind second paragraph of description'
+            }
+            DisplayCollectionOfParagraphs 2 $parameter.Description.para
+
+            DisplayParagraph 2 comppara "Required?                    $Required"
+            DisplayParagraph 2 comppara "Position?                    $Position"
+            DisplayParagraph 2 comppara "Default value                $DefVal"
+            DisplayParagraph 2 comppara "Accept pipeline input?       $PipelineInput"
+            DisplayParagraph 2 comppara "Accept wildcard characters?  $Globbing"
+            DisplayParagraph 0 empty
+        }
     }
 
-    DisplayParagraph 0 sect "PARAMETERS"
-    DisplayParagraph 1 para 'Parameters will be described later !!!'
-
+    # ========================================
+    # Section INPUTS
     if (($command.InputTypes -ne $null) -and
         ($command.InputTypes.InputType -ne $null))
     {
@@ -312,6 +409,8 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
         DisplayParagraph 2 para $command.InputTypes.InputType.description.para
     }
 
+    # ========================================
+    # Section OUTPUTS
     if (($command.returnValues -ne $null) -and
         ($command.returnValues.returnValue -ne $null) -and
         ($command.returnValues.returnValue.Count -ne 0) -and
@@ -325,24 +424,29 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
         }
     }
     
+    # ========================================
+    # Section NOTES
     if (($command.alertSet -ne $null) -and
         ($command.alertSet.alert -ne $null) -and
         ($command.alertSet.alert.para.Count -ne 0) -and
         ($command.alertSet.alert.para[0] -ne $null))
     {
         DisplayParagraph 0 sect "NOTES"
-        foreach ($Para in $command.alertSet.alert.para)
-        {
-            DisplayParagraph 1 para $Para
-        }
+        DisplayCollectionOfParagraphs 1 $command.alertSet.alert.para
     }
 
+    # ========================================
+    # Section EXAMPLES
     DisplayParagraph 0 sect "EXAMPLES"
     DisplayParagraph 1 para 'Parameters will be described later !!!'
 
+    # ========================================
+    # Section RELATED LINKS
     DisplayParagraph 0 sect "RELATED LINKS"
     DisplayParagraph 1 para 'Related links will be described later !!!'
 
+    # ========================================
+    # Section REMARKS
     DisplayParagraph 0 sect "REMARKS"
     DisplayParagraph 1 para 'Remarks will be described later !!!'
 } # DisplayXmlHelpFile #
