@@ -190,7 +190,8 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
                 $Work.Output += @('')
             }
         {($_ -eq 'para') -or
-         ($_ -eq 'hangpara')}
+         ($_ -eq 'hangpara') -or
+         ($_ -eq 'comppara')}
             {
                 $Lines = @()
                 while ($Text.Length -gt $TextWidth)
@@ -220,7 +221,10 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
                         $Indent += 4
                     }
                 }
-                $Work.Output += @('')
+                if ($_ -ne 'comppara')
+                {
+                    $Work.Output += @('')
+                }
             }
         'code'
             {
@@ -249,7 +253,10 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
     DisplayParagraph 0 sect "SYNOPSIS"
     DisplayParagraph 1 para $command.details.description.para
 
-    if ($command.syntax -ne $null)
+    if (($command.syntax -ne $null) -and
+        ($command.syntax.syntaxItem -ne $null) -and
+        ($command.syntax.syntaxItem.Count -ne 0) -and
+        ($command.syntax.syntaxItem[0] -ne $null))
     {
         DisplayParagraph 0 sect "SYNTAX"
         foreach ($syntaxItem in $command.syntax.syntaxItem)
@@ -285,25 +292,50 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
             }
             DisplayParagraph 1 hangpara $Para
         }
+        DisplayParagraph 1 para 'Common Parameters will be described later !!!'
     }
 
     DisplayParagraph 0 sect "DESCRIPTION"
-    for ($i = 0; $i -lt $command.description.para.Count; $i++)
+    foreach ($Para in $command.description.para)
     {
-        DisplayParagraph 1 para $command.description.para[$i]
+        DisplayParagraph 1 para $Para
     }
 
     DisplayParagraph 0 sect "PARAMETERS"
     DisplayParagraph 1 para 'Parameters will be described later !!!'
 
-    DisplayParagraph 0 sect "INPUTS"
-    DisplayParagraph 1 para 'Inputs will be described later !!!'
+    if (($command.InputTypes -ne $null) -and
+        ($command.InputTypes.InputType -ne $null))
+    {
+        DisplayParagraph 0 sect "INPUTS"
+        DisplayParagraph 1 comppara $command.InputTypes.InputType.type.name
+        DisplayParagraph 2 para $command.InputTypes.InputType.description.para
+    }
 
-    DisplayParagraph 0 sect "OUTPUTS"
-    DisplayParagraph 1 para 'Outputs will be described later !!!'
-
-    DisplayParagraph 0 sect "NOTES"
-    DisplayParagraph 1 para 'Notes will be described later !!!'
+    if (($command.returnValues -ne $null) -and
+        ($command.returnValues.returnValue -ne $null) -and
+        ($command.returnValues.returnValue.Count -ne 0) -and
+        ($command.returnValues.returnValue[0] -ne $null))
+    {
+        DisplayParagraph 0 sect "OUTPUTS"
+        foreach ($returnValue in $command.returnValues.returnValue)
+        {
+            DisplayParagraph 1 comppara $returnValue.type.name
+            DisplayParagraph 2 para $returnValue.description.para
+        }
+    }
+    
+    if (($command.alertSet -ne $null) -and
+        ($command.alertSet.alert -ne $null) -and
+        ($command.alertSet.alert.para.Count -ne 0) -and
+        ($command.alertSet.alert.para[0] -ne $null))
+    {
+        DisplayParagraph 0 sect "NOTES"
+        foreach ($Para in $command.alertSet.alert.para)
+        {
+            DisplayParagraph 1 para $Para
+        }
+    }
 
     DisplayParagraph 0 sect "EXAMPLES"
     DisplayParagraph 1 para 'Parameters will be described later !!!'
