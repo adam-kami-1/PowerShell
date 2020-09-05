@@ -177,7 +177,6 @@ $Work = @{
     Functions = @{};
     Output = [System.String[]] @()
     }
-#Write-Host ($Work.Colors.F_Magenta+'PROBA'+$Work.Colors.F_Default)
 
 
 function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format, [System.String] $Text = '')
@@ -220,8 +219,7 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
             }
         'sect'
             {
-                #Write-Host ($Work.Colors.F_Magenta+'TEST'+$Work.Colors.F_Default)
-                $Work.Output += @((' ' * $Indent)+$Work.Colors.F_Magenta+$Text+$Work.Colors.F_Default)
+                $Work.Output += @((' ' * $Indent)+$Work.Colors.Section+$Text+$Work.Colors.Default)
             }
         'subsect'
             {
@@ -234,9 +232,6 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
 function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
 # [System.Collections.Hashtable] $Item )
 {
-    # Write-Host ("Item name: "+$Item.Name)
-    # Write-Host ("Synopsis: "+$Item.Synopsis)
-    # Write-Host ("Category: "+$Item.Category)
     DisplayParagraph 0 empty
 
     DisplayParagraph 0 sect "NAME"
@@ -245,8 +240,20 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
     DisplayParagraph 0 sect "SYNOPSIS"
     DisplayParagraph 1 para $command.details.description.para
 
-    DisplayParagraph 0 sect "SYNTAX"
-    DisplayParagraph 1 para 'Syntax will be described later !!!'
+    if ($command.syntax -ne $null)
+    {
+        DisplayParagraph 0 sect "SYNTAX"
+        foreach ($syntaxItem in $command.syntax.syntaxItem)
+        {
+            $Para = $syntaxItem.name
+            foreach ($parameter in $syntaxItem.parameter)
+            {
+                $Para += ' '+'-'+$parameter.name
+                $Para += ' '+'<'+$parameter.type.name+'>'
+            }
+            DisplayParagraph 1 para $Para
+        }
+    }
 
     DisplayParagraph 0 sect "DESCRIPTION"
     for ($i = 0; $i -lt $command.description.para.Count; $i++)
@@ -675,7 +682,12 @@ if ($psISE -eq $null)
         F_Blue = "${Esc}[94m";
         F_Magenta = "${Esc}[95m";
         F_Cyan = "${Esc}[96m";
-        F_White = "${Esc}[97m"}
+        F_White = "${Esc}[97m";
+
+        Section = $Work.Colors.F_Magenta;
+        Parameter = $Work.Colors.F_Yellow;
+        Default = $Work.Colors.F_Default;
+        }
 }
 else
 {
@@ -696,9 +708,13 @@ else
         F_Blue = ''
         F_Magenta = ''
         F_Cyan = ''
-        F_White = ''}
+        F_White = '';
+
+        Section = '';
+        Parameter = '';
+        Default = '';
+        }
 }
-#Write-Host ($Work.Colors.F_Magenta+'PROBA'+$Work.Colors.F_Default)
 # Empty parameter $Name means: list all help items
 if ($Name -eq '')
 {
