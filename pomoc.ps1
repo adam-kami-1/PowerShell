@@ -168,13 +168,16 @@ Function VerCmp ( [System.String] $Version1, [System.String] $Version2 )
 #####################################################################
 
 $HelpInfo = @{
-    Items = @();
+    Items = @()
+    }
+
+$Work = @{
+    Colors = @{};
     ItemIndex = @{};
     Functions = @{};
-    Colors = @{};
-    Output = [System.String[]] @() }
-
-#Write-Host ($HelpInfo.Colors.F_Magenta+'PROBA'+$HelpInfo.Colors.F_Default)
+    Output = [System.String[]] @()
+    }
+#Write-Host ($Work.Colors.F_Magenta+'PROBA'+$Work.Colors.F_Default)
 
 
 function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format, [System.String] $Text = '')
@@ -185,7 +188,7 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
     {
         'empty'
             {
-                $HelpInfo.Output += @('')
+                $Work.Output += @('')
             }
         'para'
             {
@@ -207,22 +210,22 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
                 $Lines += @($Para)
                 foreach ($Line in $Lines)
                 {
-                    $HelpInfo.Output += @((' ' * $Indent)+$Line)
+                    $Work.Output += @((' ' * $Indent)+$Line)
                 }
-                $HelpInfo.Output += @('')
+                $Work.Output += @('')
             }
         'code'
             {
-                $HelpInfo.Output += @((' ' * $Indent)+$Text)
+                $Work.Output += @((' ' * $Indent)+$Text)
             }
         'sect'
             {
-                #Write-Host ($HelpInfo.Colors.F_Magenta+'TEST'+$HelpInfo.Colors.F_Default)
-                $HelpInfo.Output += @((' ' * $Indent)+$HelpInfo.Colors.F_Magenta+$Text+$HelpInfo.Colors.F_Default)
+                #Write-Host ($Work.Colors.F_Magenta+'TEST'+$Work.Colors.F_Default)
+                $Work.Output += @((' ' * $Indent)+$Work.Colors.F_Magenta+$Text+$Work.Colors.F_Default)
             }
         'subsect'
             {
-                $HelpInfo.Output += @((' ' * $Indent)+$Text)
+                $Work.Output += @((' ' * $Indent)+$Text)
             }
     }
 } # DisplayParagraph #
@@ -362,17 +365,17 @@ function AddItem ( [System.Boolean] $MarkFunc, [System.Collections.Hashtable] $I
 {
     # $Item = [pscustomobject]$I
     # Write-Host ("Adding Item "+$Item.Name)
-    if ($HelpInfo.ItemIndex[$Item.Name] -eq $null)
+    if ($Work.ItemIndex[$Item.Name] -eq $null)
     {
-        if ($HelpInfo.Functions[$Item.Name] -ne $null)
+        if ($Work.Functions[$Item.Name] -ne $null)
         {
             $Item.Category = 'Function'
             if ($MarkFunc)
             {
-                $HelpInfo.Functions[$Item.Name] = $null
+                $Work.Functions[$Item.Name] = $null
             }
         }
-        $HelpInfo.ItemIndex[$Item.Name] = $HelpInfo.Items.Count
+        $Work.ItemIndex[$Item.Name] = $HelpInfo.Items.Count
         $HelpInfo.Items += $Item
     }
 } # AddItem #
@@ -527,7 +530,7 @@ function CheckModule ( [System.String] $Path, [System.String] $ModuleName, [Syst
 
 function FindHelpFiles ()
 {
-    Get-ChildItem function: | ForEach-Object { $HelpInfo.Functions[$_.Name] = 'Function' }
+    Get-ChildItem function: | ForEach-Object { $Work.Functions[$_.Name] = 'Function' }
     CheckTxtHelpFiles '' $PSHOME\$PSUICulture
     $LocalFuncs = @()
     CheckXmlHelpFiles $LocalFuncs '' $PSHOME\$PSUICulture '.dll-help.xml'
@@ -566,9 +569,9 @@ function FindHelpFiles ()
         {
             # Alias  $_.Name  ->  $_.Definition
             #
-            if ($HelpInfo.ItemIndex[$_.Definition] -ne $null)
+            if ($Work.ItemIndex[$_.Definition] -ne $null)
             {
-                $Item = $HelpInfo.Items[$HelpInfo.ItemIndex[$_.Definition]]
+                $Item = $HelpInfo.Items[$Work.ItemIndex[$_.Definition]]
                 AddItem $true @{Name = $_.Name;
                                 ModuleName = $Item.ModuleName;
                                 File = $Item.File;
@@ -581,9 +584,9 @@ function FindHelpFiles ()
                                 Synopsis = $_.Definition}
             }
         }
-    foreach ($Function in $HelpInfo.Functions.keys)
+    foreach ($Function in $Work.Functions.keys)
     {
-        if ($HelpInfo.Functions[$Function] -ne $null)
+        if ($Work.Functions[$Function] -ne $null)
         {
             AddItem $false @{Name = $Function;
                              ModuleName = '';
@@ -597,7 +600,7 @@ function FindHelpFiles ()
                              Synopsis = '...'}
         }
     }
-    $HelpInfo.Functions = @{}
+    $Work.Functions = @{}
 } # FindHelpFiles #
 
 
@@ -655,7 +658,7 @@ if ($Width -eq 0)
 if ($psISE -eq $null)
 {
     $Esc=[char]0x1B;
-    $HelpInfo.Colors = @{
+    $Work.Colors = @{
         F_Default = "${Esc}[39m";
         F_Black = "${Esc}[30m";
         F_DarkRed = "${Esc}[31m";
@@ -676,7 +679,7 @@ if ($psISE -eq $null)
 }
 else
 {
-    $HelpInfo.Colors = @{
+    $Work.Colors = @{
         F_Default = ''
         F_Black = ''
         F_DarkRed = ''
@@ -695,7 +698,7 @@ else
         F_Cyan = ''
         F_White = ''}
 }
-#Write-Host ($HelpInfo.Colors.F_Magenta+'PROBA'+$HelpInfo.Colors.F_Default)
+#Write-Host ($Work.Colors.F_Magenta+'PROBA'+$Work.Colors.F_Default)
 # Empty parameter $Name means: list all help items
 if ($Name -eq '')
 {
@@ -722,17 +725,12 @@ switch ($found.Count)
     1
         {
             DisplayHelpItem $HelpInfo.Items[$found[0]]
-            $HelpInfo.Output
-            #foreach ($line in $HelpInfo.Output)
-            #{
-            #    Write-Host $line
-            #}
+            $Work.Output
         }
     default
         {
             for ($i = 0; $i -lt $found.Count; $i++)
             {
-                #Write-Host $HelpInfo.Items[$found[$i]].Name
                 [pscustomobject]@{Name = $HelpInfo.Items[$found[$i]].Name;
                                   Category = $HelpInfo.Items[$found[$i]].Category;
                                   Module = $HelpInfo.Items[$found[$i]].ModuleName;
