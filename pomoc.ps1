@@ -189,13 +189,13 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
             {
                 $Work.Output += @('')
             }
-        'para'
+        {($_ -eq 'para') -or
+         ($_ -eq 'hangpara')}
             {
-                $Para = $Text
                 $Lines = @()
-                while ($Para.Length -gt $TextWidth)
+                while ($Text.Length -gt $TextWidth)
                 {
-                    $Line = $Para.Substring(0, $TextWidth)
+                    $Line = $Text.Substring(0, $TextWidth)
                     $NextLine = ''
                     while ($Line.Substring($Line.Length-1, 1) -ne ' ')
                     {
@@ -203,13 +203,22 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
                         $Line = $Line.Substring(0, $Line.Length-1)
                     }
                     $Lines += @($Line.TrimEnd())
-                    $Para = $NextLine+$Para.Substring($TextWidth)
-
+                    $Text = $NextLine+$Text.Substring($TextWidth)
+                    if (($_ -eq 'hangpara') -and ($Lines.Count -eq 1))
+                    {
+                        $TextWidth -= $Indent
+                    }
                 }
-                $Lines += @($Para)
+                $Lines += @($Text)
+                $no = 0
                 foreach ($Line in $Lines)
                 {
                     $Work.Output += @((' ' * $Indent)+$Line)
+                    $no++
+                    if (($_ -eq 'hangpara') -and ($no -eq 1))
+                    {
+                        $Indent += 4
+                    }
                 }
                 $Work.Output += @('')
             }
@@ -251,7 +260,7 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
                 $Para += ' '+'-'+$parameter.name
                 $Para += ' '+'<'+$parameter.type.name+'>'
             }
-            DisplayParagraph 1 para $Para
+            DisplayParagraph 1 hangpara $Para
         }
     }
 
@@ -665,51 +674,33 @@ if ($Width -eq 0)
 if ($psISE -eq $null)
 {
     $Esc=[char]0x1B;
-    $Work.Colors = @{
-        F_Default = "${Esc}[39m";
-        F_Black = "${Esc}[30m";
-        F_DarkRed = "${Esc}[31m";
-        F_DarkGreen = "${Esc}[32m";
-        F_DarkYellow = "${Esc}[33m";
-        F_DarkBlue = "${Esc}[34m";
-        F_DarkMagenta = "${Esc}[35m";
-        F_DarkCyan = "${Esc}[36m";
-        F_Gray = "${Esc}[37m";
-        F_DarkGray = "${Esc}[90m";
-        F_Red = "${Esc}[91m";
-        F_Green = "${Esc}[92m";
-        F_Yellow = "${Esc}[93m";
-        F_Blue = "${Esc}[94m";
-        F_Magenta = "${Esc}[95m";
-        F_Cyan = "${Esc}[96m";
-        F_White = "${Esc}[97m";
+    $F_Default = "${Esc}[39m";
+    $F_Black = "${Esc}[30m";
+    $F_DarkRed = "${Esc}[31m";
+    $F_DarkGreen = "${Esc}[32m";
+    $F_DarkYellow = "${Esc}[33m";
+    $F_DarkBlue = "${Esc}[34m";
+    $F_DarkMagenta = "${Esc}[35m";
+    $F_DarkCyan = "${Esc}[36m";
+    $F_Gray = "${Esc}[37m";
+    $F_DarkGray = "${Esc}[90m";
+    $F_Red = "${Esc}[91m";
+    $F_Green = "${Esc}[92m";
+    $F_Yellow = "${Esc}[93m";
+    $F_Blue = "${Esc}[94m";
+    $F_Magenta = "${Esc}[95m";
+    $F_Cyan = "${Esc}[96m";
+    $F_White = "${Esc}[97m";
 
-        Section = $Work.Colors.F_Magenta;
-        Parameter = $Work.Colors.F_Yellow;
-        Default = $Work.Colors.F_Default;
+    $Work.Colors = @{
+        Section = $F_Magenta;
+        Parameter = $F_Yellow;
+        Default = $F_Default;
         }
 }
 else
 {
     $Work.Colors = @{
-        F_Default = ''
-        F_Black = ''
-        F_DarkRed = ''
-        F_DarkGreen = ''
-        F_DarkYellow = ''
-        F_DarkBlue = ''
-        F_DarkMagenta = ''
-        F_DarkCyan = ''
-        F_Gray = ''
-        F_DarkGray = ''
-        F_Red = ''
-        F_Green = ''
-        F_Yellow = ''
-        F_Blue = ''
-        F_Magenta = ''
-        F_Cyan = ''
-        F_White = '';
-
         Section = '';
         Parameter = '';
         Default = '';
