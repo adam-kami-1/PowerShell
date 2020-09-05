@@ -183,6 +183,10 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
 {
     $Indent = 4 * $IndentLevel
     $TextWidth = $Width-$Indent
+    if ($Text -eq '')
+    {
+        $Format = 'empty'
+    }
     switch ($Format)
     {
         'empty'
@@ -194,6 +198,14 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
          ($_ -eq 'comppara') -or
          ($_ -eq 'listpara')}
             {
+                while ($Text.IndexOf('  ') -ne -1)
+                {
+                    $Text = $Text.Replace('  ', ' ')
+                }
+                while ($Text.IndexOf(' .') -ne -1)
+                {
+                    $Text = $Text.Replace(' .', '.')
+                }
                 $Lines = @()
                 if ($Text.Length -gt 0)
                 {
@@ -249,6 +261,10 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
             }
         'code'
             {
+                if ($Text.Length -gt $TextWidth)
+                {
+                    $Text = $Text.Substring(0, $TextWidth-3)+'...'
+                }
                 $Work.Output += @((' ' * $Indent)+$Text)
             }
         'sect'
@@ -390,11 +406,11 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
             }
             DisplayCollectionOfParagraphs 2 $parameter.Description.para
 
-            DisplayParagraph 2 comppara "Required?                    $Required"
-            DisplayParagraph 2 comppara "Position?                    $Position"
-            DisplayParagraph 2 comppara "Default value                $DefVal"
-            DisplayParagraph 2 comppara "Accept pipeline input?       $PipelineInput"
-            DisplayParagraph 2 comppara "Accept wildcard characters?  $Globbing"
+            DisplayParagraph 2 code "Required?                    $Required"
+            DisplayParagraph 2 code "Position?                    $Position"
+            DisplayParagraph 2 code "Default value                $DefVal"
+            DisplayParagraph 2 code "Accept pipeline input?       $PipelineInput"
+            DisplayParagraph 2 code "Accept wildcard characters?  $Globbing"
             DisplayParagraph 0 empty
         }
     }
