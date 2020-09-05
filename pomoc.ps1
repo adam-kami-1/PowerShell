@@ -257,8 +257,31 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
             $Para = $syntaxItem.name
             foreach ($parameter in $syntaxItem.parameter)
             {
-                $Para += ' '+'-'+$parameter.name
-                $Para += ' '+'<'+$parameter.type.name+'>'
+                $Required = $parameter.required -eq 'true'
+                $Position = $parameter.position -ne 'named'
+                $Para += ' '
+                if (-not $Required)
+                {
+                    $Para += '['
+                }
+                if ($Position)
+                {
+                    $Para += '['
+                }
+                $Para += '-'+$parameter.name
+                if ($Position)
+                {
+                    $Para += ']'
+                }
+                if ($parameter.type.name -ne 'System.Management.Automation.SwitchParameter')
+                {
+                    $Para += ' '
+                    $Para += '<'+$parameter.type.name+'>'
+                }
+                if (-not $Required)
+                {
+                    $Para += ']'
+                }
             }
             DisplayParagraph 1 hangpara $Para
         }
