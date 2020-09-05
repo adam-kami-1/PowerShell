@@ -51,7 +51,7 @@ param (
     #
     # For information about supporting this feature in help articles that you write, see about_Comment_Based_Help (./About/about_Comment_Based_Help.md), and Supporting Online Help (/powershell/scripting/developer/module/supporting-online-help), and Writing Help for PowerShell Cmdlets (/powershell/scripting/developer/help/writing-help-for-windows-powershell-cmdlets).
     [Parameter(ParameterSetName='Online', Mandatory=$true)]
-    [Switch] ${Online},
+    [System.Management.Automation.SwitchParameter] ${Online},
 
     # Displays the help topic in a window for easier reading. The window includes a Find search feature and a Settings box that lets you set options for the display, including options to display only selected sections of a help topic.
     #
@@ -59,15 +59,20 @@ param (
     #
     # This parameter was introduced in PowerShell 3.0.
     [Parameter(ParameterSetName='ShowWindow', Mandatory=$true)]
-    [Switch] ${ShowWindow},
-    
+    [System.Management.Automation.SwitchParameter] ${ShowWindow},
+
+    # Specifies the number of characters in each line of output. If this parameter is not used, the width is determined by the characteristics of the host. The default for the PowerShell console is 80 characters.
+    #
+    [Parameter(Mandatory=$false)]
+    [System.Int32] $Width,
+
     # Run my version of help
     [Parameter(Mandatory=$false)]
-    [Switch] $Test,
+    [System.Management.Automation.SwitchParameter] $Test,
 
     # If -Test then rescan help files
     [Parameter(Mandatory=$false)]
-    [Switch] $Rescan
+    [System.Management.Automation.SwitchParameter] $Rescan
 )
 
 
@@ -75,19 +80,19 @@ param (
 
 #    # Adds parameter descriptions and examples to the basic help display. This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
 #    [Parameter(ParameterSetName='DetailedView', Mandatory=$true)]
-#    [Switch] ${Detailed},
+#    [System.Management.Automation.SwitchParameter] ${Detailed},
 
 #    # Displays the entire help article for a cmdlet. Full includes parameter descriptions and attributes, examples, input and output object types, and additional notes.
 #    #
 #    # This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
 #    [Parameter(ParameterSetName='AllUsersView')]
-#    [Switch] ${Full},
+#    [System.Management.Automation.SwitchParameter] ${Full},
 
 #    # Displays only the name, synopsis, and examples. To display only the examples, type `(Get-Help <cmdlet-name>).Examples`.
 #    #
 #    # This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
 #    [Parameter(ParameterSetName='Examples', Mandatory=$true)]
-#    [Switch] ${Examples},
+#    [System.Management.Automation.SwitchParameter] ${Examples},
 
 #    # Displays only the detailed descriptions of the specified parameters. Wildcards are permitted. This parameter has no effect on displays of conceptual ( About_ ) help.
 #    [Parameter(ParameterSetName='Parameters', Mandatory=$true)]
@@ -162,52 +167,80 @@ Function VerCmp ( [System.String] $Version1, [System.String] $Version2 )
 # Displaying stuff
 #####################################################################
 
+$HelpInfo = @{
+    Items = @();
+    ItemIndex = @{};
+    Functions = @{};
+    Colors = @{};
+    Output = [System.String[]] @() }
+
+#Write-Host ($HelpInfo.Colors.F_Magenta+'PROBA'+$HelpInfo.Colors.F_Default)
+
+
 function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format, [System.String] $Text = '')
 {
-    $Indent = '    '
+    $Indent = 4 * $IndentLevel
+    $TextWidth = $Width-$Indent
     switch ($Format)
     {
         'empty'
             {
-                Write-Output ('')
+                $HelpInfo.Output += @('')
             }
         'para'
             {
-                Write-Output (($Indent * $IndentLevel)+$Text)
-                Write-Output ('')
+                $Para = $Text
+                $Lines = @()
+                while ($Para.Length -gt $TextWidth)
+                {
+                    $Line = $Para.Substring(0, $TextWidth)
+                    $NextLine = ''
+                    while ($Line.Substring($Line.Length-1, 1) -ne ' ')
+                    {
+                        $NextLine = $NextLine.Insert(0, $Line.Substring($Line.Length-1, 1))
+                        $Line = $Line.Substring(0, $Line.Length-1)
+                    }
+                    $Lines += @($Line.TrimEnd())
+                    $Para = $NextLine+$Para.Substring($TextWidth)
+
+                }
+                $Lines += @($Para)
+                foreach ($Line in $Lines)
+                {
+                    $HelpInfo.Output += @((' ' * $Indent)+$Line)
+                }
+                $HelpInfo.Output += @('')
             }
         'code'
             {
-                Write-Output (($Indent * $IndentLevel)+$Text)
+                $HelpInfo.Output += @((' ' * $Indent)+$Text)
             }
         'sect'
             {
-                Write-Output (($Indent * $IndentLevel)+$Text)
+                #Write-Host ($HelpInfo.Colors.F_Magenta+'TEST'+$HelpInfo.Colors.F_Default)
+                $HelpInfo.Output += @((' ' * $Indent)+$HelpInfo.Colors.F_Magenta+$Text+$HelpInfo.Colors.F_Default)
             }
         'subsect'
             {
-                Write-Output (($Indent * $IndentLevel)+$Text)
+                $HelpInfo.Output += @((' ' * $Indent)+$Text)
             }
     }
 } # DisplayParagraph #
 
 
-function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item )
+function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
+# [System.Collections.Hashtable] $Item )
 {
-    $XML = [System.Xml.XmlDocument](Get-Content $Item.File)
-    $command = ($XML.helpItems.command)[$Item.Index]
-
-    Write-Host ("Displaying file: "+$Item.File+" Item no: "+$Item.Index)
-    #Write-Host ("Item name: "+$Item.Name)
-    #Write-Host ("Synopsis: "+$Item.Synopsis)
-    #Write-Host ("Category: "+$Item.Category)
+    # Write-Host ("Item name: "+$Item.Name)
+    # Write-Host ("Synopsis: "+$Item.Synopsis)
+    # Write-Host ("Category: "+$Item.Category)
+    DisplayParagraph 0 empty
 
     DisplayParagraph 0 sect "NAME"
-    DisplayParagraph 1 para $Item.Name
+    DisplayParagraph 1 para $command.details.name
 
     DisplayParagraph 0 sect "SYNOPSIS"
-    DisplayParagraph 1 para $Item.Synopsis
-    # Synopsis = $command.details.description.para
+    DisplayParagraph 1 para $command.details.description.para
 
     DisplayParagraph 0 sect "SYNTAX"
     DisplayParagraph 1 para 'Syntax will be described later !!!'
@@ -312,7 +345,9 @@ function DisplayHelpItem ( [System.Collections.Hashtable] $Item )
             }
         "xml"
             {
-                DisplayXmlHelpFile $Item
+                # Write-Host ("Displaying file: "+$Item.File+" Item no: "+$Item.Index)
+                $XML = [System.Xml.XmlDocument](Get-Content $Item.File)
+                DisplayXmlHelpFile ($XML.helpItems.command)[$Item.Index]
             }
     }
 } # DisplayHelpItem #
@@ -322,8 +357,6 @@ function DisplayHelpItem ( [System.Collections.Hashtable] $Item )
 # File searching stuff
 #####################################################################
 
-
-$HelpInfo = @{ Items = @(); ItemIndex = @{}; Functions = @{} }
 
 function AddItem ( [System.Boolean] $MarkFunc, [System.Collections.Hashtable] $Item )
 {
@@ -568,7 +601,6 @@ function FindHelpFiles ()
 } # FindHelpFiles #
 
 
-
 #####################################################################
 # Main body
 #####################################################################
@@ -577,10 +609,10 @@ function FindHelpFiles ()
 #Set the outputencoding to Console::OutputEncoding. More.com doesn't work well with Unicode.
 #$outputEncoding=[System.Console]::OutputEncoding
 
-$Test = $true
+#$Test = $true
 #$Rescan = $true
 #$Name = 'Add-Computer'
-$Name = 'Get-Help'
+#$Name = 'Get-Help'
 #$Name = '*'
 
 
@@ -608,6 +640,62 @@ else
 
 ###########################################################
 
+if ($Width -eq 0)
+{
+    if ( $psISE -ne $null )
+    {
+        # This is PowerShell ISE
+        $Width = 80
+    }
+    else
+    {
+        $Width = [System.Console]::BufferWidth
+    }
+}
+if ($psISE -eq $null)
+{
+    $Esc=[char]0x1B;
+    $HelpInfo.Colors = @{
+        F_Default = "${Esc}[39m";
+        F_Black = "${Esc}[30m";
+        F_DarkRed = "${Esc}[31m";
+        F_DarkGreen = "${Esc}[32m";
+        F_DarkYellow = "${Esc}[33m";
+        F_DarkBlue = "${Esc}[34m";
+        F_DarkMagenta = "${Esc}[35m";
+        F_DarkCyan = "${Esc}[36m";
+        F_Gray = "${Esc}[37m";
+        F_DarkGray = "${Esc}[90m";
+        F_Red = "${Esc}[91m";
+        F_Green = "${Esc}[92m";
+        F_Yellow = "${Esc}[93m";
+        F_Blue = "${Esc}[94m";
+        F_Magenta = "${Esc}[95m";
+        F_Cyan = "${Esc}[96m";
+        F_White = "${Esc}[97m"}
+}
+else
+{
+    $HelpInfo.Colors = @{
+        F_Default = ''
+        F_Black = ''
+        F_DarkRed = ''
+        F_DarkGreen = ''
+        F_DarkYellow = ''
+        F_DarkBlue = ''
+        F_DarkMagenta = ''
+        F_DarkCyan = ''
+        F_Gray = ''
+        F_DarkGray = ''
+        F_Red = ''
+        F_Green = ''
+        F_Yellow = ''
+        F_Blue = ''
+        F_Magenta = ''
+        F_Cyan = ''
+        F_White = ''}
+}
+#Write-Host ($HelpInfo.Colors.F_Magenta+'PROBA'+$HelpInfo.Colors.F_Default)
 # Empty parameter $Name means: list all help items
 if ($Name -eq '')
 {
@@ -634,6 +722,11 @@ switch ($found.Count)
     1
         {
             DisplayHelpItem $HelpInfo.Items[$found[0]]
+            $HelpInfo.Output
+            #foreach ($line in $HelpInfo.Output)
+            #{
+            #    Write-Host $line
+            #}
         }
     default
         {
