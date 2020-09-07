@@ -30,7 +30,7 @@ param (
     # Specifies how many levels of the XML tree will be displayed. 0 means that only input element will be displayed. The default value is -1, meaning all objects.
     #
     [Parameter(Mandatory=$false)]
-    [ValidateRange(-1,500)]
+    [ValidateRange(-1,[System.Int32]::MaxValue)]
     [System.Int32] $Depth = -1,
 
     # If parameter is a System.String then it specifies the path to the XML file.
@@ -48,32 +48,55 @@ param (
     [ValidateNotNullOrEmpty()]
     [System.Management.Automation.PSObject] $InputObject = $null,
 
-    # Specifies the number of characters in each line of output. If this parameter is not used, the width is determined by the characteristics of the host. The default for the PowerShell console is 80 characters.
+    # Select format of XML tree elements connectors
     #
     [Parameter(Mandatory=$false)]
-    [ValidateRange(50,500)]
+    [ValidateSet('none', 'ascii', 'box')]
+    [System.String] $Tree = 'none',
+    
+    # Specifies the number of characters in each line of output. If this parameter is not used, the width is determined by the characteristics of the host..
+    #
+    [Parameter(Mandatory=$false)]
+    [ValidateRange(50,[System.Int32]::MaxValue)]
     [System.Int32] $Width = 0
 )
 
 if ($Width -eq 0)
 {
-    if ( $psISE -ne $null )
-    {
-        # This is PowerShell ISE
-        $Width = 80
-    }
-    else
-    {
-        $Width = [System.Console]::BufferWidth
-    }
+    $Width = [System.Console]::WindowWidth
 }
 $MaxWidth = $Width-1
-
-
-
-function DisplayXMLItem ( [System.Int32] $IndentLevel, $Item)
+if ($Depth -eq -1)
 {
-    if (($Depth -ne -1) -and ($IndentLevel -gt $Depth))
+    $Depth = [System.Int32]::MaxValue
+}
+switch ($Tree)
+{
+    'none'
+        {
+            $TreeChild = '    '
+            $TreeLast  = '    '
+            $TreeCont  = '    '
+        }
+    'ascii'
+        {
+            $TreeChild = '  +-'
+            $TreeLast  = '  +-'
+            $TreeCont  = '  | '
+        }
+    'box'
+        {
+            $TreeChild = '  ├─'
+            $TreeLast =  '  └─'
+            $TreeCont =  '  │ '
+        }
+}
+
+
+function DisplayXMLItem ( [System.String] $Indent, $Item)
+{
+    $IndentLevel = $Indent.Length / 4
+    if ($IndentLevel -gt $Depth)
     {
         return
     }
@@ -85,7 +108,18 @@ function DisplayXMLItem ( [System.Int32] $IndentLevel, $Item)
             {
                 ###############
                 # Name and type
-                Write-Output ('    '*$IndentLevel+$Item.LocalName+' <'+$Item.GetType().Name+'>')
+                Write-Output ($Indent+$Item.LocalName+' <'+$Item.GetType().Name+'>')
+                if (($Indent.Length -gt 0))
+                {
+                    if ($Item -eq $Item.ParentNode.LastChild)
+                    {
+                        $Indent = $Indent.Substring(0,$Indent.Length-4)+'    '
+                    }
+                    else
+                    {
+                        $Indent = $Indent.Substring(0,$Indent.Length-4)+$TreeCont
+                    }
+                }
 
                 ############
                 # Attributes
@@ -105,15 +139,23 @@ function DisplayXMLItem ( [System.Int32] $IndentLevel, $Item)
                 {
                     $Attributes = $Item.Attributes
                 }
+                if (($Item.FirstChild -eq $null) -or (($IndentLevel+1) -gt $Depth))
+                {
+                    $AttrIndent = '    '
+                }
+                else
+                {
+                    $AttrIndent = $TreeCont
+                }
                 foreach ($Attribute in $Attributes)
                 {
-                    $Width = $MaxWidth-('    '*($IndentLevel+2)).Length
+                    $Width = $MaxWidth-($Indent+$AttrIndent+'    ').Length
                     $Value = $Attribute.Name+'="'+$Attribute.Value+'"'
                     if ($Value.Length -gt ($Width-1))
                     {
                         $Value = $Value.Substring(0,$Width-3)+'..."'
                     }
-                    Write-Output ('    '*($IndentLevel+2)+$Value)
+                    Write-Output ($Indent+$AttrIndent+'    '+$Value)
                 }
 
                 ##########
@@ -122,13 +164,20 @@ function DisplayXMLItem ( [System.Int32] $IndentLevel, $Item)
                 {
                     for ($i = 0; $i -lt $Item.ChildNodes.Count; $i++)
                     {
-                        DisplayXMLItem ($IndentLevel+1) $Item.ChildNodes[$i]
+                        if ($i -eq ($Item.ChildNodes.Count-1))
+                        {
+                            DisplayXMLItem ($Indent+$TreeLast) $Item.ChildNodes[$i]
+                        }
+                        else
+                        {
+                            DisplayXMLItem ($Indent+$TreeChild) $Item.ChildNodes[$i]
+                        }
                     }
                 }
             }
         'System.Xml.XmlText'
             {
-                $Width = $MaxWidth-('    '*$IndentLevel).Length
+                $Width = $MaxWidth-$Indent.Length
                 $Pos = $Item.Value.IndexOf("`n")
                 if ($Pos -ne -1)
                 {
@@ -142,7 +191,7 @@ function DisplayXMLItem ( [System.Int32] $IndentLevel, $Item)
                 {
                     $Value = $Value.Substring(0,$Width-3)+'..."'
                 }
-                Write-Output ('    '*$IndentLevel+$Value)
+                Write-Output ($Indent+$Value)
             }
         default
             {
@@ -161,19 +210,19 @@ switch ($InputObject.GetType().FullName)
             if (Test-Path $InputObject)
             {
                 $XML = [System.Xml.XmlDocument](Get-Content $InputObject)
-                DisplayXMLItem 0 $XML
+                DisplayXMLItem '' $XML
             }
             else
             {
                 $XML = [System.Xml.XmlDocument]$InputObject
-                DisplayXMLItem 0 $XML
+                DisplayXMLItem '' $XML
             }
         }
     {($_ -eq 'System.Xml.XmlDocument') -or
      ($_ -eq 'System.Xml.XmlDeclaration') -or
      ($_ -eq 'System.Xml.XmlElement')}
         {
-            DisplayXMLItem 0 $InputObject
+            DisplayXMLItem '' $InputObject
         }
     default
         {
