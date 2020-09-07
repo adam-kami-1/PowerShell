@@ -168,13 +168,17 @@ Function VerCmp ( [System.String] $Version1, [System.String] $Version2 )
 #####################################################################
 
 $HelpInfo = @{
-    Items = @()
+    Items = @();
+    ItemIndex = @{}
     }
 
 $Work = @{
-    Colors = @{};
-    ItemIndex = @{};
+    # Used only during building $HelpInfo
     Functions = @{};
+
+    # Used only during displaying results
+    Colors = @{};
+    Links = @()
     Output = [System.String[]] @()
     }
 
@@ -261,11 +265,15 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
             }
         'code'
             {
-                if ($Text.Length -gt $TextWidth)
+                $Lines = $Text.Split("`n")
+                foreach ($Line in $Lines)
                 {
-                    $Text = $Text.Substring(0, $TextWidth-3)+'...'
+                    if ($Line.Length -gt $TextWidth)
+                    {
+                        $Line = $Line.Substring(0, $TextWidth-3)+'...'
+                    }
+                    $Work.Output += @((' ' * $Indent)+$Line)
                 }
-                $Work.Output += @((' ' * $Indent)+$Text)
             }
         'sect'
             {
@@ -281,6 +289,10 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
 
 function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel, [System.String[]] $collection )
 {
+    if (($collection.Count -eq 0) -or ($collection[0].Length -eq 0))
+    {
+        return
+    }
     $WasColon = $false
     foreach ($Para in $collection)
     {
@@ -400,10 +412,7 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
             $PipelineInput = $parameter.pipelineInput
             $Globbing = $parameter.globbing
             DisplayParagraph 1 comppara ('-'+$parameter.name+' <'+$parameter.type.name+'>')
-            if ($parameter.name -eq 'Online')
-            {
-                Write-Host 'Parameter -Online, mind second paragraph of description'
-            }
+
             DisplayCollectionOfParagraphs 2 $parameter.Description.para
 
             DisplayParagraph 2 code "Required?                    $Required"
@@ -453,18 +462,84 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
 
     # ========================================
     # Section EXAMPLES
-    DisplayParagraph 0 sect "EXAMPLES"
-    DisplayParagraph 1 para 'Parameters will be described later !!!'
+    if (($command.examples -ne $null) -and
+        ($command.examples.example -ne $null) -and
+        ($command.examples.example.Count -ne 0) -and
+        ($command.examples.example[0] -ne $null))
+    {
+        DisplayParagraph 0 sect "EXAMPLES"
+        foreach ($Example in $command.examples.example)
+        {
+            DisplayParagraph 1 para $Example.title
+            DisplayParagraph 2 code $Example.code
+            DisplayParagraph 2 empty
+            DisplayCollectionOfParagraphs 2 $Example.remarks.para
+        }
+    }
 
     # ========================================
     # Section RELATED LINKS
-    DisplayParagraph 0 sect "RELATED LINKS"
-    DisplayParagraph 1 para 'Related links will be described later !!!'
+    if (($command.relatedLinks -ne $null) -and
+        ($command.relatedLinks.navigationLink -ne $null) -and
+        ($command.relatedLinks.navigationLink.Count -ne 0) -and
+        ($command.relatedLinks.navigationLink[0] -ne $null))
+    {
+        DisplayParagraph 0 sect "RELATED LINKS"
+        $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
+        $Links = @()
+        $Line = $Work.Output.Count
+        foreach ($Link in $command.relatedLinks.navigationLink)
+        {
+            $LinkText = $Link.linkText
+            $URI = $Link.uri
+            if ($URI -ne '')
+            {
+                if (($URI.Substring(0,8) -ne 'https://') -and ($URI.Substr(0,7) -ne 'http://'))
+                {
+                    Write-Error "Unknown link for ${LinkText}: $URI"
+                }
+            }
+            else
+            {
+                if ($HelpInfo.ItemIndex[$LinkText] -ne $null)
+                {
+                    $URI = $HelpInfo.ItemIndex[$LinkText]
+                }
+                elseif ($LinkText.IndexOf(' ') -eq -1)
+                {
+                    $URI = "https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/${LinkText}"#?view=powershell-${version}"
+                }
+                else
+                {
+                    $Page = $LinkText.ToLower().Replace(' ', '-')
+                    $URI = "https://docs.microsoft.com/en-us/powershell/scripting/developer/help/${Page}"#?view=powershell-${version}"
+                }
+            }
+            $LinkEntry = @{LinkText = $LinkText; URI = $URI; Line = $Line}
+            $Work.Links += $LinkEntry
+            if ($URI -is [System.Int32])
+            {
+                $Links += @('* ['+$LinkText+']')
+            }
+            else
+            {
+                if ($LinkText.Substring($LinkText.Length-1,1) -eq ':')
+                {
+                    $LinkText = $LinkText.Substring(0,$LinkText.Length-1)
+                }
+                $Links += @('* '+$LinkText+': '+$URI)
+            }
+        }
+        DisplayCollectionOfParagraphs 1 $Links
+    }
 
     # ========================================
     # Section REMARKS
-    DisplayParagraph 0 sect "REMARKS"
-    DisplayParagraph 1 para 'Remarks will be described later !!!'
+    if ($false)
+    {
+        DisplayParagraph 0 sect "REMARKS"
+        DisplayParagraph 1 para 'Remarks will be described later !!!'
+    }
 } # DisplayXmlHelpFile #
 
 function DisplayTxtHelpFile ( [System.Collections.Hashtable] $Item )
@@ -529,6 +604,7 @@ function DisplayTxtHelpFile ( [System.Collections.Hashtable] $Item )
     }
 } # DisplayTxtHelpFile #
 
+
 function DisplayHelpItem ( [System.Collections.Hashtable] $Item )
 {
     switch ($Item.Format)
@@ -556,7 +632,7 @@ function AddItem ( [System.Boolean] $MarkFunc, [System.Collections.Hashtable] $I
 {
     # $Item = [pscustomobject]$I
     # Write-Host ("Adding Item "+$Item.Name)
-    if ($Work.ItemIndex[$Item.Name] -eq $null)
+    if ($HelpInfo.ItemIndex[$Item.Name] -eq $null)
     {
         if ($Work.Functions[$Item.Name] -ne $null)
         {
@@ -566,7 +642,7 @@ function AddItem ( [System.Boolean] $MarkFunc, [System.Collections.Hashtable] $I
                 $Work.Functions[$Item.Name] = $null
             }
         }
-        $Work.ItemIndex[$Item.Name] = $HelpInfo.Items.Count
+        $HelpInfo.ItemIndex[$Item.Name] = $HelpInfo.Items.Count
         $HelpInfo.Items += $Item
     }
 } # AddItem #
@@ -760,9 +836,9 @@ function FindHelpFiles ()
         {
             # Alias  $_.Name  ->  $_.Definition
             #
-            if ($Work.ItemIndex[$_.Definition] -ne $null)
+            if ($HelpInfo.ItemIndex[$_.Definition] -ne $null)
             {
-                $Item = $HelpInfo.Items[$Work.ItemIndex[$_.Definition]]
+                $Item = $HelpInfo.Items[$HelpInfo.ItemIndex[$_.Definition]]
                 AddItem $true @{Name = $_.Name;
                                 ModuleName = $Item.ModuleName;
                                 File = $Item.File;
