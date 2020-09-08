@@ -80,15 +80,15 @@ switch ($Tree)
         }
     'ascii'
         {
-            $TreeChild = '  +-'
-            $TreeLast  = '  +-'
-            $TreeCont  = '  | '
+            $TreeChild = '+---'
+            $TreeLast  = '+---'
+            $TreeCont  = '|   '
         }
     'box'
         {
-            $TreeChild = '  ├─'
-            $TreeLast =  '  └─'
-            $TreeCont =  '  │ '
+            $TreeChild = '├───'
+            $TreeLast =  '└───'
+            $TreeCont =  '│   '
         }
 }
 
