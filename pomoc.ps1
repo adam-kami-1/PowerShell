@@ -650,6 +650,10 @@ function AddItem ( [System.Boolean] $MarkFunc, [System.Collections.Hashtable] $I
 
 function CheckTxtHelpFiles ( [System.String] $ModuleName, [System.String] $Path )
 {
+    if ( -not (Test-Path -Path $Path -PathType Container))
+    {
+        return
+    }
     $Files = (Get-ChildItem $Path\*.help.txt).Name
     if ($Files.Count -gt 0)
     {
@@ -721,6 +725,10 @@ function CheckXMLFile ( [System.Collections.Hashtable] $LocalFuncs, [System.Stri
 
 function CheckXmlHelpFiles ( [System.String[]] $LocalFunctions, [System.String] $ModuleName, [System.String] $Path, [System.String] $Pattern )
 {
+    if ( -not (Test-Path -Path $Path -PathType Container))
+    {
+        return
+    }
     $LocalFuncs = @{}
     if ($LocalFunctions -ne $null)
     {
@@ -782,7 +790,7 @@ function CheckModule ( [System.String] $Path, [System.String] $ModuleName, [Syst
         $Path = "$Path\$ModuleName\$Version"
     }
     $LocalFuncs = @()
-    if (Test-Path "$Path\$ModuleName.psd1")
+    if (Test-Path -Path "$Path\$ModuleName.psd1")
     {
         $LocalFuncs = (Import-PowerShellDataFile -Path "$Path\$ModuleName.psd1" -ErrorAction SilentlyContinue).FunctionsToExport
     }
@@ -897,14 +905,14 @@ if (-not $Test)
 
 ###########################################################
 # Find all *.help.txt and  *.dll-help.xml files HelpFiles
-if ((Test-Path $env:HOME\.PS-pomoc.xml) -and -not $Rescan)
+if ((Test-Path -Path $env:USERPROFILE\.PS-pomoc.xml) -and -not $Rescan)
 {
-    $HelpInfo = Import-Clixml -Path $env:HOME\.PS-pomoc.xml
+    $HelpInfo = Import-Clixml -Path $env:USERPROFILE\.PS-pomoc.xml
 }
 else
 {
     FindHelpFiles
-    Export-Clixml -Path $env:HOME\.PS-pomoc.xml -Encoding UTF8 -InputObject $HelpInfo
+    Export-Clixml -Path $env:USERPROFILE\.PS-pomoc.xml -Encoding UTF8 -InputObject $HelpInfo
 }
 
 
