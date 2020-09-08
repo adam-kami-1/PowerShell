@@ -552,66 +552,133 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
     }
 } # DisplayXmlHelpFile #
 
+
+function AddNextLinesToNewChild ( [System.Xml.XmlDocument] $XML, 
+                                  [System.Xml.XmlElement] $Parent, 
+                                  [System.String] $ChildName,
+                                  [System.String] $Text)
+{                
+    $Text = $Text.Substring($Text.IndexOf("`n")+1)
+    $Text = $Text.Replace("`n", ' ')
+    $Child = $XML.CreateElement($ChildName)
+    $Child.Set_innerText($Text)
+    $Child = $Parent.AppendChild($Child)
+} # AddNextLinesToNewChild #
+
+
 function DisplayTxtHelpFile ( [System.Collections.Hashtable] $Item )
 {
-    $Help = Get-Content $Item.File
-    Write-Host "Help File"$Item.File"contains"$Help.Count"lines"
-    $Paragraph = @()
-    $para = ''
-    $LineNo = 0
-    while ($LineNo -lt $Help.Count)
+    # Convert contents of the HelpFile into array of paragraphs
+    $File = Get-Content $Item.File
+    $Paragraphs = @()
+    $Paragraph = ''
+    foreach ($Line in $File)
     {
-        $Line = $Help[$LineNo]
         if ($Line -ne '')
         {
-            if ($para -eq '')
+            if ($Paragraph -eq '')
             {
-                $para = $Line
+                $Paragraph = $Line
             }
             else
             {
-                $para += "`n"+$Line
+                $Paragraph += "`n"+$Line
             }
         }
-        elseif ($para -ne '')
+        elseif ($Paragraph -ne '')
         {
-            $Paragraph += $para
-            $para = ''
+            $Paragraphs += $Paragraph
+            $Paragraph = ''
         }
-        $LineNo++
     }
-    Write-Host "It contains"$Paragraph.Count"paragraphs"
+    Clear-Variable File
+
+    # Convert file name into help item name
     $DisplayName = $Item.Name.Replace('_', ' ')
     $DisplayName = ToCamelCase $DisplayName
-    Write-Host "Its name is $DisplayName"
-    for ($LineNo = 0; $LineNo -lt $Paragraph.Count; $LineNo++)
+    
+
+    # parse paragraphs converting them into MAML like XML object
+    $XML = [System.Xml.XmlDocument]'<?xml version="1.0" encoding="utf-8"?><helpItems />'
+    $Command = $XML.ChildNodes[1].AppendChild($XML.CreateElement('command'))
+    $CurrentSection = ''
+    foreach ($Paragraph in $Paragraphs)
     {
-        $Line = $Paragraph[$LineNo]
-        switch -Regex ($Line.Trim())
+        switch -Regex ($Paragraph.Trim())
         {
-            '^SHORT DESCRIPTION$'
+            "^(TOPIC|$DisplayName)"
                 {
-                    Write-Host -ForegroundColor Magenta "SYNOPSIS"
+                    # Found TOPIC or item name. Put it into XML ignoring value in file.
+                    $Details = $Command.AppendChild($XML.CreateElement('details'))
+                    $Name = $Details.AppendChild($XML.CreateElement('name'))
+                    $Name.Set_innerText($DisplayName)
+                    $CurrentSection = 'NAME'
                 }
-            '^LONG DESCRIPTION$'
+            '^SHORT DESCRIPTION'
                 {
-                    Write-Host -ForegroundColor Magenta "DESCRIPTION"
+                    if ($XML.helpItems.command.details -eq $null)
+                    {
+                        # There was no TOPIC nor item name. Put name into XML.
+                        $Details = $Command.AppendChild($XML.CreateElement('details'))
+                        $Name = $Details.AppendChild($XML.CreateElement('name'))
+                        $Name.Set_innerText($DisplayName)
+                    }
+                    if ($Paragraph.IndexOf("`n") -ne -1)
+                    {
+                        # SHORT DESCRIPTION and synopsis are in one paragraph, but in two lines.
+                        # Extract synopsis and put it into XML.
+                        $Description = $Details.AppendChild($XML.CreateElement('description'))
+                        AddNextLinesToNewChild $XML $Description 'para' $Paragraph
+                    }
+                    $CurrentSection = 'SYNOPSIS'
                 }
-            "^(TOPIC|$DisplayName)`$"
+            '^(LONG|DETAILED) DESCRIPTION'
                 {
-                    Write-Host -ForegroundColor Magenta "NAME"
-                    Write-Host "    $DisplayName"
+                    #Write-Host -ForegroundColor Magenta "DESCRIPTION"
+                    $Description = $Command.AppendChild($XML.CreateElement('description'))
+                    if ($Paragraph.IndexOf("`n") -ne -1)
+                    {
+                        AddNextLinesToNewChild $XML $Description 'para' $Paragraph
+                    }
+                    $CurrentSection = 'DESCRIPTION'
                 }
-            '^SEE ALSO$'
+            '^SEE ALSO'
                 {
-                    Write-Host -ForegroundColor Magenta "RELATED LINKS"
+                    #Write-Host -ForegroundColor Magenta "RELATED LINKS"
                 }
             default
                 {
-                    #Write-Host $Line
+                    #Write-Host $Paragraph
+                    switch ($CurrentSection)
+                    {
+                        {($_ -eq 'NAME') -or
+                         ($_ -eq 'SYNOPSIS')}
+                            {
+                                if ($XML.helpItems.command.details -eq $null)
+                                {
+                                    # There was no TOPIC nor item name. Put name into XML.
+                                    $Details = $Command.AppendChild($XML.CreateElement('details'))
+                                    $Name = $Details.AppendChild($XML.CreateElement('name'))
+                                    $Name.Set_innerText($DisplayName)
+                                }
+                                if ($XML.helpItems.command.details.description -eq $null)
+                                {
+                                    # The synopsis was separated with empty line from SHORT DESCRIPTION.
+                                    $Description = $Details.AppendChild($XML.CreateElement('description'))
+                                    $Para = $Description.AppendChild($XML.CreateElement('para'))
+                                    $Para.Set_innerText($Paragraph.Replace("`n", ' '))
+                                }
+                                else
+                                {
+                                    Write-Error "SYNOPSIS can contain only one paragraph. Can be caused by missing LONG DESCRIPTION"
+                                }
+                            }
+                    }
                 }
         }
     }
+    show-XML.ps1 $XML -Tree box
+    DisplayXmlHelpFile $XML.ChildNodes[1].ChildNodes[0]
 } # DisplayTxtHelpFile #
 
 
@@ -897,11 +964,12 @@ function FindHelpFiles ()
 #Set the outputencoding to Console::OutputEncoding. More.com doesn't work well with Unicode.
 #$outputEncoding=[System.Console]::OutputEncoding
 
-#$Test = $true
+$Test = $true
 #$Rescan = $true
 #$Name = 'Add-Computer'
 #$Name = 'Get-Help'
 #$Name = '*'
+#$Name = 'about_do'
 
 
 ###########################################################
@@ -930,15 +998,7 @@ else
 
 if ($Width -eq 0)
 {
-    if ( $psISE -ne $null )
-    {
-        # This is PowerShell ISE
-        $Width = 80
-    }
-    else
-    {
-        $Width = [System.Console]::BufferWidth
-    }
+    $Width = [System.Console]::WindowWidth
 }
 if ($psISE -eq $null)
 {
