@@ -296,6 +296,10 @@ function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel, [System.St
     $WasColon = $false
     foreach ($Para in $collection)
     {
+        if ($Para.Length -eq 0)
+        {
+            continue
+        }
         if (-not $WasColon)
         {
             if ($Para.Substring($Para.Length-1, 1) -eq ':')
@@ -320,6 +324,7 @@ function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel, [System.St
             else
             {
                 # End of the list
+                DisplayParagraph $IndentLevel empty
                 $WasColon = $false
                 # Regular paragraph
                 DisplayParagraph $IndentLevel para $Para
