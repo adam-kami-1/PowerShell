@@ -416,6 +416,7 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
             $DefVal = $parameter.defaultValue
             $PipelineInput = $parameter.pipelineInput
             $Globbing = $parameter.globbing
+            $Aliases = $parameter.aliases
             DisplayParagraph 1 comppara ('-'+$parameter.name+' <'+$parameter.type.name+'>')
 
             DisplayCollectionOfParagraphs 2 $parameter.Description.para
@@ -425,6 +426,10 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
             DisplayParagraph 2 code "Default value                $DefVal"
             DisplayParagraph 2 code "Accept pipeline input?       $PipelineInput"
             DisplayParagraph 2 code "Accept wildcard characters?  $Globbing"
+            if (($Aliases -ne '') -and ($Aliases -ne 'none'))
+            {
+                DisplayParagraph 2 code "Aliases                      $Aliases"
+            }
             DisplayParagraph 0 empty
         }
     }
