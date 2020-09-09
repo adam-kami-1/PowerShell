@@ -21,7 +21,7 @@ param (
     #
     # The names of conceptual articles, such as `about_Objects`, must be entered in English, even in non-English versions of PowerShell.
     [Parameter(Position=0, ValueFromPipelineByPropertyName=$true)]
-    [System.String] $Name = '',
+    [System.String] $Name = 'default',
 
     # Gets help that explains how the cmdlet works in the specified provider path. Enter a PowerShell provider path.
     #
@@ -341,7 +341,7 @@ function BuildLinkValue ( [System.String] $LinkText, [System.String] $URI)
 {
     if ($URI -ne '')
     {
-        if (($URI.Substring(0,8) -ne 'https://') -and ($URI.Substr(0,7) -ne 'http://'))
+        if (($URI.Substring(0,8) -ne 'https://') -and ($URI.Substring(0,7) -ne 'http://'))
         {
             Write-Error "Unknown link for ${LinkText}: $URI"
         }
@@ -562,16 +562,21 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
 } # DisplayXmlHelpFile #
 
 
-function AddNextLinesToNewChild ( [System.Xml.XmlDocument] $XML, 
-                                  [System.Xml.XmlElement] $Parent, 
-                                  [System.String] $ChildName,
-                                  [System.String] $Text)
+function AddLinesToNewChild ( [System.Xml.XmlDocument] $XML, 
+                              [System.Xml.XmlElement] $Parent, 
+                              [System.String] $ChildName,
+                              [System.Int32] $SkipLines,
+                              [System.String] $Paragraph)
 {                
-    $Text = $Text.Substring($Text.IndexOf("`n")+1)
-    $Text = $Text.Replace("`n", ' ')
+    while (($SkipLines -gt 0) -and ($Paragraph.IndexOf("`n") -gt 0))
+    {
+        $Paragraph = $Paragraph.Substring($Paragraph.IndexOf("`n")+1)
+        $SkipLines--
+    }
+    $Paragraph = $Paragraph.Replace("`n", ' ')
     $Child = $Parent.AppendChild($XML.CreateElement($ChildName))
-    $Child.Set_innerText($Text)
-} # AddNextLinesToNewChild #
+    $Child.Set_innerText($Paragraph)
+} # AddLinesToNewChild #
 
 function AddNavigationLink ( [System.Xml.XmlDocument] $XML, 
                              [System.Xml.XmlElement] $Parent,
@@ -582,12 +587,68 @@ function AddNavigationLink ( [System.Xml.XmlDocument] $XML,
     {
         $Line = $Line.Substring(1).Trim()
     }
-    $NavigationLink = $Parent.AppendChild($XML.CreateElement('navigationLink'))
-    $LinkText = $NavigationLink.AppendChild($XML.CreateElement('LinkText'))
-    $LinkText.Set_innerText($Line)
-    $Uri = $NavigationLink.AppendChild($XML.CreateElement('uri'))
-    #$Uri.Set_innerText('')
-}
+    if ($Line.Length -lt 1)
+    {
+        return
+    }
+    # Line could be in a form:
+    # Link Text (http://...)
+    # or
+    # "Link Text" (http://...)
+    # or
+    # Link Text (https://...)
+    # or
+    # "Link Text" (https://...)
+    # or
+    # Link Text
+    if ($Line -like '*(http*')
+    {
+        $Text = ($Line -replace '^ *(.*) *\((https?://.*)\)$', '$1').Trim('" ')
+        $Url = ($Line -replace '^ *(.*) *\((https?://.*)\)$', '$2').Trim()
+    }
+    elseif ($Line -like '*http*')
+    {
+        $Text = ($Line -replace '^ *(.*) *(https?://.*)$', '$1').Trim('" ')
+        $Url = ($Line -replace '^ *(.*) *(https?://.*)$', '$2').Trim()
+    }
+    else
+    {
+        $Text = $Line
+        $Url = ''
+    }
+    if (($Url -ne '') -and ($Text -eq '') -and ($Parent.LastChild -ne $null) -and ($Parent.LastChild.uri -eq ''))
+    {
+        # LinkText and uri are splitted into two lines, so add uri
+        # to the previous navigationLink
+        $Parent.LastChild.ChildNodes[1].Set_innerText($Url)
+    }
+    else
+    {
+        $NavigationLink = $Parent.AppendChild($XML.CreateElement('navigationLink'))
+        $LinkText = $NavigationLink.AppendChild($XML.CreateElement('LinkText'))
+        $LinkText.Set_innerText($Text)
+        $Uri = $NavigationLink.AppendChild($XML.CreateElement('uri'))
+        $Uri.Set_innerText($Url)
+    }
+} # AddNavigationLink #
+
+
+function AddLinesToRelatedLinks ( [System.Xml.XmlDocument] $XML, 
+                                  [System.Xml.XmlElement] $RelatedLinks,
+                                  [System.Int32] $SkipLines,
+                                  [System.String] $Paragraph)
+{                
+    while (($SkipLines -gt 0) -and ($Paragraph.IndexOf("`n") -gt 0))
+    {
+        $Paragraph = $Paragraph.Substring($Paragraph.IndexOf("`n")+1)
+        $SkipLines--
+    }
+    $Lines = $Paragraph.Split("`n")
+    foreach ($Line in $Lines)
+    {
+        AddNavigationLink $XML $RelatedLinks $Line
+    }
+} # AddLinesToRelatedLinks #
 
 
 function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
@@ -656,7 +717,7 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
                         # SHORT DESCRIPTION and synopsis are in one paragraph, but in two lines.
                         # Extract synopsis and put it into XML.
                         $Description = $Details.AppendChild($XML.CreateElement('description'))
-                        AddNextLinesToNewChild $XML $Description 'para' $Paragraph
+                        AddLinesToNewChild $XML $Description 'para' 1 $Paragraph
                     }
                     $CurrentSection = 'SYNOPSIS'
                 }
@@ -665,19 +726,22 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
                     $Description = $Command.AppendChild($XML.CreateElement('description'))
                     if ($Paragraph.IndexOf("`n") -ne -1)
                     {
-                        AddNextLinesToNewChild $XML $Description 'para' $Paragraph
+                        AddLinesToNewChild $XML $Description 'para' 1 $Paragraph
                     }
                     $CurrentSection = 'DESCRIPTION'
                 }
             '^SEE ALSO'
                 {
                     $RelatedLinks = $Command.AppendChild($XML.CreateElement('relatedLinks'))
-                    $NavigationLink = $RelatedLinks.AppendChild($XML.CreateElement('navigationLink'))
-                    $LinkText = $NavigationLink.AppendChild($XML.CreateElement('LinkText'))
-                    $LinkText.Set_innerText('Online Version:')
-                    $Uri = $NavigationLink.AppendChild($XML.CreateElement('uri'))
-                    $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
-                    $Uri.Set_innerText("https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/$($Item.Name.ToLower())?view=powershell-$version")
+                    if ($Item.Name -ne 'default')
+                    {
+                        $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
+                        AddNavigationLink $XML $RelatedLinks ('Online Version: '+"https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/$($Item.Name.ToLower())?view=powershell-$version")
+                    }
+                    if ($Paragraph.IndexOf("`n") -gt 0)
+                    {
+                        AddLinesToRelatedLinks $XML $RelatedLinks 1 $Paragraph
+                    }
                     $CurrentSection = 'RELATED LINKS'
                 }
             default
@@ -715,11 +779,7 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
                                 }
                                 else
                                 {
-                                    $Lines = $Paragraph.Split("`n")
-                                    foreach ($Line in $Lines)
-                                    {
-                                        AddNavigationLink $XML $RelatedLinks $Line
-                                    }
+                                    AddLinesToRelatedLinks $XML $RelatedLinks 0 $Paragraph
                                 }
                             }
                     }
@@ -1084,11 +1144,6 @@ else
         Parameter = '';
         Default = '';
         }
-}
-# Empty parameter $Name means: list all help items
-if ($Name -eq '')
-{
-    $Name = '*'
 }
 $found = @()
 for ($i = 0; $i -lt $HelpInfo.Items.Count; $i++)
