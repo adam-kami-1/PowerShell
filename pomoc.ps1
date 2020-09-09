@@ -178,7 +178,6 @@ $Work = @{
 
     # Used only during displaying results
     Colors = @{};
-    Links = @()
     Output = [System.String[]] @()
     }
 
@@ -338,6 +337,48 @@ function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel, [System.St
 } # DisplayCollectionOfParagraphs #
 
 
+function BuildLinkValue ( [System.String] $LinkText, [System.String] $URI)
+{
+    if ($URI -ne '')
+    {
+        if (($URI.Substring(0,8) -ne 'https://') -and ($URI.Substr(0,7) -ne 'http://'))
+        {
+            Write-Error "Unknown link for ${LinkText}: $URI"
+        }
+    }
+    else
+    {
+        $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
+        if ($HelpInfo.ItemIndex[$LinkText] -ne $null)
+        {
+            $URI = $HelpInfo.ItemIndex[$LinkText]
+        }
+        elseif ($LinkText.IndexOf(' ') -eq -1)
+        {
+            $URI = "https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/${LinkText}"#?view=powershell-$version"
+        }
+        else
+        {
+            $Page = $LinkText.ToLower().Replace(' ', '-')
+            $URI = "https://docs.microsoft.com/en-us/powershell/scripting/developer/help/${Page}"#?view=powershell-$version"
+        }
+    }
+    if ($URI -match '^[0-9]+$')
+    {
+        $LinkValue = '['+$LinkText+']'
+    }
+    else
+    {
+        if ($LinkText.Substring($LinkText.Length-1,1) -eq ':')
+        {
+            $LinkText = $LinkText.Substring(0,$LinkText.Length-1)
+        }
+        $LinkValue = $LinkText+': '+$URI
+    }
+    return $LinkValue
+} # BuildLinkValue #
+
+
 function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
 {
     DisplayParagraph 0 empty
@@ -490,55 +531,23 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
     # ========================================
     # Section RELATED LINKS
     if (($command.relatedLinks -ne $null) -and
-        ($command.relatedLinks.navigationLink -ne $null) -and
-        ($command.relatedLinks.navigationLink.Count -ne 0) -and
-        ($command.relatedLinks.navigationLink[0] -ne $null))
+        ($command.relatedLinks.navigationLink -ne $null))
     {
         DisplayParagraph 0 sect "RELATED LINKS"
-        $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
         $Links = @()
-        $Line = $Work.Output.Count
-        foreach ($Link in $command.relatedLinks.navigationLink)
+        if (($command.relatedLinks.navigationLink -is [System.Object[]]) -and
+            ($command.relatedLinks.navigationLink.Count -gt 0))
         {
-            $LinkText = $Link.linkText
-            $URI = $Link.uri
-            if ($URI -ne '')
+            foreach ($NavigationLink in $command.relatedLinks.navigationLink)
             {
-                if (($URI.Substring(0,8) -ne 'https://') -and ($URI.Substr(0,7) -ne 'http://'))
-                {
-                    Write-Error "Unknown link for ${LinkText}: $URI"
-                }
+                $LinkValue = BuildLinkValue $NavigationLink.linkText $NavigationLink.uri
+                $Links += @('* '+$LinkValue)
             }
-            else
-            {
-                if ($HelpInfo.ItemIndex[$LinkText] -ne $null)
-                {
-                    $URI = $HelpInfo.ItemIndex[$LinkText]
-                }
-                elseif ($LinkText.IndexOf(' ') -eq -1)
-                {
-                    $URI = "https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/${LinkText}"#?view=powershell-${version}"
-                }
-                else
-                {
-                    $Page = $LinkText.ToLower().Replace(' ', '-')
-                    $URI = "https://docs.microsoft.com/en-us/powershell/scripting/developer/help/${Page}"#?view=powershell-${version}"
-                }
-            }
-            $LinkEntry = @{LinkText = $LinkText; URI = $URI; Line = $Line}
-            $Work.Links += $LinkEntry
-            if ($URI -is [System.Int32])
-            {
-                $Links += @('* ['+$LinkText+']')
-            }
-            else
-            {
-                if ($LinkText.Substring($LinkText.Length-1,1) -eq ':')
-                {
-                    $LinkText = $LinkText.Substring(0,$LinkText.Length-1)
-                }
-                $Links += @('* '+$LinkText+': '+$URI)
-            }
+        }
+        else
+        {
+            $LinkValue = BuildLinkValue $command.relatedLinks.navigationLink.linkText $command.relatedLinks.navigationLink.uri
+            $Links += @('* '+$LinkValue)
         }
         DisplayCollectionOfParagraphs 1 $Links
     }
@@ -560,13 +569,28 @@ function AddNextLinesToNewChild ( [System.Xml.XmlDocument] $XML,
 {                
     $Text = $Text.Substring($Text.IndexOf("`n")+1)
     $Text = $Text.Replace("`n", ' ')
-    $Child = $XML.CreateElement($ChildName)
+    $Child = $Parent.AppendChild($XML.CreateElement($ChildName))
     $Child.Set_innerText($Text)
-    $Child = $Parent.AppendChild($Child)
 } # AddNextLinesToNewChild #
 
+function AddNavigationLink ( [System.Xml.XmlDocument] $XML, 
+                             [System.Xml.XmlElement] $Parent,
+                             [System.String] $Line)
+{
+    $Line = $Line.Trim()
+    if ($Line.Substring(0,1) -eq '-')
+    {
+        $Line = $Line.Substring(1).Trim()
+    }
+    $NavigationLink = $Parent.AppendChild($XML.CreateElement('navigationLink'))
+    $LinkText = $NavigationLink.AppendChild($XML.CreateElement('LinkText'))
+    $LinkText.Set_innerText($Line)
+    $Uri = $NavigationLink.AppendChild($XML.CreateElement('uri'))
+    #$Uri.Set_innerText('')
+}
 
-function DisplayTxtHelpFile ( [System.Collections.Hashtable] $Item )
+
+function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
 {
     # Convert contents of the HelpFile into array of paragraphs
     $File = Get-Content $Item.File
@@ -590,6 +614,10 @@ function DisplayTxtHelpFile ( [System.Collections.Hashtable] $Item )
             $Paragraphs += $Paragraph
             $Paragraph = ''
         }
+    }
+    if ($Paragraph -ne '')
+    {
+        $Paragraphs += $Paragraph
     }
     Clear-Variable File
 
@@ -634,7 +662,6 @@ function DisplayTxtHelpFile ( [System.Collections.Hashtable] $Item )
                 }
             '^(LONG|DETAILED) DESCRIPTION'
                 {
-                    #Write-Host -ForegroundColor Magenta "DESCRIPTION"
                     $Description = $Command.AppendChild($XML.CreateElement('description'))
                     if ($Paragraph.IndexOf("`n") -ne -1)
                     {
@@ -644,7 +671,14 @@ function DisplayTxtHelpFile ( [System.Collections.Hashtable] $Item )
                 }
             '^SEE ALSO'
                 {
-                    #Write-Host -ForegroundColor Magenta "RELATED LINKS"
+                    $RelatedLinks = $Command.AppendChild($XML.CreateElement('relatedLinks'))
+                    $NavigationLink = $RelatedLinks.AppendChild($XML.CreateElement('navigationLink'))
+                    $LinkText = $NavigationLink.AppendChild($XML.CreateElement('LinkText'))
+                    $LinkText.Set_innerText('Online Version:')
+                    $Uri = $NavigationLink.AppendChild($XML.CreateElement('uri'))
+                    $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
+                    $Uri.Set_innerText("https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/$($Item.Name.ToLower())?view=powershell-$version")
+                    $CurrentSection = 'RELATED LINKS'
                 }
             default
                 {
@@ -673,13 +707,27 @@ function DisplayTxtHelpFile ( [System.Collections.Hashtable] $Item )
                                     Write-Error "SYNOPSIS can contain only one paragraph. Can be caused by missing LONG DESCRIPTION"
                                 }
                             }
+                        'RELATED LINKS'
+                            {
+                                if ($Paragraph.IndexOf("`n") -eq -1)
+                                {
+                                    AddNavigationLink $XML $RelatedLinks $Paragraph
+                                }
+                                else
+                                {
+                                    $Lines = $Paragraph.Split("`n")
+                                    foreach ($Line in $Lines)
+                                    {
+                                        AddNavigationLink $XML $RelatedLinks $Line
+                                    }
+                                }
+                            }
                     }
                 }
         }
     }
-    show-XML.ps1 $XML -Tree box
-    DisplayXmlHelpFile $XML.ChildNodes[1].ChildNodes[0]
-} # DisplayTxtHelpFile #
+    return $XML
+} # ParseTxtHelpFile #
 
 
 function DisplayHelpItem ( [System.Collections.Hashtable] $Item )
@@ -688,7 +736,9 @@ function DisplayHelpItem ( [System.Collections.Hashtable] $Item )
     {
         "txt"
             {
-                DisplayTxtHelpFile $Item
+                $XML = ParseTxtHelpFile $Item
+                show-XML.ps1 $XML -Tree box
+                DisplayXmlHelpFile $XML.ChildNodes[1].ChildNodes[0]
             }
         "xml"
             {
