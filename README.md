@@ -15,7 +15,9 @@ Display the contents of XML file.
 
 ### Syntax
 
+```PowerShell
 Show-Xml.ps1 [-Depth <Int32>] [-InputObject] <PSObject> [-Tree <String>] [-Width <Int32>] [<CommonParameters>]
+````
 
 
 
@@ -40,7 +42,7 @@ Set of usefull functions.
 
 To be loaded in a profile:
 
-``` PowerShell
+```PowerShell
 . ...\Library.ps1
 ```
 
@@ -99,7 +101,7 @@ Some argue that archeologists have discovered 'more' between ancient Egyptian ar
 Version of less.exe available with Git for Windows from https://git-scm.com/ works pretty well
 under PowerShell. To use it under PowerShell you need to define an alias
 
-``` PowerShell
+```PowerShell
 New-Alias less 'C:\Git\usr\bin\less.exe'
 ```
 
@@ -107,12 +109,14 @@ The above example assumes that Git was installed in `C:\Git`.
 
 If you have not defined it in Windows environment you can define also an environment variable:
 
-``` PowerShell
+```PowerShell
 $env:LESS = '-MRi'
 ```
 
 M - Causes less to prompt even more verbosely than more.
+
 R - ANSI "color" escape sequences are output in "raw" form.
+
 i - Causes searches to ignore case. If a pattern contains uppercase letters, then that search does not ignore case.
 
 
