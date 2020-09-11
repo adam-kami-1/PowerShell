@@ -583,6 +583,10 @@ function AddNavigationLink ( [System.Xml.XmlDocument] $XML,
                              [System.String] $Line)
 {
     $Line = $Line.Trim()
+    if ($Line.Length -lt 1)
+    {
+        return
+    }
     if ($Line.Substring(0,1) -eq '-')
     {
         $Line = $Line.Substring(1).Trim()
@@ -733,10 +737,9 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
             '^SEE ALSO'
                 {
                     $RelatedLinks = $Command.AppendChild($XML.CreateElement('relatedLinks'))
-                    if ($Item.Name -ne 'default')
+                    if ($Item.OnlineURI -ne '')
                     {
-                        $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
-                        AddNavigationLink $XML $RelatedLinks ('Online Version: '+"https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/$($Item.Name.ToLower())?view=powershell-$version")
+                        AddNavigationLink $XML $RelatedLinks ('Online Version: '+$Item.OnlineURI)
                     }
                     if ($Paragraph.IndexOf("`n") -gt 0)
                     {
@@ -768,7 +771,7 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
                                 }
                                 else
                                 {
-                                    Write-Error "SYNOPSIS can contain only one paragraph. Can be caused by missing LONG DESCRIPTION"
+                                    Write-Error "ERROR: SYNOPSIS for $DisplayName can contain only one paragraph. Can be caused by missing LONG DESCRIPTION"
                                 }
                             }
                         'RELATED LINKS'
@@ -797,7 +800,7 @@ function DisplayHelpItem ( [System.Collections.Hashtable] $Item )
         "txt"
             {
                 $XML = ParseTxtHelpFile $Item
-                show-XML.ps1 $XML -Tree box
+                #show-XML.ps1 $XML -Tree box
                 DisplayXmlHelpFile $XML.ChildNodes[1].ChildNodes[0]
             }
         "xml"
@@ -835,6 +838,68 @@ function AddItem ( [System.Boolean] $MarkFunc, [System.Collections.Hashtable] $I
 } # AddItem #
 
 
+$TxtHelpFileModule = @{
+    'about_ActivityCommonParameters'       = 'PSWorkflow'
+    'about_Certificate_Provider'           = 'Microsoft.PowerShell.Security'
+    'about_Checkpoint-Workflow'            = 'PSWorkflow'
+    'about_Classes_and_DSC'                = 'PSDesiredStateConfiguration'
+    'about_Escape_Characters'              = 'drop it !!!' # there is about_Special_Characters
+    'about_ForEach-Parallel'               = 'PSWorkflow'
+    'about_InlineScript'                   = 'PSWorkflow'
+    'about_PSReadline'                     = 'PSReadLine'
+    'about_Parallel'                       = 'PSWorkflow'
+    'about_Parsing_LocTest'                = 'drop it !!!' # there is about_Parsing
+    'about_PowerShell.exe'                 = 'drop it !!!' # there is newer about_PowerShell_exe
+    'about_PowerShell_Ise.exe'             = 'drop it !!!' # there is newer about_PowerShell_Ise_exe
+    'about_Scheduled_Jobs'                 = 'PSScheduledJob'
+    'about_Scheduled_Jobs_Advanced'        = 'PSScheduledJob'
+    'about_Scheduled_Jobs_Basics'          = 'PSScheduledJob'
+    'about_Scheduled_Jobs_Troubleshooting' = 'PSScheduledJob'
+    'about_Sequence'                       = 'PSWorkflow'
+    'about_Suspend-Workflow'               = 'PSWorkflow'
+    'about_WS-Management_Cmdlets'          = 'Microsoft.WSMan.Management'
+    'about_WSMan_Provider'                 = 'Microsoft.WSMan.Management'
+    'about_Windows_PowerShell_5.0'         = 'drop it !!!' # This is old
+    'about_WorkflowCommonParameters'       = 'PSWorkflow'
+    'about_Workflows'                      = 'PSWorkflow'
+    'default'                              = ''
+    'WSManAbout'                           = 'drop it !!!' # This is not a help file
+    }
+
+
+function GetModuleAndOnlineURI ( [System.String] $Name, [System.String] $ModuleName )
+{
+    $URI = ''
+    if ($ModuleName -eq '')
+    {
+        $ModuleName = $TxtHelpFileModule[$Name]
+        if ($ModuleName -ne 'drop it !!!')
+        {
+            if ($ModuleName -eq '')
+            {
+                $ModuleName = 'Microsoft.PowerShell.Core'
+            }
+            $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
+
+            #$a0 = $ModuleName.Value
+            #$a1 = $a0.ToLower()
+            #$a2 = ($ModuleName.Value).ToLower()
+            #$a3 = $Name.ToLower()
+
+            if ($Name -ne 'default')
+            {
+                $URI = 'https://docs.microsoft.com/en-us/powershell/module/'+$ModuleName.ToLower()+
+                       '/about/'+$Name.ToLower()+'?view=powershell-'+$version
+            }
+            return @{'Module'=$ModuleName;
+                     'URI'=$URI}
+        }
+    }
+    return $URI = @{'Module'=$ModuleName;
+                    'URI'=$URI}
+} # GetModuleAndOnlineURI #
+
+
 function CheckTxtHelpFiles ( [System.String] $ModuleName, [System.String] $Path )
 {
     if ( -not (Test-Path -Path $Path -PathType Container))
@@ -846,13 +911,23 @@ function CheckTxtHelpFiles ( [System.String] $ModuleName, [System.String] $Path 
     {
         foreach ($File in $Files)
         {
-            AddItem $true @{Name = $File.Replace('.help.txt','');
-                            ModuleName = $ModuleName;
-                            File = "$Path\$File";
-                            Format = 'txt';
-                            Index = -1;
-                            Category = 'HelpFile';
-                            Synopsis = ''}
+            $Name = $File -replace '.help.txt',''
+            $URI = GetModuleAndOnlineURI $Name $ModuleName
+            if ($URI.Module -eq 'drop it !!!')
+            {
+                continue
+            }
+            $Item = @{Name = $Name;
+                      ModuleName = $URI.Module;
+                      File = "$Path\$File";
+                      OnlineURI = $URI.URI;
+                      Format = 'txt';
+                      Index = -1;
+                      Category = 'HelpFile';
+                      Synopsis = ''}
+            $XML = ParseTxtHelpFile $Item
+            $Item.Synopsis = $XML.helpItems.command.details.description.para
+            AddItem $true $Item
         }
     }
     return
@@ -880,6 +955,7 @@ function CheckXMLFile ( [System.Collections.Hashtable] $LocalFuncs, [System.Stri
                     AddItem $true @{Name = $command.details.name;
                                     ModuleName = $ModuleName;
                                     File = "$Path\$File";
+                                    OnlineURI = '';
                                     Format = 'xml';
                                     Index = $Index;
                                     Category = $Category;
@@ -898,6 +974,7 @@ function CheckXMLFile ( [System.Collections.Hashtable] $LocalFuncs, [System.Stri
             AddItem $false @{Name = $Function;
                              ModuleName = $ModuleName;
                              File = '';
+                             OnlineURI = '';
                              Format = '';
                              Index = -1;
                              Category = 'Function';
@@ -1037,12 +1114,13 @@ function FindHelpFiles ()
                 AddItem $true @{Name = $_.Name;
                                 ModuleName = $Item.ModuleName;
                                 File = $Item.File;
+                                OnlineURI = $Item.OnlineURI;
                                 Format = $Item.Format;
                                 Index = $Item.Index;
                                 Category = 'Alias';
-                                Component = '';
-                                Functionality = '';
-                                Role = '';
+                                Component = $Item.Component;
+                                Functionality = $Item.Functionality;
+                                Role = $Item.Role;
                                 Synopsis = $_.Definition}
             }
         }
@@ -1053,6 +1131,7 @@ function FindHelpFiles ()
             AddItem $false @{Name = $Function;
                              ModuleName = '';
                              File = '';
+                             OnlineURI = '';
                              Format = '';
                              Index = -1;
                              Category = 'Function';
