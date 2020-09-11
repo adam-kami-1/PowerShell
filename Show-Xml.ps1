@@ -27,7 +27,7 @@ Show-Xml -InputObject $XML.helpItems.command[0].details
 [OutputType([String[]])]
 param (
 
-    # Specifies how many levels of the XML tree will be displayed. 0 means that only input element will be displayed. The default value is -1, meaning all objects.
+    # Specifies how many levels of the XML tree will be displayed. 0 means that only input element will be displayed. -1 means unlimited depth.
     #
     [Parameter(Mandatory=$false)]
     [ValidateRange(-1,[System.Int32]::MaxValue)]
@@ -50,11 +50,16 @@ param (
 
     # Select format of XML tree elements connectors
     #
+    # The acceptable values for this parameter are as follows:
+    # - none
+    # - ascii
+    # - box
+    #
     [Parameter(Mandatory=$false)]
     [ValidateSet('none', 'ascii', 'box')]
     [System.String] $Tree = 'none',
     
-    # Specifies the number of characters in each line of output. If this parameter is not used, the width is determined by the characteristics of the host..
+    # Specifies the number of characters in each line of output. If this parameter is not used, the width is determined by the characteristics of the host.
     #
     [Parameter(Mandatory=$false)]
     [ValidateRange(50,[System.Int32]::MaxValue)]
