@@ -637,11 +637,11 @@ function AddNavigationLink ( [System.Xml.XmlDocument] $XML,
 } # AddNavigationLink #
 
 
-function AddLinesToRelatedLinks ( [System.Xml.XmlDocument] $XML, 
-                                  [System.Xml.XmlElement] $RelatedLinks,
+function AddLinesToRelatedLinks ( [System.Xml.XmlDocument] $XML,
                                   [System.Int32] $SkipLines,
-                                  [System.String] $Paragraph)
+                                  [System.String] $Paragraph )
 {                
+    $RelatedLinks = (Select-XML -Xml $XML -XPath '/helpItems/command/relatedLinks').Node
     while (($SkipLines -gt 0) -and ($Paragraph.IndexOf("`n") -gt 0))
     {
         $Paragraph = $Paragraph.Substring($Paragraph.IndexOf("`n")+1)
@@ -655,6 +655,63 @@ function AddLinesToRelatedLinks ( [System.Xml.XmlDocument] $XML,
 } # AddLinesToRelatedLinks #
 
 
+function ParseRegularParagraph ( [System.Xml.XmlDocument] $XML,
+                                 [System.String] $CurrentSection,
+                                 [System.String] $Paragraph )
+{
+    #Write-Host $Paragraph
+    switch ($CurrentSection)
+    {
+        {($_ -eq 'NAME') -or
+            ($_ -eq 'SYNOPSIS')}
+            {
+                $Details = (Select-XML -Xml $XML -XPath '/helpItems/command/details').Node
+                if ($Details -eq $null)
+                {
+                    # There was no TOPIC nor item name. Put name into XML.
+                    $Details = $Command.AppendChild($XML.CreateElement('details'))
+                    $Name = $Details.AppendChild($XML.CreateElement('name'))
+                    $Name.Set_innerText($Item.DisplayName)
+                }
+                if ($XML.helpItems.command.details.description -eq $null)
+                {
+                    # The synopsis was separated with empty line from SHORT DESCRIPTION.
+                    $Description = $Details.AppendChild($XML.CreateElement('description'))
+                    $Para = $Description.AppendChild($XML.CreateElement('para'))
+                    # !!! Need trim and remove duplicate spaces
+                    $Para.Set_innerText($Paragraph.Replace("`n", ' '))
+                }
+                else
+                {
+                    Write-Error ('ERROR: SYNOPSIS for '+$Item.DisplayName+' can contain only one paragraph. Can be caused by missing LONG DESCRIPTION')
+                }
+            }
+        'DESCRIPTION'
+            {
+                $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
+                if ($Description -eq $null)
+                {
+                    # There was no LONG DESCRIPTION header in file
+                    $Description = $Command.AppendChild($XML.CreateElement('description'))
+                }
+                AddLinesToNewChild $XML $Description 'para' 0 $Paragraph
+            }
+        'RELATED LINKS'
+            {
+                $RelatedLinks = (Select-XML -Xml $XML -XPath '/helpItems/command/relatedLinks').Node
+                if ($Paragraph.IndexOf("`n") -eq -1)
+                {
+                    AddNavigationLink $XML $RelatedLinks $Paragraph
+                }
+                else
+                {
+                    AddLinesToRelatedLinks $XML 0 $Paragraph
+                }
+            }
+    }
+} # ParseRegularParagraph #
+
+
 function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
 {
     # Convert contents of the HelpFile into array of paragraphs
@@ -663,7 +720,7 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
     $Paragraph = ''
     foreach ($Line in $File)
     {
-        if ($Line -ne '')
+        if ($Line.Trim() -ne '')
         {
             if ($Paragraph -eq '')
             {
@@ -685,47 +742,71 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
         $Paragraphs += $Paragraph
     }
     Clear-Variable File
+    if (($Item.Name -eq 'about_Type_Accelerators'))
+    {
+        Write-Host "Breakpoint"
+    }
 
     # Convert file name into help item name
-    $DisplayName = $Item.Name.Replace('_', ' ')
-    $DisplayName = ToCamelCase $DisplayName
+    $Item.DisplayName = $Item.Name.Replace('_', ' ')
+    $Item.DisplayName = ToCamelCase $Item.DisplayName
     
 
     # parse paragraphs converting them into MAML like XML object
+    ############################################################
     $XML = [System.Xml.XmlDocument]'<?xml version="1.0" encoding="utf-8"?><helpItems />'
     $Command = $XML.ChildNodes[1].AppendChild($XML.CreateElement('command'))
     $CurrentSection = ''
     foreach ($Paragraph in $Paragraphs)
     {
-        switch -Regex ($Paragraph.Trim())
+        if ($Paragraph.IndexOf("`n") -ne -1)
         {
-            "^(TOPIC|$DisplayName)"
+            $FirstLine = $Paragraph.Substring(0,$Paragraph.IndexOf("`n")).Trim()
+        }
+        else
+        {
+            $FirstLine = $Paragraph.Trim()
+        }
+        switch -Regex ($FirstLine)
+        {
+            ('^(TOPIC|'+$Item.DisplayName+')$')
                 {
-                    # Found TOPIC or item name. Put it into XML ignoring value in file.
-                    $Details = $Command.AppendChild($XML.CreateElement('details'))
-                    $Name = $Details.AppendChild($XML.CreateElement('name'))
-                    $Name.Set_innerText($DisplayName)
-                    $CurrentSection = 'NAME'
+                    if ($CurrentSection -eq '')
+                    {
+                        # Found TOPIC or item name. Put it into XML ignoring value in file.
+                        $Details = $Command.AppendChild($XML.CreateElement('details'))
+                        $Name = $Details.AppendChild($XML.CreateElement('name'))
+                        $Name.Set_innerText($Item.DisplayName)
+                        $CurrentSection = 'NAME'
+                    }
+                    else
+                    {
+                        # Found item name in a firt line of a paragraph.
+                        # Treat this a regular paragraph, probably extra section name.
+                        ParseRegularParagraph $XML $CurrentSection $Paragraph
+                    }
                 }
-            '^SHORT DESCRIPTION'
+            # In about_Type_Accelerators.help.txt there is typo: 'SHORT DESRIPTION'
+            '^(SHORT DES(C)?RIPTION|SYNOPSIS)$'
                 {
                     if ($XML.helpItems.command.details -eq $null)
                     {
                         # There was no TOPIC nor item name. Put name into XML.
                         $Details = $Command.AppendChild($XML.CreateElement('details'))
                         $Name = $Details.AppendChild($XML.CreateElement('name'))
-                        $Name.Set_innerText($DisplayName)
+                        $Name.Set_innerText($Item.DisplayName)
                     }
                     if ($Paragraph.IndexOf("`n") -ne -1)
                     {
                         # SHORT DESCRIPTION and synopsis are in one paragraph, but in two lines.
                         # Extract synopsis and put it into XML.
                         $Description = $Details.AppendChild($XML.CreateElement('description'))
+                        # !!! Need trim and remove duplicate spaces
                         AddLinesToNewChild $XML $Description 'para' 1 $Paragraph
                     }
                     $CurrentSection = 'SYNOPSIS'
                 }
-            '^(LONG|DETAILED) DESCRIPTION'
+            '^((LONG|DETAILED) )?DESCRIPTION$'
                 {
                     $Description = $Command.AppendChild($XML.CreateElement('description'))
                     if ($Paragraph.IndexOf("`n") -ne -1)
@@ -734,7 +815,7 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
                     }
                     $CurrentSection = 'DESCRIPTION'
                 }
-            '^SEE ALSO'
+            '^SEE ALSO$'
                 {
                     $RelatedLinks = $Command.AppendChild($XML.CreateElement('relatedLinks'))
                     if ($Item.OnlineURI -ne '')
@@ -743,49 +824,13 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
                     }
                     if ($Paragraph.IndexOf("`n") -gt 0)
                     {
-                        AddLinesToRelatedLinks $XML $RelatedLinks 1 $Paragraph
+                        AddLinesToRelatedLinks $XML 1 $Paragraph
                     }
                     $CurrentSection = 'RELATED LINKS'
                 }
             default
                 {
-                    #Write-Host $Paragraph
-                    switch ($CurrentSection)
-                    {
-                        {($_ -eq 'NAME') -or
-                         ($_ -eq 'SYNOPSIS')}
-                            {
-                                if ($XML.helpItems.command.details -eq $null)
-                                {
-                                    # There was no TOPIC nor item name. Put name into XML.
-                                    $Details = $Command.AppendChild($XML.CreateElement('details'))
-                                    $Name = $Details.AppendChild($XML.CreateElement('name'))
-                                    $Name.Set_innerText($DisplayName)
-                                }
-                                if ($XML.helpItems.command.details.description -eq $null)
-                                {
-                                    # The synopsis was separated with empty line from SHORT DESCRIPTION.
-                                    $Description = $Details.AppendChild($XML.CreateElement('description'))
-                                    $Para = $Description.AppendChild($XML.CreateElement('para'))
-                                    $Para.Set_innerText($Paragraph.Replace("`n", ' '))
-                                }
-                                else
-                                {
-                                    Write-Error "ERROR: SYNOPSIS for $DisplayName can contain only one paragraph. Can be caused by missing LONG DESCRIPTION"
-                                }
-                            }
-                        'RELATED LINKS'
-                            {
-                                if ($Paragraph.IndexOf("`n") -eq -1)
-                                {
-                                    AddNavigationLink $XML $RelatedLinks $Paragraph
-                                }
-                                else
-                                {
-                                    AddLinesToRelatedLinks $XML $RelatedLinks 0 $Paragraph
-                                }
-                            }
-                    }
+                    ParseRegularParagraph $XML $CurrentSection $Paragraph
                 }
         }
     }
@@ -1255,8 +1300,8 @@ switch ($found.Count)
                                   Category = $HelpInfo.Items[$found[$i]].Category;
                                   Module = $HelpInfo.Items[$found[$i]].ModuleName;
                                   Synopsis = $HelpInfo.Items[$found[$i]].Synopsis;
-                                  File = $HelpInfo.Items[$found[$i]].File;
-                                  Index = $HelpInfo.Items[$found[$i]].Index
+                                  #File = $HelpInfo.Items[$found[$i]].File;
+                                  #Index = $HelpInfo.Items[$found[$i]].Index
                                  }
             }
         }
