@@ -769,9 +769,9 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
         $Paragraphs += $Paragraph
     }
     Clear-Variable File
-    if (($Item.Name -eq 'about_PSModulePath'))
+    if (($Item.Name -eq 'about_PowerShell_exe'))
     {
-        Write-Host "Breakpoint"
+        #Write-Host "Breakpoint"
     }
 
     # Convert file name into help item name
@@ -835,7 +835,25 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
                 }
             '^((LONG|DETAILED) )?DESCRIPTION$'
                 {
-                    $Description = $Command.AppendChild($XML.CreateElement('description'))
+                    if ($Item.CurrentSectionName -eq 'DESCRIPTION')
+                    {
+                        $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
+                        if ($Description.para.Count -eq 1)
+                        {
+                            # There was only one extra paragraph before section header,
+                            # So we can move it to Synopsis
+                            $Text = $XML.helpItems.command.details.description.para + ' ' +
+                                    $XML.helpItems.command.description.para
+                            $Synopsis = (Select-XML -Xml $XML -XPath '/helpItems/command/details/description/para').Node
+                            $Synopsis.Set_innerText($Text)
+                            $Para = (Select-XML -Xml $XML -XPath '/helpItems/command/description/para').Node
+                            $Description.RemoveChild($Para) | Out-Null
+                        }
+                    }
+                    else
+                    {
+                        $Description = $Command.AppendChild($XML.CreateElement('description'))
+                    }
                     if ($Paragraph.IndexOf("`n") -ne -1)
                     {
                         AddLinesToNewChild $XML $Description 'para' 1 $Paragraph
