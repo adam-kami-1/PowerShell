@@ -655,12 +655,25 @@ function AddLinesToRelatedLinks ( [System.Xml.XmlDocument] $XML,
 } # AddLinesToRelatedLinks #
 
 
-function ParseRegularParagraph ( [System.Xml.XmlDocument] $XML,
-                                 [System.String] $CurrentSection,
+function AddDescriptionParagraph ( [System.Xml.XmlDocument] $XML,
+                                   [System.String] $Paragraph )
+{
+    $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
+    if ($Description -eq $null)
+    {
+        # There was no LONG DESCRIPTION header in file
+        $Description = $Command.AppendChild($XML.CreateElement('description'))
+    }
+    AddLinesToNewChild $XML $Description 'para' 0 $Paragraph
+}
+
+
+function ParseRegularParagraph ( [System.Collections.Hashtable] $Item,
+                                 [System.Xml.XmlDocument] $XML,
                                  [System.String] $Paragraph )
 {
     #Write-Host $Paragraph
-    switch ($CurrentSection)
+    switch ($Item.CurrentSectionName)
     {
         {($_ -eq 'NAME') -or
             ($_ -eq 'SYNOPSIS')}
@@ -683,18 +696,14 @@ function ParseRegularParagraph ( [System.Xml.XmlDocument] $XML,
                 }
                 else
                 {
-                    Write-Error ('ERROR: SYNOPSIS for '+$Item.DisplayName+' can contain only one paragraph. Can be caused by missing LONG DESCRIPTION')
+                    # Write-Error ('ERROR: SYNOPSIS for '+$Item.DisplayName+' can contain only one paragraph. Can be caused by missing LONG DESCRIPTION')
+                    AddDescriptionParagraph $XML $Paragraph
+                    $Item.CurrentSectionName = 'DESCRIPTION'
                 }
             }
         'DESCRIPTION'
             {
-                $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
-                if ($Description -eq $null)
-                {
-                    # There was no LONG DESCRIPTION header in file
-                    $Description = $Command.AppendChild($XML.CreateElement('description'))
-                }
-                AddLinesToNewChild $XML $Description 'para' 0 $Paragraph
+                AddDescriptionParagraph $XML $Paragraph
             }
         'RELATED LINKS'
             {
@@ -742,7 +751,7 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
         $Paragraphs += $Paragraph
     }
     Clear-Variable File
-    if (($Item.Name -eq 'about_Type_Accelerators'))
+    if (($Item.Name -eq 'about_PSModulePath'))
     {
         Write-Host "Breakpoint"
     }
@@ -756,7 +765,7 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
     ############################################################
     $XML = [System.Xml.XmlDocument]'<?xml version="1.0" encoding="utf-8"?><helpItems />'
     $Command = $XML.ChildNodes[1].AppendChild($XML.CreateElement('command'))
-    $CurrentSection = ''
+    $Item.CurrentSectionName = ''
     foreach ($Paragraph in $Paragraphs)
     {
         if ($Paragraph.IndexOf("`n") -ne -1)
@@ -771,19 +780,19 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
         {
             ('^(TOPIC|'+$Item.DisplayName+')$')
                 {
-                    if ($CurrentSection -eq '')
+                    if ($Item.CurrentSectionName -eq '')
                     {
                         # Found TOPIC or item name. Put it into XML ignoring value in file.
                         $Details = $Command.AppendChild($XML.CreateElement('details'))
                         $Name = $Details.AppendChild($XML.CreateElement('name'))
                         $Name.Set_innerText($Item.DisplayName)
-                        $CurrentSection = 'NAME'
+                        $Item.CurrentSectionName = 'NAME'
                     }
                     else
                     {
                         # Found item name in a firt line of a paragraph.
                         # Treat this a regular paragraph, probably extra section name.
-                        ParseRegularParagraph $XML $CurrentSection $Paragraph
+                        ParseRegularParagraph $Item $XML $Paragraph
                     }
                 }
             # In about_Type_Accelerators.help.txt there is typo: 'SHORT DESRIPTION'
@@ -804,7 +813,7 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
                         # !!! Need trim and remove duplicate spaces
                         AddLinesToNewChild $XML $Description 'para' 1 $Paragraph
                     }
-                    $CurrentSection = 'SYNOPSIS'
+                    $Item.CurrentSectionName = 'SYNOPSIS'
                 }
             '^((LONG|DETAILED) )?DESCRIPTION$'
                 {
@@ -813,7 +822,7 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
                     {
                         AddLinesToNewChild $XML $Description 'para' 1 $Paragraph
                     }
-                    $CurrentSection = 'DESCRIPTION'
+                    $Item.CurrentSectionName = 'DESCRIPTION'
                 }
             '^SEE ALSO$'
                 {
@@ -826,11 +835,11 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
                     {
                         AddLinesToRelatedLinks $XML 1 $Paragraph
                     }
-                    $CurrentSection = 'RELATED LINKS'
+                    $Item.CurrentSectionName = 'RELATED LINKS'
                 }
             default
                 {
-                    ParseRegularParagraph $XML $CurrentSection $Paragraph
+                    ParseRegularParagraph $Item $XML $Paragraph
                 }
         }
     }
