@@ -201,6 +201,7 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
          ($_ -eq 'comppara') -or
          ($_ -eq 'listpara')}
             {
+                $Text = $Text.Trim()
                 while ($Text.IndexOf('  ') -ne -1)
                 {
                     $Text = $Text.Replace('  ', ' ')
@@ -562,6 +563,16 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
 } # DisplayXmlHelpFile #
 
 
+function CleanParagraph ( [System.String] $Paragraph )
+{
+    $Paragraph = $Paragraph.Replace("`n", ' ')
+    while ($Paragraph.IndexOf('  ') -ne -1)
+    {
+        $Paragraph = $Paragraph.Replace('  ', ' ')
+    }
+    return $Paragraph.Trim()
+} # CleanParagraph #
+
 function AddLinesToNewChild ( [System.Xml.XmlDocument] $XML, 
                               [System.Xml.XmlElement] $Parent, 
                               [System.String] $ChildName,
@@ -573,7 +584,14 @@ function AddLinesToNewChild ( [System.Xml.XmlDocument] $XML,
         $Paragraph = $Paragraph.Substring($Paragraph.IndexOf("`n")+1)
         $SkipLines--
     }
-    $Paragraph = $Paragraph.Replace("`n", ' ')
+    if ($Clean)
+    {
+        $Paragraph = CleanParagraph $Paragraph
+    }
+    else
+    {
+        $Paragraph = $Paragraph.Replace("`n", ' ')
+    }
     $Child = $Parent.AppendChild($XML.CreateElement($ChildName))
     $Child.Set_innerText($Paragraph)
 } # AddLinesToNewChild #
@@ -691,8 +709,8 @@ function ParseRegularParagraph ( [System.Collections.Hashtable] $Item,
                     # The synopsis was separated with empty line from SHORT DESCRIPTION.
                     $Description = $Details.AppendChild($XML.CreateElement('description'))
                     $Para = $Description.AppendChild($XML.CreateElement('para'))
-                    # !!! Need trim and remove duplicate spaces
-                    $Para.Set_innerText($Paragraph.Replace("`n", ' '))
+                    $Paragraph = CleanParagraph $Paragraph
+                    $Para.Set_innerText($Paragraph)
                 }
                 else
                 {
