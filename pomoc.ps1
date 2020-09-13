@@ -169,7 +169,7 @@ Function VerCmp ( [System.String] $Version1, [System.String] $Version2 )
 
 $HelpInfo = @{
     Items = @();
-    ItemIndex = @{}
+    ItemIndex = @{};
     }
 
 $Work = @{
@@ -178,7 +178,7 @@ $Work = @{
 
     # Used only during displaying results
     Colors = @{};
-    Output = [System.String[]] @()
+    Output = [System.String[]] @();
     }
 
 
@@ -584,7 +584,10 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
 
 function CleanParagraph ( [System.String] $Paragraph )
 {
+    # Replace all new lines with spaces
     $Paragraph = $Paragraph.Replace("`n", ' ')
+
+    # Compress every spaces string into single space
     while ($Paragraph.IndexOf('  ') -ne -1)
     {
         $Paragraph = $Paragraph.Replace('  ', ' ')
@@ -597,7 +600,8 @@ function AddLinesToNewChild ( [System.Xml.XmlDocument] $XML,
                               [System.String] $ChildName,
                               [System.Int32] $SkipLines,
                               [System.String] $Paragraph)
-{                
+{
+    # Ignore first $SkipLines lines from the $Paragraph
     while (($SkipLines -gt 0) -and ($Paragraph.IndexOf("`n") -gt 0))
     {
         $Paragraph = $Paragraph.Substring($Paragraph.IndexOf("`n")+1)
@@ -614,6 +618,7 @@ function AddLinesToNewChild ( [System.Xml.XmlDocument] $XML,
     $Child = $Parent.AppendChild($XML.CreateElement($ChildName))
     $Child.Set_innerText($Paragraph)
 } # AddLinesToNewChild #
+
 
 function AddNavigationLink ( [System.Xml.XmlDocument] $XML, 
                              [System.Xml.XmlElement] $Parent,
@@ -665,6 +670,8 @@ function AddNavigationLink ( [System.Xml.XmlDocument] $XML,
     }
     else
     {
+        # Create navigationLink link elements with two children: linkText and uri.
+        # Set values of both children to $Text and $Url
         $NavigationLink = $Parent.AppendChild($XML.CreateElement('navigationLink'))
         $LinkText = $NavigationLink.AppendChild($XML.CreateElement('LinkText'))
         $LinkText.Set_innerText($Text)
@@ -677,13 +684,14 @@ function AddNavigationLink ( [System.Xml.XmlDocument] $XML,
 function AddLinesToRelatedLinks ( [System.Xml.XmlDocument] $XML,
                                   [System.Int32] $SkipLines,
                                   [System.String] $Paragraph )
-{                
-    $RelatedLinks = (Select-XML -Xml $XML -XPath '/helpItems/command/relatedLinks').Node
+{
+    # Ignore first $SkipLines lines from the $Paragraph
     while (($SkipLines -gt 0) -and ($Paragraph.IndexOf("`n") -gt 0))
     {
         $Paragraph = $Paragraph.Substring($Paragraph.IndexOf("`n")+1)
         $SkipLines--
     }
+    $RelatedLinks = (Select-XML -Xml $XML -XPath '/helpItems/command/relatedLinks').Node
     $Lines = $Paragraph.Split("`n")
     foreach ($Line in $Lines)
     {
@@ -842,7 +850,7 @@ function ParseRegularParagraph ( [System.Collections.Hashtable] $Item,
                             $Item.CurrentExtraSectionNode = $Description.AppendChild($XML.CreateElement('section'))
                             $Name = $Item.CurrentExtraSectionNode.AppendChild($XML.CreateElement('name'))
                             $Name.Set_innerText($Item.CurrentExtraSectionName)
-                            #$Item.CurrentSectionName = 'DESCRIPTION'
+                            $Item.CurrentSectionName = 'DESCRIPTION'
                         }
                 }
             }
@@ -1012,7 +1020,7 @@ function DisplayHelpItem ( [System.Collections.Hashtable] $Item )
         "txt"
             {
                 $XML = ParseTxtHelpFile $Item
-                show-XML.ps1 $XML -Tree box
+                show-XML.ps1 $XML -Tree ascii -Width ([System.Console]::WindowWidth-5)| Out-String | Write-Verbose
                 DisplayXmlHelpFile $XML.ChildNodes[1].ChildNodes[0]
             }
         "xml"
@@ -1051,31 +1059,31 @@ function AddItem ( [System.Boolean] $MarkFunc, [System.Collections.Hashtable] $I
 
 
 $TxtHelpFileModule = @{
-    'about_ActivityCommonParameters'       = 'PSWorkflow'
-    'about_Certificate_Provider'           = 'Microsoft.PowerShell.Security'
-    'about_Checkpoint-Workflow'            = 'PSWorkflow'
-    'about_Classes_and_DSC'                = 'PSDesiredStateConfiguration'
-    'about_Escape_Characters'              = 'drop it !!!' # there is about_Special_Characters
-    'about_ForEach-Parallel'               = 'PSWorkflow'
-    'about_InlineScript'                   = 'PSWorkflow'
-    'about_PSReadline'                     = 'PSReadLine'
-    'about_Parallel'                       = 'PSWorkflow'
-    'about_Parsing_LocTest'                = 'drop it !!!' # there is about_Parsing
-    'about_PowerShell.exe'                 = 'drop it !!!' # there is newer about_PowerShell_exe
-    'about_PowerShell_Ise.exe'             = 'drop it !!!' # there is newer about_PowerShell_Ise_exe
-    'about_Scheduled_Jobs'                 = 'PSScheduledJob'
-    'about_Scheduled_Jobs_Advanced'        = 'PSScheduledJob'
-    'about_Scheduled_Jobs_Basics'          = 'PSScheduledJob'
-    'about_Scheduled_Jobs_Troubleshooting' = 'PSScheduledJob'
-    'about_Sequence'                       = 'PSWorkflow'
-    'about_Suspend-Workflow'               = 'PSWorkflow'
-    'about_WS-Management_Cmdlets'          = 'Microsoft.WSMan.Management'
-    'about_WSMan_Provider'                 = 'Microsoft.WSMan.Management'
-    'about_Windows_PowerShell_5.0'         = 'drop it !!!' # This is old
-    'about_WorkflowCommonParameters'       = 'PSWorkflow'
-    'about_Workflows'                      = 'PSWorkflow'
-    'default'                              = ''
-    'WSManAbout'                           = 'drop it !!!' # This is not a help file
+    'about_ActivityCommonParameters'       = 'PSWorkflow';
+    'about_Certificate_Provider'           = 'Microsoft.PowerShell.Security';
+    'about_Checkpoint-Workflow'            = 'PSWorkflow';
+    'about_Classes_and_DSC'                = 'PSDesiredStateConfiguration';
+    'about_Escape_Characters'              = 'drop it !!!'; # there is about_Special_Characters
+    'about_ForEach-Parallel'               = 'PSWorkflow';
+    'about_InlineScript'                   = 'PSWorkflow';
+    'about_PSReadline'                     = 'PSReadLine';
+    'about_Parallel'                       = 'PSWorkflow';
+    'about_Parsing_LocTest'                = 'drop it !!!'; # there is about_Parsing
+    'about_PowerShell.exe'                 = 'drop it !!!'; # there is newer about_PowerShell_exe
+    'about_PowerShell_Ise.exe'             = 'drop it !!!'; # there is newer about_PowerShell_Ise_exe
+    'about_Scheduled_Jobs'                 = 'PSScheduledJob';
+    'about_Scheduled_Jobs_Advanced'        = 'PSScheduledJob';
+    'about_Scheduled_Jobs_Basics'          = 'PSScheduledJob';
+    'about_Scheduled_Jobs_Troubleshooting' = 'PSScheduledJob';
+    'about_Sequence'                       = 'PSWorkflow';
+    'about_Suspend-Workflow'               = 'PSWorkflow';
+    'about_WS-Management_Cmdlets'          = 'Microsoft.WSMan.Management';
+    'about_WSMan_Provider'                 = 'Microsoft.WSMan.Management';
+    'about_Windows_PowerShell_5.0'         = 'drop it !!!'; # This is old
+    'about_WorkflowCommonParameters'       = 'PSWorkflow';
+    'about_Workflows'                      = 'PSWorkflow';
+    'default'                              = '';
+    'WSManAbout'                           = 'drop it !!!'; # This is not a help file
     }
 
 
@@ -1383,11 +1391,14 @@ if (-not $Test)
 # Find all *.help.txt and  *.dll-help.xml files HelpFiles
 if ((Test-Path -Path $env:USERPROFILE\.PS-pomoc.xml) -and -not $Rescan)
 {
+    Write-Verbose ('Importing stored info about help files to '+$env:USERPROFILE+'\.PS-pomoc.xml')
     $HelpInfo = Import-Clixml -Path $env:USERPROFILE\.PS-pomoc.xml
 }
 else
 {
+    Write-Verbose "Find all *.help.txt and  *.dll-help.xml files HelpFiles"
     FindHelpFiles
+    Write-Verbose ('Storing info about help files from '+$env:USERPROFILE+'\.PS-pomoc.xml')
     Export-Clixml -Path $env:USERPROFILE\.PS-pomoc.xml -Encoding UTF8 -InputObject $HelpInfo
 }
 
