@@ -440,8 +440,19 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
 
     # ========================================
     # Section DESCRIPTION
-    DisplayParagraph 0 sect "DESCRIPTION"
-    DisplayCollectionOfParagraphs 1 $command.description.para
+    if ($command.description.para.Count -gt 0)
+    {
+        DisplayParagraph 0 sect "DESCRIPTION"
+        DisplayCollectionOfParagraphs 1 $command.description.para
+    }
+    if ($command.description.section.Count -gt 0)
+    {
+        foreach ($Section in $command.description.section)
+        {
+            DisplayParagraph 0 sect $Section.name
+            DisplayCollectionOfParagraphs 1 $Section.para
+        }
+    }
     
     # ========================================
     # Section PARAMETERS
@@ -686,6 +697,30 @@ function AddDescriptionParagraph ( [System.Xml.XmlDocument] $XML,
 }
 
 
+function SubSectionHeading ( [System.String] $Paragraph )
+{
+    if (($Paragraph.IndexOf("`n") -ne -1) -or
+        ($Paragraph.Trim().Length -eq 0)) 
+    {
+        return ''
+    }
+    $Paragraph = $Paragraph.TrimEnd()
+    if ($Paragraph.Substring(0,1) -in @(' ','-'))
+    {
+        return ''
+    }
+    if ($Paragraph.Substring($Paragraph.Length-1,1) -in @('.', ':'))
+    {
+        return ''
+    }
+    if (-not ($Paragraph -match '^[a-z0-9:, ]+$'))
+    {
+        return ''
+    }
+    return $Paragraph
+} # SubSectionHeading #
+
+
 function ParseRegularParagraph ( [System.Collections.Hashtable] $Item,
                                  [System.Xml.XmlDocument] $XML,
                                  [System.String] $Paragraph )
@@ -714,14 +749,9 @@ function ParseRegularParagraph ( [System.Collections.Hashtable] $Item,
                 }
                 else
                 {
-                    # Write-Error ('ERROR: SYNOPSIS for '+$Item.DisplayName+' can contain only one paragraph. Can be caused by missing LONG DESCRIPTION')
                     AddDescriptionParagraph $XML $Paragraph
                     $Item.CurrentSectionName = 'DESCRIPTION'
                 }
-            }
-        'DESCRIPTION'
-            {
-                AddDescriptionParagraph $XML $Paragraph
             }
         'RELATED LINKS'
             {
@@ -733,6 +763,30 @@ function ParseRegularParagraph ( [System.Collections.Hashtable] $Item,
                 else
                 {
                     AddLinesToRelatedLinks $XML 0 $Paragraph
+                }
+            }
+        'DESCRIPTION'
+            {
+                $SubSection = SubSectionHeading $Paragraph
+                if ($SubSection -ne '')
+                {
+                    $Item.CurrentSubSectionName = $SubSection.ToUpper()
+                    #Write-Host "Subsection: " $Item.CurrentSubSectionName
+                    $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
+                    $Item.CurrentSubSectionNode = $Description.AppendChild($XML.CreateElement('section'))
+                    $Name = $Item.CurrentSubSectionNode.AppendChild($XML.CreateElement('name'))
+                    $Name.Set_innerText($Item.CurrentSubSectionName)
+                }
+                else
+                {
+                    if ($Item.CurrentSubSectionNode -ne $null)
+                    {
+                        AddLinesToNewChild $XML $Item.CurrentSubSectionNode 'para' 0 $Paragraph
+                    }
+                    else
+                    {
+                        AddDescriptionParagraph $XML $Paragraph
+                    }
                 }
             }
     }
@@ -859,6 +913,7 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
                         AddLinesToNewChild $XML $Description 'para' 1 $Paragraph
                     }
                     $Item.CurrentSectionName = 'DESCRIPTION'
+                    $Item.CurrentSubSectionNode = $null
                 }
             '^SEE ALSO$'
                 {
@@ -890,7 +945,7 @@ function DisplayHelpItem ( [System.Collections.Hashtable] $Item )
         "txt"
             {
                 $XML = ParseTxtHelpFile $Item
-                #show-XML.ps1 $XML -Tree box
+                show-XML.ps1 $XML -Tree box
                 DisplayXmlHelpFile $XML.ChildNodes[1].ChildNodes[0]
             }
         "xml"
@@ -1168,9 +1223,6 @@ function FindHelpFiles ()
     {
         foreach ($Module in ((Get-Childitem $ModulePath -Directory).Name))
         {
-            #if ($Module -eq 'BranchCache') {
-            #    Write-Host "Checking module: $Module"
-            #}
             $Version = ''
             foreach ($SubDir in ((Get-Childitem $ModulePath\$Module -Directory).Name))
             {
