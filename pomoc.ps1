@@ -445,12 +445,20 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
         DisplayParagraph 0 sect "DESCRIPTION"
         DisplayCollectionOfParagraphs 1 $command.description.para
     }
-    if ($command.description.section.Count -gt 0)
+    if ($command.description.section -ne $null)
     {
-        foreach ($Section in $command.description.section)
+        if ($command.description.section.Count -gt 1)
         {
-            DisplayParagraph 0 'subsect' $Section.name
-            DisplayCollectionOfParagraphs 1 $Section.para
+            foreach ($Section in $command.description.section)
+            {
+                DisplayParagraph 0 'subsect' $Section.name
+                DisplayCollectionOfParagraphs 1 $Section.para
+            }
+        }
+        else
+        {
+            DisplayParagraph 0 'subsect' $command.description.section.name
+            DisplayCollectionOfParagraphs 1 $command.description.section.para
         }
     }
     
@@ -709,16 +717,41 @@ function ExtraSectionHeading ( [System.String] $Paragraph )
     {
         return ''
     }
+    $Paragraph = $Paragraph.TrimStart()
+    if ($Paragraph -in @('or', 'and'))
+    {
+        return ''
+    }
     if ($Paragraph.Substring($Paragraph.Length-1,1) -in @('.', ':'))
     {
         return ''
     }
-    if (-not ($Paragraph -match '^[a-z0-9:, ]+$'))
+    if (-not ($Paragraph -match '^[-:, a-z0-9]+$'))
     {
         return ''
     }
     return $Paragraph
 } # ExtraSectionHeading #
+
+
+function StoreRegularparagraph ( [System.Collections.Hashtable] $Item,
+                                 [System.Xml.XmlDocument] $XML,
+                                 [System.String] $Paragraph )
+{
+    if ($Item.CurrentSectionName -eq 'NOTES')
+    {
+        $Alert = (Select-XML -Xml $XML -XPath '/helpItems/command/alertSet/alert').Node
+        AddLinesToNewChild $XML $Alert 'para' 0 $Paragraph
+    }
+    elseif ($Item.CurrentExtraSectionNode -ne $null)
+    {
+        AddLinesToNewChild $XML $Item.CurrentExtraSectionNode 'para' 0 $Paragraph
+    }
+    else
+    {
+        AddDescriptionParagraph $XML $Paragraph
+    }
+} # StoreRegularparagraph #
 
 
 function ParseRegularParagraph ( [System.Collections.Hashtable] $Item,
@@ -729,7 +762,7 @@ function ParseRegularParagraph ( [System.Collections.Hashtable] $Item,
     switch ($Item.CurrentSectionName)
     {
         {($_ -eq 'NAME') -or
-            ($_ -eq 'SYNOPSIS')}
+         ($_ -eq 'SYNOPSIS')}
             {
                 $Details = (Select-XML -Xml $XML -XPath '/helpItems/command/details').Node
                 if ($Details -eq $null)
@@ -765,28 +798,52 @@ function ParseRegularParagraph ( [System.Collections.Hashtable] $Item,
                     AddLinesToRelatedLinks $XML 0 $Paragraph
                 }
             }
-        'DESCRIPTION'
+        {($_ -eq 'DESCRIPTION') -or
+         ($_ -eq 'NOTES')}
             {
                 $ExtraSection = ExtraSectionHeading $Paragraph
-                if ($ExtraSection -ne '')
+                if ($Item.Name -eq 'about_Comment_Based_Help')
                 {
-                    $Item.CurrentExtraSectionName = $ExtraSection.ToUpper()
-                    #Write-Host "ExtraSection: " $Item.CurrentExtraSectionName
-                    $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
-                    $Item.CurrentExtraSectionNode = $Description.AppendChild($XML.CreateElement('section'))
-                    $Name = $Item.CurrentExtraSectionNode.AppendChild($XML.CreateElement('name'))
-                    $Name.Set_innerText($Item.CurrentExtraSectionName)
+                    if (($ExtraSection -eq 'Name') -or
+                        ($ExtraSection -eq 'Syntax') -or
+                        ($ExtraSection -eq 'Description') -or
+                        ($ExtraSection -eq 'Parameters') -or
+                        ($ExtraSection -eq 'Parameter List') -or
+                        ($ExtraSection -eq 'Common Parameters') -or
+                        ($ExtraSection -eq 'Parameter Attribute Table') -or
+                        ($ExtraSection -eq 'Inputs') -or
+                        ($ExtraSection -eq 'Outputs') -or
+                        ($ExtraSection -eq 'Remarks') -or
+                        ($ExtraSection -eq 'Related Links'))
+                    {
+                        $ExtraSection = ''
+                    }
                 }
-                else
+                switch -Regex ($ExtraSection)
                 {
-                    if ($Item.CurrentExtraSectionNode -ne $null)
-                    {
-                        AddLinesToNewChild $XML $Item.CurrentExtraSectionNode 'para' 0 $Paragraph
-                    }
-                    else
-                    {
-                        AddDescriptionParagraph $XML $Paragraph
-                    }
+                    '^$'
+                        {
+                            # Really regular paragraph, add to appropriate section
+                            StoreRegularparagraph $Item $XML $Paragraph
+                        }
+                    '^(NOTES|REMARKS)$'
+                        {
+                            $Command = (Select-XML -Xml $XML -XPath '/helpItems/command').Node
+                            $AlertSet = $Command.AppendChild($XML.CreateElement('alertSet'))
+                            $Alert = $AlertSet.AppendChild($XML.CreateElement('alert'))
+                            $Item.CurrentSectionName = 'NOTES'
+                            $Item.CurrentExtraSectionNode = $null
+                        }
+                    default
+                        {
+                            $Item.CurrentExtraSectionName = $ExtraSection.ToUpper()
+                            #Write-Host "ExtraSection: " $Item.CurrentExtraSectionName
+                            $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
+                            $Item.CurrentExtraSectionNode = $Description.AppendChild($XML.CreateElement('section'))
+                            $Name = $Item.CurrentExtraSectionNode.AppendChild($XML.CreateElement('name'))
+                            $Name.Set_innerText($Item.CurrentExtraSectionName)
+                            #$Item.CurrentSectionName = 'DESCRIPTION'
+                        }
                 }
             }
     }
@@ -870,6 +927,11 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
             # In about_Type_Accelerators.help.txt there is typo: 'SHORT DESRIPTION'
             '^(SHORT DES(C)?RIPTION|SYNOPSIS)$'
                 {
+                    if ($Item.CurrentSectionName -eq 'DESCRIPTION')
+                    {
+                        ParseRegularParagraph $Item $XML $Paragraph
+                        break
+                    }
                     if ($XML.helpItems.command.details -eq $null)
                     {
                         # There was no TOPIC nor item name. Put name into XML.
@@ -902,6 +964,11 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
                             $Synopsis.Set_innerText($Text)
                             $Para = (Select-XML -Xml $XML -XPath '/helpItems/command/description/para').Node
                             $Description.RemoveChild($Para) | Out-Null
+                        }
+                        else
+                        {
+                            ParseRegularParagraph $Item $XML $Paragraph
+                            break
                         }
                     }
                     else
