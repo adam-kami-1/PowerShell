@@ -281,7 +281,7 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
             }
         'subsect'
             {
-                $Work.Output += @((' ' * $Indent)+$Text)
+                $Work.Output += @((' ' * $Indent)+$Work.Colors.ExtraSection+$Text+$Work.Colors.Default)
             }
     }
 } # DisplayParagraph #
@@ -449,7 +449,7 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
     {
         foreach ($Section in $command.description.section)
         {
-            DisplayParagraph 0 sect $Section.name
+            DisplayParagraph 0 'subsect' $Section.name
             DisplayCollectionOfParagraphs 1 $Section.para
         }
     }
@@ -697,7 +697,7 @@ function AddDescriptionParagraph ( [System.Xml.XmlDocument] $XML,
 }
 
 
-function SubSectionHeading ( [System.String] $Paragraph )
+function ExtraSectionHeading ( [System.String] $Paragraph )
 {
     if (($Paragraph.IndexOf("`n") -ne -1) -or
         ($Paragraph.Trim().Length -eq 0)) 
@@ -718,7 +718,7 @@ function SubSectionHeading ( [System.String] $Paragraph )
         return ''
     }
     return $Paragraph
-} # SubSectionHeading #
+} # ExtraSectionHeading #
 
 
 function ParseRegularParagraph ( [System.Collections.Hashtable] $Item,
@@ -767,21 +767,21 @@ function ParseRegularParagraph ( [System.Collections.Hashtable] $Item,
             }
         'DESCRIPTION'
             {
-                $SubSection = SubSectionHeading $Paragraph
-                if ($SubSection -ne '')
+                $ExtraSection = ExtraSectionHeading $Paragraph
+                if ($ExtraSection -ne '')
                 {
-                    $Item.CurrentSubSectionName = $SubSection.ToUpper()
-                    #Write-Host "Subsection: " $Item.CurrentSubSectionName
+                    $Item.CurrentExtraSectionName = $ExtraSection.ToUpper()
+                    #Write-Host "ExtraSection: " $Item.CurrentExtraSectionName
                     $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
-                    $Item.CurrentSubSectionNode = $Description.AppendChild($XML.CreateElement('section'))
-                    $Name = $Item.CurrentSubSectionNode.AppendChild($XML.CreateElement('name'))
-                    $Name.Set_innerText($Item.CurrentSubSectionName)
+                    $Item.CurrentExtraSectionNode = $Description.AppendChild($XML.CreateElement('section'))
+                    $Name = $Item.CurrentExtraSectionNode.AppendChild($XML.CreateElement('name'))
+                    $Name.Set_innerText($Item.CurrentExtraSectionName)
                 }
                 else
                 {
-                    if ($Item.CurrentSubSectionNode -ne $null)
+                    if ($Item.CurrentExtraSectionNode -ne $null)
                     {
-                        AddLinesToNewChild $XML $Item.CurrentSubSectionNode 'para' 0 $Paragraph
+                        AddLinesToNewChild $XML $Item.CurrentExtraSectionNode 'para' 0 $Paragraph
                     }
                     else
                     {
@@ -913,7 +913,7 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
                         AddLinesToNewChild $XML $Description 'para' 1 $Paragraph
                     }
                     $Item.CurrentSectionName = 'DESCRIPTION'
-                    $Item.CurrentSubSectionNode = $null
+                    $Item.CurrentExtraSectionNode = $null
                 }
             '^SEE ALSO$'
                 {
@@ -1354,6 +1354,7 @@ if ($psISE -eq $null)
 
     $Work.Colors = @{
         Section = $F_Magenta;
+        ExtraSection = $F_Cyan;
         Parameter = $F_Yellow;
         Default = $F_Default;
         }
@@ -1362,6 +1363,7 @@ else
 {
     $Work.Colors = @{
         Section = '';
+        ExtraSection = '';
         Parameter = '';
         Default = '';
         }
