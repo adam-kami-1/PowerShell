@@ -1,17 +1,19 @@
-﻿<#
+<#
 .SYNOPSIS
    Display the contents of XML tree.
 .DESCRIPTION
    The `Show-Xml.ps1` script displays the contents of XML tree. The contents is presented as a list of nodes with indented children.
 .EXAMPLE
 Show-Xml -InpuObject .\example.xml
+
+    This shows whole XML file.
 .EXAMPLE
-$XML = [xml](Get-Content .\Get-Help.xml)
+$XML = [xml](Get-Content C:\Windows\System32\WindowsPowerShell\v1.0\en-US\Microsoft.PowerShell.Utility-help.xml)
 Show-Xml -InputObject $XML
 
     This shows whole XML file.
 .EXAMPLE
-$XML = [xml](Get-Content .\Get-Help.xml)
+$XML = [xml](Get-Content C:\Windows\System32\WindowsPowerShell\v1.0\en-US\Microsoft.PowerShell.Utility-help.xml)
 Show-Xml -InputObject $XML.ChildNodes[1].ChildNodes[0].ChildNodes[0]
 Show-Xml -InputObject $XML.helpItems.command[0].details
 
@@ -91,14 +93,14 @@ switch ($Tree)
     'ascii'
         {
             $TreeChild = '+---'
-            $TreeLast  = '+---'
+            $TreeLast  = '\---'
             $TreeCont  = '|   '
         }
     'box'
         {
-            $TreeChild = '├───'
-            $TreeLast =  '└───'
-            $TreeCont =  '│   '
+            $TreeChild = [char]0x251C+[char]0x2500+[char]0x2500+[char]0x2500
+            $TreeLast =  [char]0x2514+[char]0x2500+[char]0x2500+[char]0x2500
+            $TreeCont =  [char]0x2502+'   '
         }
 }
 
