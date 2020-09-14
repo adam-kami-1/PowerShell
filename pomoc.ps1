@@ -380,6 +380,80 @@ function BuildLinkValue ( [System.String] $LinkText, [System.String] $URI)
 } # BuildLinkValue #
 
 
+function DisplaySingleSyntax ( [System.Xml.XmlElement] $syntaxItem )
+{
+    $Para = $syntaxItem.name
+    foreach ($parameter in $syntaxItem.parameter)
+    {
+        $Required = $parameter.required -eq 'true'
+        $Position = $parameter.position -ne 'named'
+        $Para += ' '
+        if (-not $Required)
+        {
+            $Para += '['
+        }
+        if ($Position)
+        {
+            $Para += '['
+        }
+        $Para += '-'+$parameter.name
+        if ($Position)
+        {
+            $Para += ']'
+        }
+        $TypeName = $parameter.parameterValue.FirstChild.InnerText
+        if ($TypeName -eq '')
+        {
+            $TypeName = $parameter.type.name
+        }
+        if ($TypeName -ne 'System.Management.Automation.SwitchParameter')
+        {
+            $Para += ' '
+            $Para += '<'+$TypeName+'>'
+        }
+        if (-not $Required)
+        {
+            $Para += ']'
+        }
+    }
+    DisplayParagraph 1 hangpara $Para
+} # DisplaySingleSyntax #
+
+
+function DisplaySingleParameter ( [System.Xml.XmlElement] $Parameter )
+{
+    $Required = $Parameter.required
+    $Position = $Parameter.position
+    $DefVal = $Parameter.defaultValue
+    $PipelineInput = $Parameter.pipelineInput
+    $Globbing = $Parameter.globbing
+    $Aliases = $Parameter.aliases
+    DisplayParagraph 1 comppara ('-'+$Parameter.name+' <'+$Parameter.type.name+'>')
+
+    DisplayCollectionOfParagraphs 2 $Parameter.Description.para
+
+    DisplayParagraph 2 code "Required?                    $Required"
+    DisplayParagraph 2 code "Position?                    $Position"
+    DisplayParagraph 2 code "Default value                $DefVal"
+    DisplayParagraph 2 code "Accept pipeline input?       $PipelineInput"
+    DisplayParagraph 2 code "Accept wildcard characters?  $Globbing"
+    if (($Aliases -ne '') -and ($Aliases -ne 'none'))
+    {
+        DisplayParagraph 2 code "Aliases                      $Aliases"
+    }
+    DisplayParagraph 0 empty
+} # DisplaySingleParameter #
+
+
+function DisplaySingleExample ( [System.Xml.XmlElement] $Example )
+{
+    DisplayParagraph 1 para $Example.title
+    DisplayParagraph 2 code $Example.code
+    DisplayParagraph 2 empty
+    DisplayCollectionOfParagraphs 2 $Example.remarks.para
+} # DisplaySingleExample #
+
+
 function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
 {
     DisplayParagraph 0 empty
@@ -397,43 +471,20 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
     # ========================================
     # Section SYNTAX
     if (($command.syntax -ne $null) -and
-        ($command.syntax.syntaxItem -ne $null) -and
-        ($command.syntax.syntaxItem.Count -ne 0) -and
-        ($command.syntax.syntaxItem[0] -ne $null))
+        ($command.syntax.syntaxItem -ne $null))
     {
         DisplayParagraph 0 sect "SYNTAX"
-        foreach ($syntaxItem in $command.syntax.syntaxItem)
+
+        if ($command.syntax.syntaxItem.Count -ne 0)
         {
-            $Para = $syntaxItem.name
-            foreach ($parameter in $syntaxItem.parameter)
+            foreach ($syntaxItem in $command.syntax.syntaxItem)
             {
-                $Required = $parameter.required -eq 'true'
-                $Position = $parameter.position -ne 'named'
-                $Para += ' '
-                if (-not $Required)
-                {
-                    $Para += '['
-                }
-                if ($Position)
-                {
-                    $Para += '['
-                }
-                $Para += '-'+$parameter.name
-                if ($Position)
-                {
-                    $Para += ']'
-                }
-                if ($parameter.type.name -ne 'System.Management.Automation.SwitchParameter')
-                {
-                    $Para += ' '
-                    $Para += '<'+$parameter.type.name+'>'
-                }
-                if (-not $Required)
-                {
-                    $Para += ']'
-                }
+                DisplaySingleSyntax $syntaxItem
             }
-            DisplayParagraph 1 hangpara $Para
+        }
+        else
+        {
+            DisplaySingleSyntax $command.syntax.syntaxItem
         }
         DisplayParagraph 1 para 'Common Parameters will be described later !!!'
     }
@@ -465,34 +516,21 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
     # ========================================
     # Section PARAMETERS
     if (($command.parameters -ne $null) -and
-        ($command.parameters.parameter -ne $null) -and
-        ($command.parameters.parameter.Count -ne 0) -and
-        ($command.parameters.parameter[0] -ne $null))
+        ($command.parameters.parameter -ne $null))
     {
         DisplayParagraph 0 sect "PARAMETERS"
-        foreach ($parameter in $command.parameters.parameter)
+        if ($command.parameters.parameter.Count -ne 0)
         {
-            $Required = $parameter.required
-            $Position = $parameter.position
-            $DefVal = $parameter.defaultValue
-            $PipelineInput = $parameter.pipelineInput
-            $Globbing = $parameter.globbing
-            $Aliases = $parameter.aliases
-            DisplayParagraph 1 comppara ('-'+$parameter.name+' <'+$parameter.type.name+'>')
-
-            DisplayCollectionOfParagraphs 2 $parameter.Description.para
-
-            DisplayParagraph 2 code "Required?                    $Required"
-            DisplayParagraph 2 code "Position?                    $Position"
-            DisplayParagraph 2 code "Default value                $DefVal"
-            DisplayParagraph 2 code "Accept pipeline input?       $PipelineInput"
-            DisplayParagraph 2 code "Accept wildcard characters?  $Globbing"
-            if (($Aliases -ne '') -and ($Aliases -ne 'none'))
+            foreach ($Parameter in $command.parameters.parameter)
             {
-                DisplayParagraph 2 code "Aliases                      $Aliases"
+                DisplaySingleParameter $Parameter
             }
-            DisplayParagraph 0 empty
         }
+        else
+        {
+            DisplaySingleParameter $command.parameters.parameter
+        }
+        DisplayParagraph 1 para 'Common Parameters will be described later !!!'
     }
 
     # ========================================
@@ -501,22 +539,39 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
         ($command.InputTypes.InputType -ne $null))
     {
         DisplayParagraph 0 sect "INPUTS"
-        DisplayParagraph 1 comppara $command.InputTypes.InputType.type.name
-        DisplayParagraph 2 para $command.InputTypes.InputType.description.para
+        if ($command.InputTypes.InputType.Count -ne 0)
+        {
+            foreach ($InputType in $command.InputTypes.InputType)
+            {
+                DisplayParagraph 1 comppara $InputType.type.name
+                DisplayParagraph 2 para $InputType.description.para
+            }
+        }
+        else
+        {
+            DisplayParagraph 1 comppara $command.InputTypes.InputType.type.name
+            DisplayParagraph 2 para $command.InputTypes.InputType.description.para
+        }
     }
 
     # ========================================
     # Section OUTPUTS
     if (($command.returnValues -ne $null) -and
-        ($command.returnValues.returnValue -ne $null) -and
-        ($command.returnValues.returnValue.Count -ne 0) -and
-        ($command.returnValues.returnValue[0] -ne $null))
+        ($command.returnValues.returnValue -ne $null))
     {
         DisplayParagraph 0 sect "OUTPUTS"
-        foreach ($returnValue in $command.returnValues.returnValue)
+        if ($command.returnValues.returnValue.Count -ne 0)
         {
-            DisplayParagraph 1 comppara $returnValue.type.name
-            DisplayParagraph 2 para $returnValue.description.para
+            foreach ($returnValue in $command.returnValues.returnValue)
+            {
+                DisplayParagraph 1 comppara $returnValue.type.name
+                DisplayParagraph 2 para $returnValue.description.para
+            }
+        }
+        else
+        {
+            DisplayParagraph 1 comppara $command.returnValues.returnValue.type.name
+            DisplayParagraph 2 para $command.returnValues.returnValue.description.para
         }
     }
     
@@ -534,17 +589,19 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
     # ========================================
     # Section EXAMPLES
     if (($command.examples -ne $null) -and
-        ($command.examples.example -ne $null) -and
-        ($command.examples.example.Count -ne 0) -and
-        ($command.examples.example[0] -ne $null))
+        ($command.examples.example -ne $null))
     {
         DisplayParagraph 0 sect "EXAMPLES"
-        foreach ($Example in $command.examples.example)
+        if ($command.examples.example.Count -ne 0)
         {
-            DisplayParagraph 1 para $Example.title
-            DisplayParagraph 2 code $Example.code
-            DisplayParagraph 2 empty
-            DisplayCollectionOfParagraphs 2 $Example.remarks.para
+            foreach ($Example in $command.examples.example)
+            {
+                DisplaySingleExample $Example
+            }
+        }
+        else
+        {
+            DisplaySingleExample $command.examples.example
         }
     }
 
