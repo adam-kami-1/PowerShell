@@ -1,8 +1,8 @@
 ﻿<#
 .SYNOPSIS
-   Display the contents of XML file.
+   Display the contents of XML tree.
 .DESCRIPTION
-   The `Show-Xml.ps1` script displays the contents of XML file. The contents is presented as a list of indented nodes.
+   The `Show-Xml.ps1` script displays the contents of XML tree. The contents is presented as a list of nodes with indented children.
 .EXAMPLE
 Show-Xml -InpuObject .\example.xml
 .EXAMPLE
@@ -17,7 +17,7 @@ Show-Xml -InputObject $XML.helpItems.command[0].details
 
     Both calls to Show-Xml shows the the same piece of XML file.
 .INPUTS
-   None
+   System.Management.Automation.PSObject
 .OUTPUTS
    System.String[]
    `Show-Xml` returns collection of strings.
@@ -33,12 +33,17 @@ param (
     [ValidateRange(-1,[System.Int32]::MaxValue)]
     [System.Int32] $Depth = -1,
 
+
+    # Display simple name of XML nodes, without prefix.
+    #
+    [Parameter(Mandatory=$false)]
+    [System.Management.Automation.SwitchParameter] ${DontShowPrefix},
+
     # If parameter is a System.String then it specifies the path to the XML file.
-    # If parameter is one of types:
+    # If parameter is one of below types then it specifies the XML object:
     # - System.Xml.XmlDocument,
     # - System.Xml.XmlDeclaration,
-    # - System.Xml.XmlElement,
-    # then it specifies the XML object.
+    # - System.Xml.XmlElement.
     #
     [Parameter(Mandatory=$true,
                Position=0,
@@ -108,7 +113,14 @@ function DisplayXMLItem ( [System.String] $Indent, $Item)
             {
                 ###############
                 # Name and type
-                Write-Output ($Indent+$Item.LocalName+' <'+$Item.GetType().Name+'>')
+                if ((-not $DontShowPrefix) -and ($Item.Prefix -ne ''))
+                {
+                    Write-Output ($Indent+$Item.Prefix+':'+$Item.LocalName+' <'+$Item.GetType().Name+'>')
+                }
+                else
+                {
+                    Write-Output ($Indent+$Item.LocalName+' <'+$Item.GetType().Name+'>')
+                }
                 if (($Indent.Length -gt 0))
                 {
                     if ($Item -eq $Item.ParentNode.LastChild)
