@@ -539,9 +539,9 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
     if (($command.InputTypes -ne $null) -and
         ($command.InputTypes.InputType -ne $null))
     {
-        DisplayParagraph 0 sect "INPUTS"
-        if ($command.InputTypes.InputType.Count -ne 0)
+        if ($command.InputTypes.InputType.Count -ne $null)
         {
+            DisplayParagraph 0 sect "INPUTS"
             foreach ($InputType in $command.InputTypes.InputType)
             {
                 DisplayParagraph 1 comppara $InputType.type.name
@@ -550,8 +550,13 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
         }
         else
         {
-            DisplayParagraph 1 comppara $command.InputTypes.InputType.type.name
-            DisplayParagraph 2 para $command.InputTypes.InputType.description.para
+            if ((([String]$command.InputTypes.InputType.type.name) -ne '') -or
+                (([String]$command.InputTypes.InputType.description.para) -ne ''))
+            {
+                DisplayParagraph 0 sect "INPUTS"
+                DisplayParagraph 1 comppara $command.InputTypes.InputType.type.name
+                DisplayParagraph 2 para $command.InputTypes.InputType.description.para
+            }
         }
     }
 
@@ -560,9 +565,9 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
     if (($command.returnValues -ne $null) -and
         ($command.returnValues.returnValue -ne $null))
     {
-        DisplayParagraph 0 sect "OUTPUTS"
-        if ($command.returnValues.returnValue.Count -ne 0)
+        if ($command.returnValues.returnValue.Count -ne $null)
         {
+            DisplayParagraph 0 sect "OUTPUTS"
             foreach ($returnValue in $command.returnValues.returnValue)
             {
                 DisplayParagraph 1 comppara $returnValue.type.name
@@ -571,8 +576,13 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
         }
         else
         {
-            DisplayParagraph 1 comppara $command.returnValues.returnValue.type.name
-            DisplayParagraph 2 para $command.returnValues.returnValue.description.para
+            if ((([String]$command.returnValues.returnValue.type.name) -ne '') -or
+                (([String]$command.returnValues.returnValue.description.para) -ne ''))
+            {
+                DisplayParagraph 0 sect "OUTPUTS"
+                DisplayParagraph 1 comppara $command.returnValues.returnValue.type.name
+                DisplayParagraph 2 para $command.returnValues.returnValue.description.para
+            }
         }
     }
     
