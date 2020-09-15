@@ -402,11 +402,12 @@ function DisplaySingleSyntax ( [System.Xml.XmlElement] $syntaxItem )
             $Para += ']'
         }
         $TypeName = $parameter.parameterValue.FirstChild.InnerText
-        if ($TypeName -eq '')
+        if (($TypeName -eq '') -or ($TypeName -eq $null))
         {
             $TypeName = $parameter.type.name
         }
-        if ($TypeName -ne 'System.Management.Automation.SwitchParameter')
+        if (($TypeName -ne 'System.Management.Automation.SwitchParameter') -and
+            ($TypeName -ne '') -and ($TypeName -ne $null))
         {
             $Para += ' '
             $Para += '<'+$TypeName+'>'
