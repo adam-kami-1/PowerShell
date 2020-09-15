@@ -327,34 +327,41 @@ function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel, [System.Ob
         {
             continue
         }
-        if (-not $WasColon)
+        if ($Para.IndexOf("`n") -ne -1)
         {
-            if ($Para.Substring($Para.Length-1, 1) -eq ':')
-            {
-                # List heading paragraph
-                $WasColon = $true
-                DisplayParagraph $IndentLevel comppara $Para
-            }
-            else
-            {
-                # Regular paragraph
-                DisplayParagraph $IndentLevel para $Para
-            }
+            DisplayCollectionOfParagraphs $IndentLevel ($Para.Split("`n"))
         }
         else
         {
-            if ($Para.Substring(0, 2) -eq '- ')
+            if (-not $WasColon)
             {
-                # List item
-                DisplayParagraph $IndentLevel listpara $Para
+                if ($Para.Substring($Para.Length-1, 1) -eq ':')
+                {
+                    # List heading paragraph
+                    $WasColon = $true
+                    DisplayParagraph $IndentLevel comppara $Para
+                }
+                else
+                {
+                    # Regular paragraph
+                    DisplayParagraph $IndentLevel para $Para
+                }
             }
             else
             {
-                # End of the list
-                DisplayParagraph $IndentLevel empty
-                $WasColon = $false
-                # Regular paragraph
-                DisplayParagraph $IndentLevel para $Para
+                if ($Para.Substring(0, 2) -eq '- ')
+                {
+                    # List item
+                    DisplayParagraph $IndentLevel listpara $Para
+                }
+                else
+                {
+                    # End of the list
+                    DisplayParagraph $IndentLevel empty
+                    $WasColon = $false
+                    # Regular paragraph
+                    DisplayParagraph $IndentLevel para $Para
+                }
             }
         }
     }
