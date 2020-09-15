@@ -287,7 +287,28 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
 } # DisplayParagraph #
 
 
-function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel, [System.String[]] $collection )
+function ExtractParagraphText ( [System.Xml.XmlElement] $Para )
+{
+    $Text = ''
+    foreach ($Child in $Para.ChildNodes)
+    {
+        switch ($Child.GetType())
+        {
+            'System.Xml.XmlText'
+                {
+                    $Text += $Child.Value
+                }
+            'System.Xml.XmlElement'
+                {
+                    $Text += ExtractParagraphText $Child
+                }
+        }
+    }
+    return $Text
+} # ExtractParagraphText #
+
+
+function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel, [System.Object[]] $collection )
 {
     if (($collection.Count -eq 0) -or ($collection[0].Length -eq 0))
     {
@@ -296,6 +317,12 @@ function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel, [System.St
     $WasColon = $false
     foreach ($Para in $collection)
     {
+        if ($Para.GetType().FullName -eq 'System.Xml.XmlElement')
+        {
+            # This is a temporary solution. In target version we will need reverse operation:
+            # gues the links even wen they are not fully tagged.
+            $Para = ExtractParagraphText $Para
+        }
         if ($Para.Length -eq 0)
         {
             continue
