@@ -75,7 +75,7 @@ param (
 
 if ($Width -eq 0)
 {
-    Invoke-Expression '$Width = [System.Console]::WindowWidth' -ErrorAction Ignore
+    $($Width = [System.Console]::WindowWidth) 2> Out-Nul
 }
 if ($Width -eq 0)
 {
