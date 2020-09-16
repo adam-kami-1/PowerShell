@@ -1262,7 +1262,8 @@ function CheckTxtHelpFiles ( [System.String] $ModuleName, [System.String] $Path 
                       Format = 'txt';
                       Index = -1;
                       Category = 'HelpFile';
-                      Synopsis = ''}
+                      Synopsis = '';
+                      CommonParameters = $false}
             $XML = ParseTxtHelpFile $Item
             $Item.Synopsis = $XML.helpItems.command.details.description.para
             AddItem $true $Item
@@ -1290,6 +1291,15 @@ function CheckXMLFile ( [System.Collections.Hashtable] $LocalFuncs, [System.Stri
                         $Category = 'Function'
                         $LocalFuncs[$command.details.name] = $null
                     }
+                    $CmdInfo = Get-Command -Name $command.details.name -ErrorAction SilentlyContinue
+                    if ($CmdInfo -ne $null)
+                    {
+                        $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
+                    }
+                    else
+                    {
+                        $CommonParameters = $false
+                    }
                     AddItem $true @{Name = $command.details.name;
                                     ModuleName = $ModuleName;
                                     File = "$Path\$File";
@@ -1300,7 +1310,8 @@ function CheckXMLFile ( [System.Collections.Hashtable] $LocalFuncs, [System.Stri
                                     Component = '';
                                     Functionality = '';
                                     Role = '';
-                                    Synopsis = $command.details.description.para}
+                                    Synopsis = $command.details.description.para;
+                                    CommonParameters = $CommonParameters}
                 }
             }
         }
@@ -1309,6 +1320,15 @@ function CheckXMLFile ( [System.Collections.Hashtable] $LocalFuncs, [System.Stri
     {
         if ($LocalFuncs[$Function] -ne $null)
         {
+            $CmdInfo = Get-Command -Name $Function -ErrorAction SilentlyContinue
+            if ($CmdInfo -ne $null)
+            {
+                $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
+            }
+            else
+            {
+                $CommonParameters = $false
+            }
             AddItem $false @{Name = $Function;
                              ModuleName = $ModuleName;
                              File = '';
@@ -1319,7 +1339,8 @@ function CheckXMLFile ( [System.Collections.Hashtable] $LocalFuncs, [System.Stri
                              Component = '';
                              Functionality = '';
                              Role = '';
-                             Synopsis = '...'}
+                             Synopsis = '...';
+                             CommonParameters = $CommonParameters}
         }
     }
 } # CheckXMLFile #
@@ -1456,13 +1477,23 @@ function FindHelpFiles ()
                                 Component = $Item.Component;
                                 Functionality = $Item.Functionality;
                                 Role = $Item.Role;
-                                Synopsis = $_.Definition}
+                                Synopsis = $_.Definition;
+                                CommonParameters = $_.CommonParameters}
             }
         }
     foreach ($Function in $Work.Functions.keys)
     {
         if ($Work.Functions[$Function] -ne $null)
         {
+            $CmdInfo = Get-Command -Name $Function -ErrorAction SilentlyContinue
+            if ($CmdInfo -ne $null)
+            {
+                $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
+            }
+            else
+            {
+                $CommonParameters = $false
+            }
             AddItem $false @{Name = $Function;
                              ModuleName = '';
                              File = '';
@@ -1473,7 +1504,8 @@ function FindHelpFiles ()
                              Component = '';
                              Functionality = '';
                              Role = '';
-                             Synopsis = '...'}
+                             Synopsis = '...';
+                             CommonParameters = $CommonParameters}
         }
     }
     $Work.Functions = @{}
