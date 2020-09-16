@@ -18,6 +18,17 @@ Show-Xml -InputObject $XML.ChildNodes[1].ChildNodes[0].ChildNodes[0]
 Show-Xml -InputObject $XML.helpItems.command[0].details
 
     Both calls to Show-Xml shows the the same piece of XML file.
+.EXAMPLE
+$NS = @{root='http://msh';
+        maml='http://schemas.microsoft.com/maml/2004/10';
+        command='http://schemas.microsoft.com/maml/dev/command/2004/10';
+        dev='http://schemas.microsoft.com/maml/dev/2004/10'}
+$X = Select-Xml -Path "$PSHOME\$PSUICulture\System.Management.Automation.dll-Help.xml" `
+                -Namespace $NS `
+                -XPath '//root:helpItems/command:command[1]/command:details'
+Show-Xml $X.Node -Tree box 
+
+    Display help XML for first command from the Microsoft.PowerShell.Core module.
 .INPUTS
    System.Management.Automation.PSObject
 .OUTPUTS
@@ -221,6 +232,16 @@ function DisplayXMLItem ( [System.String] $Indent, $Item)
         'System.Xml.XmlComment'
             {
                 # Ignore comments
+            }
+        'System.Xml.XmlWhitespace'
+            {
+                $Width = $MaxWidth-$Indent.Length
+                $Value = '"'+$Item.Value.Replace("`n","``n")+'"'
+                if ($Value.Length -gt $Width)
+                {
+                    $Value = $Value.Substring(0,$Width-3)+'..."'
+                }
+                Write-Output ($Indent+$Value)
             }
         default
             {
