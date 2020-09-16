@@ -428,7 +428,7 @@ function BuildLinkValue ( [System.String] $LinkText, [System.String] $URI)
 } # BuildLinkValue #
 
 
-function DisplaySingleSyntax ( [System.Xml.XmlElement] $syntaxItem )
+function DisplaySingleSyntax ( [System.Xml.XmlElement] $syntaxItem, [System.Boolean] $CommonParameters )
 {
     $Para = $syntaxItem.name
     foreach ($parameter in $syntaxItem.parameter)
@@ -464,6 +464,10 @@ function DisplaySingleSyntax ( [System.Xml.XmlElement] $syntaxItem )
         {
             $Para += ']'
         }
+    }
+    if ($CommonParameters)
+    {
+        $Para += ' [<CommonParameters>]'
     }
     DisplayParagraph 1 hangpara $Para
 } # DisplaySingleSyntax #
@@ -503,7 +507,7 @@ function DisplaySingleExample ( [System.Xml.XmlElement] $Example )
 } # DisplaySingleExample #
 
 
-function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
+function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.XmlElement] $command )
 {
     DisplayParagraph 0 empty
 
@@ -528,14 +532,13 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
         {
             foreach ($syntaxItem in $command.syntax.syntaxItem)
             {
-                DisplaySingleSyntax $syntaxItem
+                DisplaySingleSyntax $syntaxItem $Item.CommonParameters
             }
         }
         else
         {
-            DisplaySingleSyntax $command.syntax.syntaxItem
+            DisplaySingleSyntax $command.syntax.syntaxItem $Item.CommonParameters
         }
-        DisplayParagraph 1 para 'Common Parameters will be described later !!!'
     }
 
     # ========================================
@@ -579,7 +582,16 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
         {
             DisplaySingleParameter $command.parameters.parameter
         }
-        DisplayParagraph 1 para 'Common Parameters will be described later !!!'
+        if ($Item.CommonParameters)
+        {
+            DisplayParagraph 1 comppara ('<CommonParameters>')
+
+            DisplayParagraph 2 para ('This cmdlet supports the common parameters: '+
+                'Verbose, Debug, ErrorAction, ErrorVariable, WarningAction, '+
+                'WarningVariable, OutBuffer, PipelineVariable, and OutVariable. '+
+                'For more information, see about_CommonParameters '+
+                '(https:/go.microsoft.com/fwlink/?LinkID=113216).')
+        }
     }
 
     # ========================================
@@ -1139,13 +1151,13 @@ function DisplayHelpItem ( [System.Collections.Hashtable] $Item )
             {
                 $XML = ParseTxtHelpFile $Item
                 show-XML.ps1 $XML -Tree ascii -Width ([System.Console]::WindowWidth-5)| Out-String | Write-Verbose
-                DisplayXmlHelpFile $XML.ChildNodes[1].ChildNodes[0]
+                DisplayXmlHelpFile $Item $XML.ChildNodes[1].ChildNodes[0]
             }
         "xml"
             {
                 # Write-Host ("Displaying file: "+$Item.File+" Item no: "+$Item.Index)
                 $XML = [System.Xml.XmlDocument](Get-Content $Item.File)
-                DisplayXmlHelpFile ($XML.helpItems.command)[$Item.Index]
+                DisplayXmlHelpFile $Item ($XML.helpItems.command)[$Item.Index]
             }
     }
 } # DisplayHelpItem #
