@@ -308,13 +308,15 @@ function ExtractParagraphText ( [System.Xml.XmlElement] $Para )
 } # ExtractParagraphText #
 
 
-function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel, [System.Object[]] $collection )
+function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel,
+                                         [System.Object[]] $collection,
+                                         [System.Boolean] $WasColon = $false )
 {
     if (($collection.Count -eq 0) -or ($collection[0].Length -eq 0))
     {
         return
     }
-    $WasColon = $false
+    #$WasColon = $false
     foreach ($Para in $collection)
     {
         if ($Para.GetType().FullName -eq 'System.Xml.XmlElement')
@@ -329,10 +331,12 @@ function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel, [System.Ob
         }
         if ($Para.IndexOf("`n") -ne -1)
         {
-            DisplayCollectionOfParagraphs $IndentLevel ($Para.Split("`n"))
+            # Instead of $WasColon there should be used info about colon in last paragraph
+            DisplayCollectionOfParagraphs $IndentLevel ($Para.Split("`n")) $WasColon
         }
         else
         {
+            $Para = $Para.TrimEnd()
             if (-not $WasColon)
             {
                 if ($Para.Substring($Para.Length-1, 1) -eq ':')
@@ -353,6 +357,16 @@ function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel, [System.Ob
                 {
                     # List item
                     DisplayParagraph $IndentLevel listpara $Para
+                }
+                elseif ($Para.Substring(0, 2) -eq '-- ')
+                {
+                    # List item
+                    DisplayParagraph $IndentLevel listpara ('- '+$Para.Substring(3))
+                }
+                elseif ($Para.Substring(0, 2) -eq '--')
+                {
+                    # List item
+                    DisplayParagraph $IndentLevel listpara ('- '+$Para.Substring(2))
                 }
                 else
                 {
@@ -579,7 +593,8 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
             foreach ($InputType in $command.InputTypes.InputType)
             {
                 DisplayParagraph 1 comppara $InputType.type.name
-                DisplayParagraph 2 para $InputType.description.para
+                #DisplayParagraph 2 para $InputType.description.para
+                DisplayCollectionOfParagraphs 2 $InputType.description.para
             }
         }
         else
@@ -589,7 +604,8 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
             {
                 DisplayParagraph 0 sect "INPUTS"
                 DisplayParagraph 1 comppara $command.InputTypes.InputType.type.name
-                DisplayParagraph 2 para $command.InputTypes.InputType.description.para
+                #DisplayParagraph 2 para $command.InputTypes.InputType.description.para
+                DisplayCollectionOfParagraphs 2 $command.InputTypes.InputType.description.para
             }
         }
     }
@@ -605,7 +621,7 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
             foreach ($returnValue in $command.returnValues.returnValue)
             {
                 DisplayParagraph 1 comppara $returnValue.type.name
-                DisplayParagraph 2 para $returnValue.description.para
+                DisplayCollectionOfParagraphs 2 $returnValue.description.para
             }
         }
         else
@@ -615,7 +631,7 @@ function DisplayXmlHelpFile ( [System.Xml.XmlElement] $command )
             {
                 DisplayParagraph 0 sect "OUTPUTS"
                 DisplayParagraph 1 comppara $command.returnValues.returnValue.type.name
-                DisplayParagraph 2 para $command.returnValues.returnValue.description.para
+                DisplayCollectionOfParagraphs 2 $command.returnValues.returnValue.description.para
             }
         }
     }
