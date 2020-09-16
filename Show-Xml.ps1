@@ -75,7 +75,11 @@ param (
 
 if ($Width -eq 0)
 {
-    $Width = [System.Console]::WindowWidth
+    Invoke-Expression '$Width = [System.Console]::WindowWidth' -ErrorAction Ignore
+}
+if ($Width -eq 0)
+{
+    $Width = 80
 }
 $MaxWidth = $Width-1
 if ($Depth -eq -1)
@@ -211,6 +215,10 @@ function DisplayXMLItem ( [System.String] $Indent, $Item)
                     $Value = $Value.Substring(0,$Width-3)+'..."'
                 }
                 Write-Output ($Indent+$Value)
+            }
+        'System.Xml.XmlComment'
+            {
+                # Ignore comments
             }
         default
             {
