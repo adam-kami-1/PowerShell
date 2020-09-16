@@ -73,10 +73,12 @@ param (
     [System.Int32] $Width = 0
 )
 
-if ($Width -eq 0)
+# Try to get width of the host from the host info
+if (($Width -eq 0) -and ($Host.UI.RawUI.WindowSize.Width -ne $null))
 {
-    $($Width = [System.Console]::WindowWidth) 2> Out-Nul
+    $Width = $Host.UI.RawUI.WindowSize.Width
 }
+# The last resort is hardcoded value
 if ($Width -eq 0)
 {
     $Width = 80
