@@ -190,11 +190,13 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
     {
         $Format = 'empty'
     }
+    $DisplayedLines = 0
     switch ($Format)
     {
         'empty'
             {
                 $Work.Output += @('')
+                $DisplayedLines++
             }
         {($_ -eq 'para') -or
          ($_ -eq 'hangpara') -or
@@ -244,6 +246,7 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
                     foreach ($Line in $Lines)
                     {
                         $Work.Output += @((' ' * $Indent)+$Line)
+                        $DisplayedLines++
                         $no++
                         if ((($_ -eq 'hangpara') -or ($_ -eq 'listpara')) -and ($no -eq 1))
                         {
@@ -261,6 +264,7 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
                 if (($_ -ne 'comppara') -and ($_ -ne 'listpara'))
                 {
                     $Work.Output += @('')
+                    $DisplayedLines++
                 }
             }
         'code'
@@ -273,17 +277,21 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
                         $Line = $Line.Substring(0, $TextWidth-3)+'...'
                     }
                     $Work.Output += @((' ' * $Indent)+$Line)
+                    $DisplayedLines++
                 }
             }
         'sect'
             {
                 $Work.Output += @((' ' * $Indent)+$Work.Colors.Section+$Text+$Work.Colors.Default)
+                $DisplayedLines++
             }
         'subsect'
             {
                 $Work.Output += @((' ' * $Indent)+$Work.Colors.ExtraSection+$Text+$Work.Colors.Default)
+                $DisplayedLines++
             }
     }
+    return $DisplayedLines
 } # DisplayParagraph #
 
 
@@ -314,9 +322,10 @@ function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel,
 {
     if (($collection.Count -eq 0) -or ($collection[0].Length -eq 0))
     {
-        return
+        return 0
     }
     #$WasColon = $false
+    $DisplayedLines = 0
     foreach ($Para in $collection)
     {
         if ($Para.GetType().FullName -eq 'System.Xml.XmlElement')
@@ -332,7 +341,7 @@ function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel,
         if ($Para.IndexOf("`n") -ne -1)
         {
             # Instead of $WasColon there should be used info about colon in last paragraph
-            DisplayCollectionOfParagraphs $IndentLevel ($Para.Split("`n")) $WasColon
+            $DisplayedLines += DisplayCollectionOfParagraphs $IndentLevel ($Para.Split("`n")) $WasColon
         }
         else
         {
@@ -343,12 +352,12 @@ function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel,
                 {
                     # List heading paragraph
                     $WasColon = $true
-                    DisplayParagraph $IndentLevel comppara $Para
+                    $DisplayedLines += DisplayParagraph $IndentLevel comppara $Para
                 }
                 else
                 {
                     # Regular paragraph
-                    DisplayParagraph $IndentLevel para $Para
+                    $DisplayedLines += DisplayParagraph $IndentLevel para $Para
                 }
             }
             else
@@ -356,33 +365,34 @@ function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel,
                 if ($Para.Substring(0, 2) -eq '- ')
                 {
                     # List item
-                    DisplayParagraph $IndentLevel listpara $Para
+                    $DisplayedLines += DisplayParagraph $IndentLevel listpara $Para
                 }
                 elseif ($Para.Substring(0, 2) -eq '-- ')
                 {
                     # List item
-                    DisplayParagraph $IndentLevel listpara ('- '+$Para.Substring(3))
+                    $DisplayedLines += DisplayParagraph $IndentLevel listpara ('- '+$Para.Substring(3))
                 }
                 elseif ($Para.Substring(0, 2) -eq '--')
                 {
                     # List item
-                    DisplayParagraph $IndentLevel listpara ('- '+$Para.Substring(2))
+                    $DisplayedLines += DisplayParagraph $IndentLevel listpara ('- '+$Para.Substring(2))
                 }
                 else
                 {
                     # End of the list
-                    DisplayParagraph $IndentLevel empty
+                    $DisplayedLines += DisplayParagraph $IndentLevel empty
                     $WasColon = $false
                     # Regular paragraph
-                    DisplayParagraph $IndentLevel para $Para
+                    $DisplayedLines += DisplayParagraph $IndentLevel para $Para
                 }
             }
         }
     }
     if ($WasColon)
     {
-        DisplayParagraph $IndentLevel empty
+        $DisplayedLines += DisplayParagraph $IndentLevel empty
     }
+    return $DisplayedLines
 } # DisplayCollectionOfParagraphs #
 
 
@@ -469,7 +479,7 @@ function DisplaySingleSyntax ( [System.Xml.XmlElement] $syntaxItem, [System.Bool
     {
         $Para += ' [<CommonParameters>]'
     }
-    DisplayParagraph 1 hangpara $Para
+    $null = DisplayParagraph 1 hangpara $Para
 } # DisplaySingleSyntax #
 
 
@@ -481,52 +491,52 @@ function DisplaySingleParameter ( [System.Xml.XmlElement] $Parameter )
     $PipelineInput = $Parameter.pipelineInput
     $Globbing = $Parameter.globbing
     $Aliases = $Parameter.aliases
-    DisplayParagraph 1 comppara ('-'+$Parameter.name+' <'+$Parameter.type.name+'>')
+    $null = DisplayParagraph 1 comppara ('-'+$Parameter.name+' <'+$Parameter.type.name+'>')
 
-    DisplayCollectionOfParagraphs 2 $Parameter.Description.para
+    $null = DisplayCollectionOfParagraphs 2 $Parameter.Description.para
 
-    DisplayParagraph 2 code "Required?                    $Required"
-    DisplayParagraph 2 code "Position?                    $Position"
-    DisplayParagraph 2 code "Default value                $DefVal"
-    DisplayParagraph 2 code "Accept pipeline input?       $PipelineInput"
-    DisplayParagraph 2 code "Accept wildcard characters?  $Globbing"
+    $null = DisplayParagraph 2 code "Required?                    $Required"
+    $null = DisplayParagraph 2 code "Position?                    $Position"
+    $null = DisplayParagraph 2 code "Default value                $DefVal"
+    $null = DisplayParagraph 2 code "Accept pipeline input?       $PipelineInput"
+    $null = DisplayParagraph 2 code "Accept wildcard characters?  $Globbing"
     if (($Aliases -ne '') -and ($Aliases -ne 'none'))
     {
-        DisplayParagraph 2 code "Aliases                      $Aliases"
+        $null = DisplayParagraph 2 code "Aliases                      $Aliases"
     }
-    DisplayParagraph 0 empty
+    $null = DisplayParagraph 0 empty
 } # DisplaySingleParameter #
 
 
 function DisplaySingleExample ( [System.Xml.XmlElement] $Example )
 {
-    DisplayParagraph 1 para $Example.title
-    DisplayParagraph 2 code $Example.code
-    DisplayParagraph 2 empty
-    DisplayCollectionOfParagraphs 2 $Example.remarks.para
+    $null = DisplayParagraph 1 para $Example.title
+    $null = DisplayParagraph 2 code $Example.code
+    $null = DisplayParagraph 2 empty
+    $null = DisplayCollectionOfParagraphs 2 $Example.remarks.para
 } # DisplaySingleExample #
 
 
 function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.XmlElement] $command )
 {
-    DisplayParagraph 0 empty
+    $null = DisplayParagraph 0 empty
 
     # ========================================
     # Section NAME
-    DisplayParagraph 0 sect "NAME"
-    DisplayParagraph 1 para $command.details.name
+    $null = DisplayParagraph 0 sect "NAME"
+    $null = DisplayParagraph 1 para $command.details.name
 
     # ========================================
     # Section SYNOPSIS
-    DisplayParagraph 0 sect "SYNOPSIS"
-    DisplayParagraph 1 para $command.details.description.para
+    $null = DisplayParagraph 0 sect "SYNOPSIS"
+    $null = DisplayParagraph 1 para $command.details.description.para
 
     # ========================================
     # Section SYNTAX
     if (($command.syntax -ne $null) -and
         ($command.syntax.syntaxItem -ne $null))
     {
-        DisplayParagraph 0 sect "SYNTAX"
+        $null = DisplayParagraph 0 sect "SYNTAX"
 
         if ($command.syntax.syntaxItem.Count -ne 0)
         {
@@ -545,8 +555,8 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
     # Section DESCRIPTION
     if ($command.description.para.Count -gt 0)
     {
-        DisplayParagraph 0 sect "DESCRIPTION"
-        DisplayCollectionOfParagraphs 1 $command.description.para
+        $null = DisplayParagraph 0 sect "DESCRIPTION"
+        $null = DisplayCollectionOfParagraphs 1 $command.description.para
     }
     if ($command.description.section -ne $null)
     {
@@ -554,14 +564,14 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
         {
             foreach ($Section in $command.description.section)
             {
-                DisplayParagraph 0 'subsect' $Section.name
-                DisplayCollectionOfParagraphs 1 $Section.para
+                $null = DisplayParagraph 0 'subsect' $Section.name
+                $null = DisplayCollectionOfParagraphs 1 $Section.para
             }
         }
         else
         {
-            DisplayParagraph 0 'subsect' $command.description.section.name
-            DisplayCollectionOfParagraphs 1 $command.description.section.para
+            $null = DisplayParagraph 0 'subsect' $command.description.section.name
+            $null = DisplayCollectionOfParagraphs 1 $command.description.section.para
         }
     }
     
@@ -570,7 +580,7 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
     if (($command.parameters -ne $null) -and
         ($command.parameters.parameter -ne $null))
     {
-        DisplayParagraph 0 sect "PARAMETERS"
+        $null = DisplayParagraph 0 sect "PARAMETERS"
         if ($command.parameters.parameter.Count -ne 0)
         {
             foreach ($Parameter in $command.parameters.parameter)
@@ -584,9 +594,9 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
         }
         if ($Item.CommonParameters)
         {
-            DisplayParagraph 1 comppara ('<CommonParameters>')
+            $null = DisplayParagraph 1 comppara ('<CommonParameters>')
 
-            DisplayParagraph 2 para ('This cmdlet supports the common parameters: '+
+            $null = DisplayParagraph 2 para ('This cmdlet supports the common parameters: '+
                 'Verbose, Debug, ErrorAction, ErrorVariable, WarningAction, '+
                 'WarningVariable, OutBuffer, PipelineVariable, and OutVariable. '+
                 'For more information, see about_CommonParameters '+
@@ -599,14 +609,14 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
     if (($command.InputTypes -ne $null) -and
         ($command.InputTypes.InputType -ne $null))
     {
+        $DisplayedLines = 0
         if ($command.InputTypes.InputType.Count -ne $null)
         {
-            DisplayParagraph 0 sect "INPUTS"
+            $null = DisplayParagraph 0 sect "INPUTS"
             foreach ($InputType in $command.InputTypes.InputType)
             {
-                DisplayParagraph 1 comppara $InputType.type.name
-                #DisplayParagraph 2 para $InputType.description.para
-                DisplayCollectionOfParagraphs 2 $InputType.description.para
+                $null = DisplayParagraph 1 comppara $InputType.type.name
+                $DisplayedLines += DisplayCollectionOfParagraphs 2 $InputType.description.para
             }
         }
         else
@@ -614,11 +624,14 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
             if ((([String]$command.InputTypes.InputType.type.name) -ne '') -or
                 (([String]$command.InputTypes.InputType.description.para) -ne ''))
             {
-                DisplayParagraph 0 sect "INPUTS"
-                DisplayParagraph 1 comppara $command.InputTypes.InputType.type.name
-                #DisplayParagraph 2 para $command.InputTypes.InputType.description.para
-                DisplayCollectionOfParagraphs 2 $command.InputTypes.InputType.description.para
+                $null = DisplayParagraph 0 sect "INPUTS"
+                $null = DisplayParagraph 1 comppara $command.InputTypes.InputType.type.name
+                $DisplayedLines += DisplayCollectionOfParagraphs 2 $command.InputTypes.InputType.description.para
             }
+        }
+        if ($DisplayedLines -eq 0)
+        {
+            $null = DisplayParagraph 2 empty
         }
     }
 
@@ -627,13 +640,14 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
     if (($command.returnValues -ne $null) -and
         ($command.returnValues.returnValue -ne $null))
     {
+        $DisplayedLines = 0
         if ($command.returnValues.returnValue.Count -ne $null)
         {
-            DisplayParagraph 0 sect "OUTPUTS"
+            $null = DisplayParagraph 0 sect "OUTPUTS"
             foreach ($returnValue in $command.returnValues.returnValue)
             {
-                DisplayParagraph 1 comppara $returnValue.type.name
-                DisplayCollectionOfParagraphs 2 $returnValue.description.para
+                $null = DisplayParagraph 1 comppara $returnValue.type.name
+                $DisplayedLines = DisplayCollectionOfParagraphs 2 $returnValue.description.para
             }
         }
         else
@@ -641,10 +655,14 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
             if ((([String]$command.returnValues.returnValue.type.name) -ne '') -or
                 (([String]$command.returnValues.returnValue.description.para) -ne ''))
             {
-                DisplayParagraph 0 sect "OUTPUTS"
-                DisplayParagraph 1 comppara $command.returnValues.returnValue.type.name
-                DisplayCollectionOfParagraphs 2 $command.returnValues.returnValue.description.para
+                $null = DisplayParagraph 0 sect "OUTPUTS"
+                $null = DisplayParagraph 1 comppara $command.returnValues.returnValue.type.name
+                $DisplayedLines = DisplayCollectionOfParagraphs 2 $command.returnValues.returnValue.description.para
             }
+        }
+        if ($DisplayedLines -eq 0)
+        {
+            $null = DisplayParagraph 2 empty
         }
     }
     
@@ -655,8 +673,8 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
         ($command.alertSet.alert.para.Count -ne 0) -and
         ($command.alertSet.alert.para[0] -ne $null))
     {
-        DisplayParagraph 0 sect "NOTES"
-        DisplayCollectionOfParagraphs 1 $command.alertSet.alert.para
+        $null = DisplayParagraph 0 sect "NOTES"
+        $null = DisplayCollectionOfParagraphs 1 $command.alertSet.alert.para
     }
 
     # ========================================
@@ -664,7 +682,7 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
     if (($command.examples -ne $null) -and
         ($command.examples.example -ne $null))
     {
-        DisplayParagraph 0 sect "EXAMPLES"
+        $null = DisplayParagraph 0 sect "EXAMPLES"
         if ($command.examples.example.Count -ne 0)
         {
             foreach ($Example in $command.examples.example)
@@ -683,7 +701,7 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
     if (($command.relatedLinks -ne $null) -and
         ($command.relatedLinks.navigationLink -ne $null))
     {
-        DisplayParagraph 0 sect "RELATED LINKS"
+        $null = DisplayParagraph 0 sect "RELATED LINKS"
         $Links = @()
         if (($command.relatedLinks.navigationLink -is [System.Object[]]) -and
             ($command.relatedLinks.navigationLink.Count -gt 0))
@@ -699,15 +717,15 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
             $LinkValue = BuildLinkValue $command.relatedLinks.navigationLink.linkText $command.relatedLinks.navigationLink.uri
             $Links += @('* '+$LinkValue)
         }
-        DisplayCollectionOfParagraphs 1 $Links
+        $null = DisplayCollectionOfParagraphs 1 $Links
     }
 
     # ========================================
     # Section REMARKS
     if ($false)
     {
-        DisplayParagraph 0 sect "REMARKS"
-        DisplayParagraph 1 para 'Remarks will be described later !!!'
+        $null = DisplayParagraph 0 sect "REMARKS"
+        $null = DisplayParagraph 1 para 'Remarks will be described later !!!'
     }
 } # DisplayXmlHelpFile #
 
