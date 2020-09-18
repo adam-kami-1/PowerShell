@@ -636,14 +636,17 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
     if (($command.InputTypes -ne $null) -and
         ($command.InputTypes.InputType -ne $null))
     {
-        $DisplayedLines = 0
         if ($command.InputTypes.InputType.Count -ne $null)
         {
             $null = DisplayParagraph 0 sect "INPUTS"
             foreach ($InputType in $command.InputTypes.InputType)
             {
                 $null = DisplayParagraph 1 comppara $InputType.type.name
-                $DisplayedLines += DisplayCollectionOfParagraphs 2 $InputType.description.para
+                $DisplayedLines = DisplayCollectionOfParagraphs 2 $InputType.description.para
+                if ($DisplayedLines -eq 0)
+                {
+                    $null = DisplayParagraph 2 empty
+                }
             }
         }
         else
@@ -653,12 +656,12 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
             {
                 $null = DisplayParagraph 0 sect "INPUTS"
                 $null = DisplayParagraph 1 comppara $command.InputTypes.InputType.type.name
-                $DisplayedLines += DisplayCollectionOfParagraphs 2 $command.InputTypes.InputType.description.para
+                $DisplayedLines = DisplayCollectionOfParagraphs 2 $command.InputTypes.InputType.description.para
+                if ($DisplayedLines -eq 0)
+                {
+                    $null = DisplayParagraph 2 empty
+                }
             }
-        }
-        if ($DisplayedLines -eq 0)
-        {
-            $null = DisplayParagraph 2 empty
         }
     }
 
@@ -667,7 +670,6 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
     if (($command.returnValues -ne $null) -and
         ($command.returnValues.returnValue -ne $null))
     {
-        $DisplayedLines = 0
         if ($command.returnValues.returnValue.Count -ne $null)
         {
             $null = DisplayParagraph 0 sect "OUTPUTS"
@@ -675,6 +677,10 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
             {
                 $null = DisplayParagraph 1 comppara $returnValue.type.name
                 $DisplayedLines = DisplayCollectionOfParagraphs 2 $returnValue.description.para
+                if ($DisplayedLines -eq 0)
+                {
+                    $null = DisplayParagraph 2 empty
+                }
             }
         }
         else
@@ -685,11 +691,11 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
                 $null = DisplayParagraph 0 sect "OUTPUTS"
                 $null = DisplayParagraph 1 comppara $command.returnValues.returnValue.type.name
                 $DisplayedLines = DisplayCollectionOfParagraphs 2 $command.returnValues.returnValue.description.para
+                if ($DisplayedLines -eq 0)
+                {
+                    $null = DisplayParagraph 2 empty
+                }
             }
-        }
-        if ($DisplayedLines -eq 0)
-        {
-            $null = DisplayParagraph 2 empty
         }
     }
     
