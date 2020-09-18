@@ -486,7 +486,8 @@ function DisplaySingleSyntax ( [System.Xml.XmlElement] $syntaxItem, [System.Bool
         {
             $TypeName = '<'+$parameter.type.name+'>'
         }
-        if (($TypeName -ne 'System.Management.Automation.SwitchParameter') -and
+        if (($TypeName -ne '<System.Management.Automation.SwitchParameter>') -and
+            ($TypeName -ne '<SwitchParameter>') -and
             ($TypeName -ne '') -and ($TypeName -ne $null))
         {
             $Para += ' '+$TypeName
