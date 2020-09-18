@@ -459,16 +459,37 @@ function DisplaySingleSyntax ( [System.Xml.XmlElement] $syntaxItem, [System.Bool
         {
             $Para += ']'
         }
-        $TypeName = $parameter.parameterValue.FirstChild.InnerText
-        if (($TypeName -eq '') -or ($TypeName -eq $null))
+        $TypeName = ''
+        if ($parameter.parameterValueGroup -ne $null)
         {
-            $TypeName = $parameter.type.name
+            if ($parameter.parameterValueGroup.parameterValue.Count -gt 0)
+            {
+                foreach ($Value in $parameter.parameterValueGroup.parameterValue)
+                {
+                    if ($TypeName -eq '')
+                    {
+                        $TypeName = '{'+$Value.InnerText
+                    }
+                    else
+                    {
+                        $TypeName += ' | '+$Value.InnerText
+                    }
+                }
+                $TypeName += '}'
+            }
+        }
+        if (($TypeName -eq '') -and ($parameter.parameterValue.FirstChild.InnerText -ne $null))
+        {
+            $TypeName = '<'+$parameter.parameterValue.FirstChild.InnerText+'>'
+        }
+        if (($TypeName -eq '') -and ($parameter.type.name -ne $null))
+        {
+            $TypeName = '<'+$parameter.type.name+'>'
         }
         if (($TypeName -ne 'System.Management.Automation.SwitchParameter') -and
             ($TypeName -ne '') -and ($TypeName -ne $null))
         {
-            $Para += ' '
-            $Para += '<'+$TypeName+'>'
+            $Para += ' '+$TypeName
         }
         if (-not $Required)
         {
