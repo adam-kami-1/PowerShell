@@ -2,7 +2,7 @@
 .SYNOPSIS
 pomoc displays full help on the selected item.
 .DESCRIPTION
-If -Test switch is not used then pomoc uses Get-Help -Full to retrieve help information.
+This is planed as a replacement of Get-Help cmdlet.
 .EXAMPLE
 pomoc -Name Get_Command
 #>
@@ -47,6 +47,32 @@ param (
     # Enter the role that the user plays in an organization. Some cmdlets display different text in their help files based on the value of this parameter. This parameter has no effect on help for the core cmdlets.
     [System.String[]] ${Role},
 
+    # Adds parameter descriptions and examples to the basic help display. This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
+    #
+    # In fact in script pomoc.ps1 this parameter is ignored. Always full info is displayed.
+    [Parameter(ParameterSetName='DetailedView', Mandatory=$true)]
+    [System.Management.Automation.SwitchParameter] ${Detailed},
+
+    # Displays the entire help article for a cmdlet. Full includes parameter descriptions and attributes, examples, input and output object types, and additional notes.
+    #
+    # This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
+    #
+    # In fact in script pomoc.ps1 this parameter is ignored. Always full info is displayed.
+    [Parameter(ParameterSetName='AllUsersView')]
+    [System.Management.Automation.SwitchParameter] ${Full},
+
+    # Displays only the name, synopsis, and examples. To display only the examples, type `(Get-Help <cmdlet-name>).Examples`.
+    #
+    # This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
+    #
+    # In fact in script pomoc.ps1 this parameter is ignored. Always full info is displayed.
+    [Parameter(ParameterSetName='Examples', Mandatory=$true)]
+    [System.Management.Automation.SwitchParameter] ${Examples},
+
+    # Displays only the detailed descriptions of the specified parameters. Wildcards are permitted. This parameter has no effect on displays of conceptual ( About_ ) help.
+    [Parameter(ParameterSetName='Parameters', Mandatory=$true)]
+    [System.String] ${Parameter},
+
     # Displays the online version of a help article in the default browser. This parameter is valid only for cmdlet, function, workflow, and script help articles. You can't use the Online parameter with `Get-Help` in a remote session.
     #
     # For information about supporting this feature in help articles that you write, see about_Comment_Based_Help (./About/about_Comment_Based_Help.md), and Supporting Online Help (/powershell/scripting/developer/module/supporting-online-help), and Writing Help for PowerShell Cmdlets (/powershell/scripting/developer/help/writing-help-for-windows-powershell-cmdlets).
@@ -66,37 +92,13 @@ param (
     [Parameter(Mandatory=$false)]
     [System.Int32] $Width,
 
-    # Run my version of help
-    [Parameter(Mandatory=$false)]
-    [System.Management.Automation.SwitchParameter] $Test,
-
-    # If -Test then rescan help files
+    # Rescan help files. This is required when there are added new or newer help files
     [Parameter(Mandatory=$false)]
     [System.Management.Automation.SwitchParameter] $Rescan
 )
 
 
 #!/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
-
-#    # Adds parameter descriptions and examples to the basic help display. This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
-#    [Parameter(ParameterSetName='DetailedView', Mandatory=$true)]
-#    [System.Management.Automation.SwitchParameter] ${Detailed},
-
-#    # Displays the entire help article for a cmdlet. Full includes parameter descriptions and attributes, examples, input and output object types, and additional notes.
-#    #
-#    # This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
-#    [Parameter(ParameterSetName='AllUsersView')]
-#    [System.Management.Automation.SwitchParameter] ${Full},
-
-#    # Displays only the name, synopsis, and examples. To display only the examples, type `(Get-Help <cmdlet-name>).Examples`.
-#    #
-#    # This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
-#    [Parameter(ParameterSetName='Examples', Mandatory=$true)]
-#    [System.Management.Automation.SwitchParameter] ${Examples},
-
-#    # Displays only the detailed descriptions of the specified parameters. Wildcards are permitted. This parameter has no effect on displays of conceptual ( About_ ) help.
-#    [Parameter(ParameterSetName='Parameters', Mandatory=$true)]
-#    [System.String] ${Parameter},
 
 
 
@@ -1580,25 +1582,11 @@ function FindHelpFiles ()
 # Main body
 #####################################################################
 
-# Below two lines are in function help ()
-#Set the outputencoding to Console::OutputEncoding. More.com doesn't work well with Unicode.
-#$outputEncoding=[System.Console]::OutputEncoding
-
-$Test = $true
 #$Rescan = $true
 #$Name = 'Add-Computer'
 #$Name = 'Get-Help'
 #$Name = '*'
 #$Name = 'about_do'
-
-
-###########################################################
-# Call standard Get-Help if no -Test
-if (-not $Test)
-{
-    Get-Help @PSBoundParameters | C:\Git\usr\bin\less.exe
-    return
-}
 
 
 ###########################################################
