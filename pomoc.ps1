@@ -197,7 +197,8 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
     {
         'empty'
             {
-                $Work.Output += @('')
+                #$Work.Output += @('')
+                Write-Output ''
                 $DisplayedLines++
             }
         {($_ -eq 'para') -or
@@ -247,7 +248,8 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
                     $no = 0
                     foreach ($Line in $Lines)
                     {
-                        $Work.Output += @((' ' * $Indent)+$Line)
+                        #$Work.Output += @()
+                        Write-Output ((' ' * $Indent)+$Line)
                         $DisplayedLines++
                         $no++
                         if ((($_ -eq 'hangpara') -or ($_ -eq 'listpara')) -and ($no -eq 1))
@@ -265,7 +267,8 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
                 }
                 if (($_ -ne 'comppara') -and ($_ -ne 'listpara'))
                 {
-                    $Work.Output += @('')
+                    #$Work.Output += @('')
+                    Write-Output ''
                     $DisplayedLines++
                 }
             }
@@ -278,18 +281,21 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
                     {
                         $Line = $Line.Substring(0, $TextWidth-3)+'...'
                     }
-                    $Work.Output += @((' ' * $Indent)+$Line)
+                    #$Work.Output += @((' ' * $Indent)+$Line)
+                    Write-Output ((' ' * $Indent)+$Line)
                     $DisplayedLines++
                 }
             }
         'sect'
             {
-                $Work.Output += @((' ' * $Indent)+$Work.Colors.Section+$Text+$Work.Colors.Default)
+                #$Work.Output += @((' ' * $Indent)+$Work.Colors.Section+$Text+$Work.Colors.Default)
+                Write-Output ((' ' * $Indent)+$Work.Colors.Section+$Text+$Work.Colors.Default)
                 $DisplayedLines++
             }
         'subsect'
             {
-                $Work.Output += @((' ' * $Indent)+$Work.Colors.ExtraSection+$Text+$Work.Colors.Default)
+                #$Work.Output += @((' ' * $Indent)+$Work.Colors.ExtraSection+$Text+$Work.Colors.Default)
+                Write-Output ((' ' * $Indent)+$Work.Colors.ExtraSection+$Text+$Work.Colors.Default)
                 $DisplayedLines++
             }
     }
@@ -1689,19 +1695,19 @@ switch ($found.Count)
     1
         {
             DisplayHelpItem $HelpInfo.Items[$found[0]]
-            $Work.Output
+            #$Work.Output
         }
     default
         {
             for ($i = 0; $i -lt $found.Count; $i++)
             {
-                [pscustomobject]@{Name = $HelpInfo.Items[$found[$i]].Name;
-                                  Category = $HelpInfo.Items[$found[$i]].Category;
-                                  Module = $HelpInfo.Items[$found[$i]].ModuleName;
-                                  Synopsis = $HelpInfo.Items[$found[$i]].Synopsis;
-                                  #File = $HelpInfo.Items[$found[$i]].File;
-                                  #Index = $HelpInfo.Items[$found[$i]].Index
-                                 }
+                Write-Output [pscustomobject]@{Name = $HelpInfo.Items[$found[$i]].Name;
+                                               Category = $HelpInfo.Items[$found[$i]].Category;
+                                               Module = $HelpInfo.Items[$found[$i]].ModuleName;
+                                               Synopsis = $HelpInfo.Items[$found[$i]].Synopsis;
+                                               #File = $HelpInfo.Items[$found[$i]].File;
+                                               #Index = $HelpInfo.Items[$found[$i]].Index
+                                               }
             }
         }
 }
