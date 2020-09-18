@@ -577,10 +577,12 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
     
     # ========================================
     # Section PARAMETERS
+    $HeaderDisplayed = $false
     if (($command.parameters -ne $null) -and
         ($command.parameters.parameter -ne $null))
     {
         $null = DisplayParagraph 0 sect "PARAMETERS"
+        $HeaderDisplayed = $true
         if ($command.parameters.parameter.Count -ne 0)
         {
             foreach ($Parameter in $command.parameters.parameter)
@@ -592,16 +594,20 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.
         {
             DisplaySingleParameter $command.parameters.parameter
         }
-        if ($Item.CommonParameters)
+    }
+    if ($Item.CommonParameters)
+    {
+        if (-not $HeaderDisplayed)
         {
-            $null = DisplayParagraph 1 comppara ('<CommonParameters>')
-
-            $null = DisplayParagraph 2 para ('This cmdlet supports the common parameters: '+
-                'Verbose, Debug, ErrorAction, ErrorVariable, WarningAction, '+
-                'WarningVariable, OutBuffer, PipelineVariable, and OutVariable. '+
-                'For more information, see about_CommonParameters '+
-                '(https:/go.microsoft.com/fwlink/?LinkID=113216).')
+            $null = DisplayParagraph 0 sect "PARAMETERS"
         }
+        $null = DisplayParagraph 1 comppara ('<CommonParameters>')
+
+        $null = DisplayParagraph 2 para ('This cmdlet supports the common parameters: '+
+            'Verbose, Debug, ErrorAction, ErrorVariable, WarningAction, '+
+            'WarningVariable, OutBuffer, PipelineVariable, and OutVariable. '+
+            'For more information, see about_CommonParameters '+
+            '(https:/go.microsoft.com/fwlink/?LinkID=113216).')
     }
 
     # ========================================
