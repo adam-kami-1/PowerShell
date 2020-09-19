@@ -101,6 +101,10 @@ param (
 #!/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
 
 
+#----------------------------------------------------------
+# Universal utility functions
+#----------------------------------------------------------
+
 ###############
 # ToCamelCase #
 ###############
@@ -130,9 +134,9 @@ function ToCamelCase
     ###############
 
 
-#####################################################################
-# Displaying stuff
-#####################################################################
+#----------------------------------------------------------
+# Script global variables
+#----------------------------------------------------------
 
 $HelpInfo = @{
     Items = @();
@@ -147,6 +151,9 @@ $Work = @{
     Colors = @{};
     }
 
+#----------------------------------------------------------
+# Displying stuff
+#----------------------------------------------------------
 
 ######################
 # DisplayXmlHelpFile #
@@ -838,6 +845,10 @@ function DisplayXmlHelpFile
     ######################
 
 
+#----------------------------------------------------------
+#
+#----------------------------------------------------------
+
 ##################
 # CleanParagraph #
 ##################
@@ -1362,6 +1373,10 @@ function ParseTxtHelpFile
     ####################
 
 
+#----------------------------------------------------------
+#
+#----------------------------------------------------------
+
 ###################
 # DisplayHelpItem #
 ###################
@@ -1392,9 +1407,9 @@ function DisplayHelpItem
     ###################
 
 
-#####################################################################
+#----------------------------------------------------------
 # File searching stuff
-#####################################################################
+#----------------------------------------------------------
 
 
 ###########
@@ -1861,112 +1876,113 @@ function FindHelpFiles
     $Work.Functions = @{}
 }   # FindHelpFiles #
     #################
-    ###############
 
 
-#####################################################################
-# Main body
-#####################################################################
-
-#$Rescan = $true
-#$Name = 'Add-Computer'
-#$Name = 'Get-Help'
-#$Name = '*'
-#$Name = 'about_do'
-
-
-###########################################################
-# Find all *.help.txt and  *.dll-help.xml files HelpFiles
-if ((Test-Path -Path $env:USERPROFILE\.PS-pomoc.xml) -and -not $Rescan)
+########
+# Main #
+########
+function Main
 {
-    Write-Verbose ('Importing stored info about help files to '+$env:USERPROFILE+'\.PS-pomoc.xml')
-    $HelpInfo = Import-Clixml -Path $env:USERPROFILE\.PS-pomoc.xml
-}
-else
-{
-    Write-Verbose "Find all *.help.txt and  *.dll-help.xml files HelpFiles"
-    FindHelpFiles
-    Write-Verbose ('Storing info about help files from '+$env:USERPROFILE+'\.PS-pomoc.xml')
-    Export-Clixml -Path $env:USERPROFILE\.PS-pomoc.xml -Encoding UTF8 -InputObject $HelpInfo
-}
+    param ()
 
-
-###########################################################
-
-if ($Width -eq 0)
-{
-    $Width = [System.Console]::WindowWidth
-}
-if ($psISE -eq $null)
-{
-    $Esc=[char]0x1B;
-    $F_Default = "${Esc}[39m";
-    $F_Black = "${Esc}[30m";
-    $F_DarkRed = "${Esc}[31m";
-    $F_DarkGreen = "${Esc}[32m";
-    $F_DarkYellow = "${Esc}[33m";
-    $F_DarkBlue = "${Esc}[34m";
-    $F_DarkMagenta = "${Esc}[35m";
-    $F_DarkCyan = "${Esc}[36m";
-    $F_Gray = "${Esc}[37m";
-    $F_DarkGray = "${Esc}[90m";
-    $F_Red = "${Esc}[91m";
-    $F_Green = "${Esc}[92m";
-    $F_Yellow = "${Esc}[93m";
-    $F_Blue = "${Esc}[94m";
-    $F_Magenta = "${Esc}[95m";
-    $F_Cyan = "${Esc}[96m";
-    $F_White = "${Esc}[97m";
-
-    $Work.Colors = @{
-        Section = $F_Magenta;
-        ExtraSection = $F_Cyan;
-        Parameter = $F_Yellow;
-        Default = $F_Default;
-        }
-}
-else
-{
-    $Work.Colors = @{
-        Section = '';
-        ExtraSection = '';
-        Parameter = '';
-        Default = '';
-        }
-}
-$found = @()
-for ($i = 0; $i -lt $HelpInfo.Items.Count; $i++)
-{
-    if (($HelpInfo.Items[$i].Name -like $Name) -and
-        (($Category.Count -eq 0) -or ($Category -contains $HelpInfo.Items[$i].Category)) -and
-        (($Component.Count -eq 0) -or ($Component -contains $HelpInfo.Items[$i].Component)) -and
-        (($Functionality.Count -eq 0) -or ($Functionality -contains $HelpInfo.Items[$i].Functionality)) -and
-        (($Role.Count -eq 0) -or ($Role -contains $HelpInfo.Items[$i].Role)))
+    #----------------------------------------------------------
+    # Find all *.help.txt and  *.dll-help.xml files HelpFiles
+    if ((Test-Path -Path $env:USERPROFILE\.PS-pomoc.xml) -and -not $Rescan)
     {
-        $found += $i
+        Write-Verbose ('Importing stored info about help files to '+$env:USERPROFILE+'\.PS-pomoc.xml')
+        $HelpInfo = Import-Clixml -Path $env:USERPROFILE\.PS-pomoc.xml
     }
-}
-switch ($found.Count)
-{
-    0
-        {
-            Write-Error "Unable to find $Name"
-        }
-    1
-        {
-            DisplayHelpItem $HelpInfo.Items[$found[0]]
-        }
-    default
-        {
-            for ($i = 0; $i -lt $found.Count; $i++)
-            {
-                Write-Output ([pscustomobject]@{Name = $HelpInfo.Items[$found[$i]].Name;
-                                               Category = $HelpInfo.Items[$found[$i]].Category;
-                                               Module = $HelpInfo.Items[$found[$i]].ModuleName;
-                                               Synopsis = $HelpInfo.Items[$found[$i]].Synopsis;
-                                               #File = $HelpInfo.Items[$found[$i]].File;
-                                               #Index = $HelpInfo.Items[$found[$i]].Index
-                                               })
+    else
+    {
+        Write-Verbose "Find all *.help.txt and  *.dll-help.xml files HelpFiles"
+        FindHelpFiles
+        Write-Verbose ('Storing info about help files from '+$env:USERPROFILE+'\.PS-pomoc.xml')
+        Export-Clixml -Path $env:USERPROFILE\.PS-pomoc.xml -Encoding UTF8 -InputObject $HelpInfo
+    }
+
+
+    #----------------------------------------------------------
+
+    if ($Width -eq 0)
+    {
+        $Width = [System.Console]::WindowWidth
+    }
+    if ($psISE -eq $null)
+    {
+        $Esc=[char]0x1B;
+        $F_Default = "${Esc}[39m";
+        $F_Black = "${Esc}[30m";
+        $F_DarkRed = "${Esc}[31m";
+        $F_DarkGreen = "${Esc}[32m";
+        $F_DarkYellow = "${Esc}[33m";
+        $F_DarkBlue = "${Esc}[34m";
+        $F_DarkMagenta = "${Esc}[35m";
+        $F_DarkCyan = "${Esc}[36m";
+        $F_Gray = "${Esc}[37m";
+        $F_DarkGray = "${Esc}[90m";
+        $F_Red = "${Esc}[91m";
+        $F_Green = "${Esc}[92m";
+        $F_Yellow = "${Esc}[93m";
+        $F_Blue = "${Esc}[94m";
+        $F_Magenta = "${Esc}[95m";
+        $F_Cyan = "${Esc}[96m";
+        $F_White = "${Esc}[97m";
+
+        $Work.Colors = @{
+            Section = $F_Magenta;
+            ExtraSection = $F_Cyan;
+            Parameter = $F_Yellow;
+            Default = $F_Default;
             }
+    }
+    else
+    {
+        $Work.Colors = @{
+            Section = '';
+            ExtraSection = '';
+            Parameter = '';
+            Default = '';
+            }
+    }
+    $found = @()
+    for ($i = 0; $i -lt $HelpInfo.Items.Count; $i++)
+    {
+        if (($HelpInfo.Items[$i].Name -like $Name) -and
+            (($Category.Count -eq 0) -or ($Category -contains $HelpInfo.Items[$i].Category)) -and
+            (($Component.Count -eq 0) -or ($Component -contains $HelpInfo.Items[$i].Component)) -and
+            (($Functionality.Count -eq 0) -or ($Functionality -contains $HelpInfo.Items[$i].Functionality)) -and
+            (($Role.Count -eq 0) -or ($Role -contains $HelpInfo.Items[$i].Role)))
+        {
+            $found += $i
         }
-}
+    }
+    switch ($found.Count)
+    {
+        0
+            {
+                Write-Error "Unable to find $Name"
+            }
+        1
+            {
+                DisplayHelpItem $HelpInfo.Items[$found[0]]
+            }
+        default
+            {
+                for ($i = 0; $i -lt $found.Count; $i++)
+                {
+                    Write-Output ([pscustomobject]@{Name = $HelpInfo.Items[$found[$i]].Name;
+                                                   Category = $HelpInfo.Items[$found[$i]].Category;
+                                                   Module = $HelpInfo.Items[$found[$i]].ModuleName;
+                                                   Synopsis = $HelpInfo.Items[$found[$i]].Synopsis;
+                                                   #File = $HelpInfo.Items[$found[$i]].File;
+                                                   #Index = $HelpInfo.Items[$found[$i]].Index
+                                                   })
+                }
+            }
+    }
+
+}   # Main #
+    ########
+
+Main
+
