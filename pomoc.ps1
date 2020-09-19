@@ -102,6 +102,24 @@ param (
 
 
 #----------------------------------------------------------
+# Script global variables
+#----------------------------------------------------------
+
+$HelpInfo = @{
+    Items = @();
+    ItemIndex = @{};
+    }
+
+$Work = @{
+    # Used only during building $HelpInfo
+    Functions = @{};
+
+    # Used only during displaying results
+    OutputWidth = $Width
+    Colors = @{};
+    }
+
+#----------------------------------------------------------
 # Universal utility functions
 #----------------------------------------------------------
 
@@ -133,23 +151,6 @@ function ToCamelCase
 }   # ToCamelCase #
     ###############
 
-
-#----------------------------------------------------------
-# Script global variables
-#----------------------------------------------------------
-
-$HelpInfo = @{
-    Items = @();
-    ItemIndex = @{};
-    }
-
-$Work = @{
-    # Used only during building $HelpInfo
-    Functions = @{};
-
-    # Used only during displaying results
-    Colors = @{};
-    }
 
 #----------------------------------------------------------
 # Displying stuff
@@ -234,7 +235,7 @@ function DisplayXmlHelpFile
         ####################
         # DisplayParagraph #
         $Indent = 4 * $IndentLevel
-        $TextWidth = $Width-$Indent
+        $TextWidth = $Work.OutputWidth-$Indent
         if ($Text -eq '')
         {
             $Format = 'empty'
@@ -1753,130 +1754,6 @@ function CheckModule
     ###############
 
 
-#################
-# FindHelpFiles #
-#################
-function FindHelpFiles
-{
-    param ()
-
-
-    ##########
-    # VerCmp #
-    ##########
-    Function VerCmp
-    {
-        param (
-            [System.String] $Version1,
-            [System.String] $Version2
-        )
-
-        ##########
-        # VerCmp #
-        $Ver1 = $Version1.Split('.')
-        $Ver2 = $Version2.Split('.')
-        for ($i = 0; $i -lt [System.Math]::Min($Ver1.Count,$Ver2.Count); $i++)
-        {
-            if ($Ver1[$i] -ne $Ver2[$i])
-            {
-                return $Ver1[$i] - $Ver2[$i]
-            }
-        }
-        if ($Ver1.Count -eq $Ver2.Count)
-        {
-            return 0
-        }
-        return $Ver1.Count - $Ver2.Count
-    }   # VerCmp #
-        ##########
-
-
-    #################
-    # FindHelpFiles #
-    Get-ChildItem function: | ForEach-Object { $Work.Functions[$_.Name] = 'Function' }
-    CheckTxtHelpFiles '' $PSHOME\$PSUICulture
-    $LocalFuncs = @()
-    CheckXmlHelpFiles $LocalFuncs '' $PSHOME\$PSUICulture '.dll-help.xml'
-    CheckXmlHelpFiles $LocalFuncs '' $PSHOME\$PSUICulture '-help.xml'
-    foreach ($ModulePath in (($env:PSModulePath).Split(';')))
-    {
-        foreach ($Module in ((Get-Childitem $ModulePath -Directory).Name))
-        {
-            $Version = ''
-            foreach ($SubDir in ((Get-Childitem $ModulePath\$Module -Directory).Name))
-            {
-                if ($SubDir -eq $PSUICulture)
-                {
-                    CheckModule $ModulePath $Module ''
-                }
-                elseif ($SubDir -match '^([0-9]\.)+[0-9]+$')
-                {
-                    if ((VerCmp $Version $SubDir) -le 0)
-                    {
-                        $Version = $SubDir
-                    }
-                }
-            }
-            if ($Version -ne '')
-            {
-                #Write-Host "Checking module: $Module\$SubDir"
-                CheckModule $ModulePath $Module $Version
-            }
-        }
-    }
-    Get-ChildItem alias: | 
-        ForEach-Object `
-        {
-            # Alias  $_.Name  ->  $_.Definition
-            #
-            if ($HelpInfo.ItemIndex[$_.Definition] -ne $null)
-            {
-                $Item = $HelpInfo.Items[$HelpInfo.ItemIndex[$_.Definition]]
-                AddItem $true @{Name = $_.Name;
-                                ModuleName = $Item.ModuleName;
-                                File = $Item.File;
-                                OnlineURI = $Item.OnlineURI;
-                                Format = $Item.Format;
-                                Index = $Item.Index;
-                                Category = 'Alias';
-                                Component = $Item.Component;
-                                Functionality = $Item.Functionality;
-                                Role = $Item.Role;
-                                Synopsis = $_.Definition;
-                                CommonParameters = $_.CommonParameters}
-            }
-        }
-    foreach ($Function in $Work.Functions.keys)
-    {
-        if ($Work.Functions[$Function] -ne $null)
-        {
-            $CmdInfo = Get-Command -Name $Function -ErrorAction SilentlyContinue
-            if ($CmdInfo -ne $null)
-            {
-                $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
-            }
-            else
-            {
-                $CommonParameters = $false
-            }
-            AddItem $false @{Name = $Function;
-                             ModuleName = '';
-                             File = '';
-                             OnlineURI = '';
-                             Format = '';
-                             Index = -1;
-                             Category = 'Function';
-                             Component = '';
-                             Functionality = '';
-                             Role = '';
-                             Synopsis = '...';
-                             CommonParameters = $CommonParameters}
-        }
-    }
-    $Work.Functions = @{}
-}   # FindHelpFiles #
-    #################
-
 
 ########
 # Main #
@@ -1885,28 +1762,158 @@ function Main
 {
     param ()
 
+    
+    #################
+    # FindHelpFiles #
+    #################
+    function FindHelpFiles
+    {
+        param ()
+
+
+        ##########
+        # VerCmp #
+        ##########
+        Function VerCmp
+        {
+            param (
+                [System.String] $Version1,
+                [System.String] $Version2
+            )
+
+            ##########
+            # VerCmp #
+            $Ver1 = $Version1.Split('.')
+            $Ver2 = $Version2.Split('.')
+            for ($i = 0; $i -lt [System.Math]::Min($Ver1.Count,$Ver2.Count); $i++)
+            {
+                if ($Ver1[$i] -ne $Ver2[$i])
+                {
+                    return $Ver1[$i] - $Ver2[$i]
+                }
+            }
+            if ($Ver1.Count -eq $Ver2.Count)
+            {
+                return 0
+            }
+            return $Ver1.Count - $Ver2.Count
+        }   # VerCmp #
+            ##########
+
+
+        #################
+        # FindHelpFiles #
+        Get-ChildItem function: | ForEach-Object { $Work.Functions[$_.Name] = 'Function' }
+        CheckTxtHelpFiles '' $PSHOME\$PSUICulture
+        $LocalFuncs = @()
+        CheckXmlHelpFiles $LocalFuncs '' $PSHOME\$PSUICulture '.dll-help.xml'
+        CheckXmlHelpFiles $LocalFuncs '' $PSHOME\$PSUICulture '-help.xml'
+        foreach ($ModulePath in (($env:PSModulePath).Split(';')))
+        {
+            foreach ($Module in ((Get-Childitem $ModulePath -Directory).Name))
+            {
+                $Version = ''
+                foreach ($SubDir in ((Get-Childitem $ModulePath\$Module -Directory).Name))
+                {
+                    if ($SubDir -eq $PSUICulture)
+                    {
+                        CheckModule $ModulePath $Module ''
+                    }
+                    elseif ($SubDir -match '^([0-9]\.)+[0-9]+$')
+                    {
+                        if ((VerCmp $Version $SubDir) -le 0)
+                        {
+                            $Version = $SubDir
+                        }
+                    }
+                }
+                if ($Version -ne '')
+                {
+                    #Write-Host "Checking module: $Module\$SubDir"
+                    CheckModule $ModulePath $Module $Version
+                }
+            }
+        }
+        Get-ChildItem alias: | 
+            ForEach-Object `
+            {
+                # Alias  $_.Name  ->  $_.Definition
+                #
+                if ($HelpInfo.ItemIndex[$_.Definition] -ne $null)
+                {
+                    $Item = $HelpInfo.Items[$HelpInfo.ItemIndex[$_.Definition]]
+                    AddItem $true @{Name = $_.Name;
+                                    ModuleName = $Item.ModuleName;
+                                    File = $Item.File;
+                                    OnlineURI = $Item.OnlineURI;
+                                    Format = $Item.Format;
+                                    Index = $Item.Index;
+                                    Category = 'Alias';
+                                    Component = $Item.Component;
+                                    Functionality = $Item.Functionality;
+                                    Role = $Item.Role;
+                                    Synopsis = $_.Definition;
+                                    CommonParameters = $_.CommonParameters}
+                }
+            }
+        foreach ($Function in $Work.Functions.keys)
+        {
+            if ($Work.Functions[$Function] -ne $null)
+            {
+                $CmdInfo = Get-Command -Name $Function -ErrorAction SilentlyContinue
+                if ($CmdInfo -ne $null)
+                {
+                    $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
+                }
+                else
+                {
+                    $CommonParameters = $false
+                }
+                AddItem $false @{Name = $Function;
+                                 ModuleName = '';
+                                 File = '';
+                                 OnlineURI = '';
+                                 Format = '';
+                                 Index = -1;
+                                 Category = 'Function';
+                                 Component = '';
+                                 Functionality = '';
+                                 Role = '';
+                                 Synopsis = '...';
+                                 CommonParameters = $CommonParameters}
+            }
+        }
+        $Work.Functions = @{}
+    }   # FindHelpFiles #
+        #################
+
+
+    ########
+    # Main #
     #----------------------------------------------------------
-    # Find all *.help.txt and  *.dll-help.xml files HelpFiles
     if ((Test-Path -Path $env:USERPROFILE\.PS-pomoc.xml) -and -not $Rescan)
     {
+        # Import description of all previously found help items
         Write-Verbose ('Importing stored info about help files to '+$env:USERPROFILE+'\.PS-pomoc.xml')
         $HelpInfo = Import-Clixml -Path $env:USERPROFILE\.PS-pomoc.xml
     }
     else
     {
+        # Find all *.help.txt and  *.dll-help.xml files HelpFiles
         Write-Verbose "Find all *.help.txt and  *.dll-help.xml files HelpFiles"
         FindHelpFiles
+        # Export description of all found help items
         Write-Verbose ('Storing info about help files from '+$env:USERPROFILE+'\.PS-pomoc.xml')
         Export-Clixml -Path $env:USERPROFILE\.PS-pomoc.xml -Encoding UTF8 -InputObject $HelpInfo
     }
 
-
     #----------------------------------------------------------
-
-    if ($Width -eq 0)
+    # Configuring output width
+    if ($Work.OutputWidth -eq 0)
     {
-        $Width = [System.Console]::WindowWidth
+        $Work.OutputWidth = [System.Console]::WindowWidth
     }
+    # Configuring output colors
     if ($psISE -eq $null)
     {
         $Esc=[char]0x1B;
@@ -1944,6 +1951,8 @@ function Main
             Default = '';
             }
     }
+    #----------------------------------------------------------
+    # Searching help items to display
     $found = @()
     for ($i = 0; $i -lt $HelpInfo.Items.Count; $i++)
     {
@@ -1956,6 +1965,8 @@ function Main
             $found += $i
         }
     }
+    #----------------------------------------------------------
+    # Displaying found results
     switch ($found.Count)
     {
         0
