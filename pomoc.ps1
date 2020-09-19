@@ -102,8 +102,12 @@ param (
 
 
 
-function ToCamelCase ( [System.String] $Str )
+function ToCamelCase
 {
+    param (
+        [System.String] $Str
+    )
+
     $ChArr = $Str.ToCharArray()
     $Str = ''
     for ($i = 0; $i -lt $ChArr.Length; $i++)
@@ -120,8 +124,14 @@ function ToCamelCase ( [System.String] $Str )
     return $Str
 } # ToCamelCase #
 
-function Max ( $Val1, $Val2 )
+
+function Max
 {
+    param (
+        $Val1,
+        $Val2
+    )
+
     if ($Val1 -ge $Val2)
     {
         return $Val1
@@ -133,8 +143,13 @@ function Max ( $Val1, $Val2 )
 } # Max #
 
 
-function Min ( $Val1, $Val2 )
+function Min
 {
+    param (
+        $Val1,
+        $Val2
+    )
+
     if ($Val1 -le $Val2)
     {
         return $Val1
@@ -146,8 +161,13 @@ function Min ( $Val1, $Val2 )
 } # Min #
 
 
-Function VerCmp ( [System.String] $Version1, [System.String] $Version2 )
+Function VerCmp
 {
+    param (
+        [System.String] $Version1,
+        [System.String] $Version2
+    )
+
     $Ver1 = $Version1.Split('.')
     $Ver2 = $Version2.Split('.')
     for ($i = 0; $i -lt (Min $Ver1.Count $Ver2.Count); $i++)
@@ -183,11 +203,15 @@ $Work = @{
     }
 
 
-function DisplayParagraph ( [System.Int32] $IndentLevel,
-                            [System.String] $Format,
-                            [System.String] $Text = '',
-                            [System.String] $DisplayedLinesVar = '')
+function DisplayParagraph
 {
+    param ( 
+        [System.Int32] $IndentLevel,
+        [System.String] $Format,
+        [System.String] $Text = '',
+        [System.String] $DisplayedLinesVar = ''
+    )
+
     $Indent = 4 * $IndentLevel
     $TextWidth = $Width-$Indent
     if ($Text -eq '')
@@ -302,8 +326,12 @@ function DisplayParagraph ( [System.Int32] $IndentLevel,
 } # DisplayParagraph #
 
 
-function ExtractParagraphText ( [System.Xml.XmlElement] $Para )
+function ExtractParagraphText
 {
+    param (
+        [System.Xml.XmlElement] $Para
+    )
+
     $Text = ''
     foreach ($Child in $Para.ChildNodes)
     {
@@ -323,11 +351,15 @@ function ExtractParagraphText ( [System.Xml.XmlElement] $Para )
 } # ExtractParagraphText #
 
 
-function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel,
-                                         [System.Object[]] $collection,
-                                         [System.String] $DisplayedLinesVar = '',
-                                         [System.Boolean] $WasColon = $false )
+function DisplayCollectionOfParagraphs
 {
+    param (
+        [System.Int32] $IndentLevel,
+        [System.Object[]] $collection,
+        [System.String] $DisplayedLinesVar = '',
+        [System.Boolean] $WasColon = $false
+    )
+
     if (($collection.Count -eq 0) -or ($collection[0].Length -eq 0))
     {
         if ($DisplayedLinesVar -ne '')
@@ -420,9 +452,13 @@ function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel,
 } # DisplayCollectionOfParagraphs #
 
 
-function BuildLinkValue ( [System.String] $LinkText,
-                          [System.String] $URI)
+function BuildLinkValue
 {
+    param (
+        [System.String] $LinkText,
+        [System.String] $URI
+    )
+
     if ($URI -ne '')
     {
         if (($URI.Substring(0,8) -ne 'https://') -and ($URI.Substring(0,7) -ne 'http://'))
@@ -463,9 +499,13 @@ function BuildLinkValue ( [System.String] $LinkText,
 } # BuildLinkValue #
 
 
-function DisplaySingleSyntax ( [System.Xml.XmlElement] $syntaxItem,
-                               [System.Boolean] $CommonParameters )
+function DisplaySingleSyntax
 {
+    param (
+        [System.Xml.XmlElement] $syntaxItem,
+        [System.Boolean] $CommonParameters
+    )
+
     $Para = $syntaxItem.name
     foreach ($parameter in $syntaxItem.parameter)
     {
@@ -531,8 +571,12 @@ function DisplaySingleSyntax ( [System.Xml.XmlElement] $syntaxItem,
 } # DisplaySingleSyntax #
 
 
-function DisplaySingleParameter ( [System.Xml.XmlElement] $Parameter )
+function DisplaySingleParameter
 {
+    param (
+        [System.Xml.XmlElement] $Parameter
+    )
+
     $Required = $Parameter.required
     $Position = $Parameter.position
     $DefVal = $Parameter.defaultValue
@@ -556,8 +600,12 @@ function DisplaySingleParameter ( [System.Xml.XmlElement] $Parameter )
 } # DisplaySingleParameter #
 
 
-function DisplaySingleExample ( [System.Xml.XmlElement] $Example )
+function DisplaySingleExample
 {
+    param (
+        [System.Xml.XmlElement] $Example
+    )
+
     DisplayParagraph 1 para $Example.title
     DisplayParagraph 2 code $Example.code
     DisplayParagraph 2 empty
@@ -565,9 +613,13 @@ function DisplaySingleExample ( [System.Xml.XmlElement] $Example )
 } # DisplaySingleExample #
 
 
-function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item,
-                              [System.Xml.XmlElement] $command )
+function DisplayXmlHelpFile
 {
+    param (
+        [System.Collections.Hashtable] $Item,
+        [System.Xml.XmlElement] $command
+    )
+
     DisplayParagraph 0 empty
 
     # ========================================
@@ -791,8 +843,12 @@ function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item,
 } # DisplayXmlHelpFile #
 
 
-function CleanParagraph ( [System.String] $Paragraph )
+function CleanParagraph
 {
+    param (
+        [System.String] $Paragraph
+    )
+
     # Replace all new lines with spaces
     $Paragraph = $Paragraph.Replace("`n", ' ')
 
@@ -804,12 +860,16 @@ function CleanParagraph ( [System.String] $Paragraph )
     return $Paragraph.Trim()
 } # CleanParagraph #
 
-function AddLinesToNewChild ( [System.Xml.XmlDocument] $XML, 
-                              [System.Xml.XmlElement] $Parent, 
-                              [System.String] $ChildName,
-                              [System.Int32] $SkipLines,
-                              [System.String] $Paragraph)
+function AddLinesToNewChild
 {
+    param (
+        [System.Xml.XmlDocument] $XML, 
+        [System.Xml.XmlElement] $Parent, 
+        [System.String] $ChildName,
+        [System.Int32] $SkipLines,
+        [System.String] $Paragraph
+    )
+
     # Ignore first $SkipLines lines from the $Paragraph
     while (($SkipLines -gt 0) -and ($Paragraph.IndexOf("`n") -gt 0))
     {
@@ -829,10 +889,14 @@ function AddLinesToNewChild ( [System.Xml.XmlDocument] $XML,
 } # AddLinesToNewChild #
 
 
-function AddNavigationLink ( [System.Xml.XmlDocument] $XML, 
-                             [System.Xml.XmlElement] $Parent,
-                             [System.String] $Line)
+function AddNavigationLink
 {
+    param (
+        [System.Xml.XmlDocument] $XML, 
+        [System.Xml.XmlElement] $Parent,
+        [System.String] $Line
+    )
+
     $Line = $Line.Trim()
     if ($Line.Length -lt 1)
     {
@@ -890,10 +954,14 @@ function AddNavigationLink ( [System.Xml.XmlDocument] $XML,
 } # AddNavigationLink #
 
 
-function AddLinesToRelatedLinks ( [System.Xml.XmlDocument] $XML,
-                                  [System.Int32] $SkipLines,
-                                  [System.String] $Paragraph )
+function AddLinesToRelatedLinks
 {
+    param (
+        [System.Xml.XmlDocument] $XML,
+        [System.Int32] $SkipLines,
+        [System.String] $Paragraph
+    )
+
     # Ignore first $SkipLines lines from the $Paragraph
     while (($SkipLines -gt 0) -and ($Paragraph.IndexOf("`n") -gt 0))
     {
@@ -909,9 +977,13 @@ function AddLinesToRelatedLinks ( [System.Xml.XmlDocument] $XML,
 } # AddLinesToRelatedLinks #
 
 
-function AddDescriptionParagraph ( [System.Xml.XmlDocument] $XML,
-                                   [System.String] $Paragraph )
+function AddDescriptionParagraph
 {
+    param (
+        [System.Xml.XmlDocument] $XML,
+        [System.String] $Paragraph
+    )
+
     $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
     if ($Description -eq $null)
     {
@@ -922,8 +994,12 @@ function AddDescriptionParagraph ( [System.Xml.XmlDocument] $XML,
 }
 
 
-function ExtraSectionHeading ( [System.String] $Paragraph )
+function ExtraSectionHeading
 {
+    param (
+        [System.String] $Paragraph
+    )
+
     if (($Paragraph.IndexOf("`n") -ne -1) -or
         ($Paragraph.Trim().Length -eq 0)) 
     {
@@ -951,10 +1027,14 @@ function ExtraSectionHeading ( [System.String] $Paragraph )
 } # ExtraSectionHeading #
 
 
-function StoreRegularparagraph ( [System.Collections.Hashtable] $Item,
-                                 [System.Xml.XmlDocument] $XML,
-                                 [System.String] $Paragraph )
+function StoreRegularparagraph
 {
+    param (
+        [System.Collections.Hashtable] $Item,
+        [System.Xml.XmlDocument] $XML,
+        [System.String] $Paragraph
+    )
+
     if ($Item.CurrentSectionName -eq 'NOTES')
     {
         $Alert = (Select-XML -Xml $XML -XPath '/helpItems/command/alertSet/alert').Node
@@ -971,10 +1051,14 @@ function StoreRegularparagraph ( [System.Collections.Hashtable] $Item,
 } # StoreRegularparagraph #
 
 
-function ParseRegularParagraph ( [System.Collections.Hashtable] $Item,
-                                 [System.Xml.XmlDocument] $XML,
-                                 [System.String] $Paragraph )
+function ParseRegularParagraph
 {
+    param (
+        [System.Collections.Hashtable] $Item,
+        [System.Xml.XmlDocument] $XML,
+        [System.String] $Paragraph
+    )
+
     #Write-Host $Paragraph
     switch ($Item.CurrentSectionName)
     {
@@ -1067,8 +1151,12 @@ function ParseRegularParagraph ( [System.Collections.Hashtable] $Item,
 } # ParseRegularParagraph #
 
 
-function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
+function ParseTxtHelpFile
 {
+    param (
+        [System.Collections.Hashtable] $Item
+    )
+
     # Convert contents of the HelpFile into array of paragraphs
     $File = Get-Content $Item.File
     $Paragraphs = @()
@@ -1222,8 +1310,12 @@ function ParseTxtHelpFile ( [System.Collections.Hashtable] $Item )
 } # ParseTxtHelpFile #
 
 
-function DisplayHelpItem ( [System.Collections.Hashtable] $Item )
+function DisplayHelpItem
 {
+    param (
+        [System.Collections.Hashtable] $Item
+    )
+
     switch ($Item.Format)
     {
         "txt"
@@ -1247,9 +1339,13 @@ function DisplayHelpItem ( [System.Collections.Hashtable] $Item )
 #####################################################################
 
 
-function AddItem ( [System.Boolean] $MarkFunc,
-                   [System.Collections.Hashtable] $Item )
+function AddItem
 {
+    param (
+        [System.Boolean] $MarkFunc,
+        [System.Collections.Hashtable] $Item
+    )
+
     # $Item = [pscustomobject]$I
     # Write-Host ("Adding Item "+$Item.Name)
     if ($HelpInfo.ItemIndex[$Item.Name] -eq $null)
@@ -1297,9 +1393,13 @@ $TxtHelpFileModule = @{
     }
 
 
-function GetModuleAndOnlineURI ( [System.String] $Name,
-                                 [System.String] $ModuleName )
+function GetModuleAndOnlineURI
 {
+    param (
+        [System.String] $Name,
+        [System.String] $ModuleName
+    )
+    
     $URI = ''
     if ($ModuleName -eq '')
     {
@@ -1331,9 +1431,13 @@ function GetModuleAndOnlineURI ( [System.String] $Name,
 } # GetModuleAndOnlineURI #
 
 
-function CheckTxtHelpFiles ( [System.String] $ModuleName,
-                             [System.String] $Path )
+function CheckTxtHelpFiles
 {
+    param (
+        [System.String] $ModuleName,
+        [System.String] $Path
+    )
+
     if ( -not (Test-Path -Path $Path -PathType Container))
     {
         return
@@ -1367,11 +1471,15 @@ function CheckTxtHelpFiles ( [System.String] $ModuleName,
 } # CheckTxtHelpFiles #
 
 
-function CheckXMLFile ( [System.Collections.Hashtable] $LocalFuncs,
-                        [System.String] $ModuleName,
-                        [System.String] $Path,
-                        [System.String] $File )
+function CheckXMLFile
 {
+    param (
+        [System.Collections.Hashtable] $LocalFuncs,
+        [System.String] $ModuleName,
+        [System.String] $Path,
+        [System.String] $File
+    )
+
     $XML = [System.Xml.XmlDocument](Get-Content "$Path\$File")
     if ($XML.helpItems -ne $null)
     {
@@ -1443,11 +1551,15 @@ function CheckXMLFile ( [System.Collections.Hashtable] $LocalFuncs,
 } # CheckXMLFile #
 
 
-function CheckXmlHelpFiles ( [System.String[]] $LocalFunctions,
-                             [System.String] $ModuleName,
-                             [System.String] $Path,
-                             [System.String] $Pattern )
+function CheckXmlHelpFiles
 {
+    param (
+        [System.String[]] $LocalFunctions,
+        [System.String] $ModuleName,
+        [System.String] $Path,
+        [System.String] $Pattern
+    )
+
     if ( -not (Test-Path -Path $Path -PathType Container))
     {
         return
@@ -1502,10 +1614,14 @@ function CheckXmlHelpFiles ( [System.String[]] $LocalFunctions,
 } # CheckXmlHelpFiles #
 
 
-function CheckModule ( [System.String] $Path,
-                       [System.String] $ModuleName,
-                       [System.String] $Version)
+function CheckModule
 {
+    param (
+        [System.String] $Path,
+        [System.String] $ModuleName,
+        [System.String] $Version
+    )
+
     if ($Version -eq '')
     {
         $Path = "$Path\$ModuleName"
@@ -1528,8 +1644,10 @@ function CheckModule ( [System.String] $Path,
 } # CheckModule #
 
 
-function FindHelpFiles ()
+function FindHelpFiles
 {
+    param ()
+
     Get-ChildItem function: | ForEach-Object { $Work.Functions[$_.Name] = 'Function' }
     CheckTxtHelpFiles '' $PSHOME\$PSUICulture
     $LocalFuncs = @()
