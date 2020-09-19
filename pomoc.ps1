@@ -874,112 +874,6 @@ function CleanParagraph
     ##################
 
 
-######################
-# AddLinesToNewChild #
-######################
-function AddLinesToNewChild
-{
-    param (
-        [System.Xml.XmlDocument] $XML, 
-        [System.Xml.XmlElement] $Parent, 
-        [System.String] $ChildName,
-        [System.Int32] $SkipLines,
-        [System.String] $Paragraph
-    )
-
-    ######################
-    # AddLinesToNewChild #
-    # Ignore first $SkipLines lines from the $Paragraph
-    while (($SkipLines -gt 0) -and ($Paragraph.IndexOf("`n") -gt 0))
-    {
-        $Paragraph = $Paragraph.Substring($Paragraph.IndexOf("`n")+1)
-        $SkipLines--
-    }
-    if ($Clean)
-    {
-        $Paragraph = CleanParagraph $Paragraph
-    }
-    else
-    {
-        $Paragraph = $Paragraph.Replace("`n", ' ')
-    }
-    $Child = $Parent.AppendChild($XML.CreateElement($ChildName))
-    $Child.Set_innerText($Paragraph)
-}   # AddLinesToNewChild #
-    ######################
-
-
-#####################
-# AddNavigationLink #
-#####################
-function AddNavigationLink
-{
-    param (
-        [System.Xml.XmlDocument] $XML, 
-        [System.Xml.XmlElement] $Parent,
-        [System.String] $Line
-    )
-
-    #####################
-    # AddNavigationLink #
-    $Line = $Line.Trim()
-    if ($Line.Length -lt 1)
-    {
-        return
-    }
-    if ($Line.Substring(0,1) -eq '-')
-    {
-        $Line = $Line.Substring(1).Trim()
-    }
-    if ($Line.Length -lt 1)
-    {
-        return
-    }
-    # Line could be in a form:
-    # Link Text (http://...)
-    # or
-    # "Link Text" (http://...)
-    # or
-    # Link Text (https://...)
-    # or
-    # "Link Text" (https://...)
-    # or
-    # Link Text
-    if ($Line -like '*(http*')
-    {
-        $Text = ($Line -replace '^ *(.*) *\((https?://.*)\)$', '$1').Trim('" ')
-        $Url = ($Line -replace '^ *(.*) *\((https?://.*)\)$', '$2').Trim()
-    }
-    elseif ($Line -like '*http*')
-    {
-        $Text = ($Line -replace '^ *(.*) *(https?://.*)$', '$1').Trim('" ')
-        $Url = ($Line -replace '^ *(.*) *(https?://.*)$', '$2').Trim()
-    }
-    else
-    {
-        $Text = $Line
-        $Url = ''
-    }
-    if (($Url -ne '') -and ($Text -eq '') -and ($Parent.LastChild -ne $null) -and ($Parent.LastChild.uri -eq ''))
-    {
-        # LinkText and uri are splitted into two lines, so add uri
-        # to the previous navigationLink
-        $Parent.LastChild.ChildNodes[1].Set_innerText($Url)
-    }
-    else
-    {
-        # Create navigationLink link elements with two children: linkText and uri.
-        # Set values of both children to $Text and $Url
-        $NavigationLink = $Parent.AppendChild($XML.CreateElement('navigationLink'))
-        $LinkText = $NavigationLink.AppendChild($XML.CreateElement('LinkText'))
-        $LinkText.Set_innerText($Text)
-        $Uri = $NavigationLink.AppendChild($XML.CreateElement('uri'))
-        $Uri.Set_innerText($Url)
-    }
-}   # AddNavigationLink #
-    #####################
-
-
 ####################
 # ParseTxtHelpFile #
 ####################
@@ -988,6 +882,77 @@ function ParseTxtHelpFile
     param (
         [System.Collections.Hashtable] $Item
     )
+    
+
+    #####################
+    # AddNavigationLink #
+    #####################
+    function AddNavigationLink
+    {
+        param (
+            [System.Xml.XmlDocument] $XML, 
+            [System.Xml.XmlElement] $Parent,
+            [System.String] $Line
+        )
+
+        #####################
+        # AddNavigationLink #
+        $Line = $Line.Trim()
+        if ($Line.Length -lt 1)
+        {
+            return
+        }
+        if ($Line.Substring(0,1) -eq '-')
+        {
+            $Line = $Line.Substring(1).Trim()
+        }
+        if ($Line.Length -lt 1)
+        {
+            return
+        }
+        # Line could be in a form:
+        # Link Text (http://...)
+        # or
+        # "Link Text" (http://...)
+        # or
+        # Link Text (https://...)
+        # or
+        # "Link Text" (https://...)
+        # or
+        # Link Text
+        if ($Line -like '*(http*')
+        {
+            $Text = ($Line -replace '^ *(.*) *\((https?://.*)\)$', '$1').Trim('" ')
+            $Url = ($Line -replace '^ *(.*) *\((https?://.*)\)$', '$2').Trim()
+        }
+        elseif ($Line -like '*http*')
+        {
+            $Text = ($Line -replace '^ *(.*) *(https?://.*)$', '$1').Trim('" ')
+            $Url = ($Line -replace '^ *(.*) *(https?://.*)$', '$2').Trim()
+        }
+        else
+        {
+            $Text = $Line
+            $Url = ''
+        }
+        if (($Url -ne '') -and ($Text -eq '') -and ($Parent.LastChild -ne $null) -and ($Parent.LastChild.uri -eq ''))
+        {
+            # LinkText and uri are splitted into two lines, so add uri
+            # to the previous navigationLink
+            $Parent.LastChild.ChildNodes[1].Set_innerText($Url)
+        }
+        else
+        {
+            # Create navigationLink link elements with two children: linkText and uri.
+            # Set values of both children to $Text and $Url
+            $NavigationLink = $Parent.AppendChild($XML.CreateElement('navigationLink'))
+            $LinkText = $NavigationLink.AppendChild($XML.CreateElement('LinkText'))
+            $LinkText.Set_innerText($Text)
+            $Uri = $NavigationLink.AppendChild($XML.CreateElement('uri'))
+            $Uri.Set_innerText($Url)
+        }
+    }   # AddNavigationLink #
+        #####################
 
 
     ##########################
@@ -1017,6 +982,41 @@ function ParseTxtHelpFile
         }
     }   # AddLinesToRelatedLinks #
         ##########################
+        
+
+    ######################
+    # AddLinesToNewChild #
+    ######################
+    function AddLinesToNewChild
+    {
+        param (
+            [System.Xml.XmlDocument] $XML, 
+            [System.Xml.XmlElement] $Parent, 
+            [System.String] $ChildName,
+            [System.Int32] $SkipLines,
+            [System.String] $Paragraph
+        )
+
+        ######################
+        # AddLinesToNewChild #
+        # Ignore first $SkipLines lines from the $Paragraph
+        while (($SkipLines -gt 0) -and ($Paragraph.IndexOf("`n") -gt 0))
+        {
+            $Paragraph = $Paragraph.Substring($Paragraph.IndexOf("`n")+1)
+            $SkipLines--
+        }
+        if ($Clean)
+        {
+            $Paragraph = CleanParagraph $Paragraph
+        }
+        else
+        {
+            $Paragraph = $Paragraph.Replace("`n", ' ')
+        }
+        $Child = $Parent.AppendChild($XML.CreateElement($ChildName))
+        $Child.Set_innerText($Paragraph)
+    }   # AddLinesToNewChild #
+        ######################
 
 
     #########################
@@ -1413,200 +1413,43 @@ function DisplayHelpItem
 #----------------------------------------------------------
 
 
-###########
-# AddItem #
-###########
-function AddItem
-{
-    param (
-        [System.Boolean] $MarkFunc,
-        [System.Collections.Hashtable] $Item
-    )
-
-    ###########
-    # AddItem #
-    # $Item = [pscustomobject]$I
-    # Write-Host ("Adding Item "+$Item.Name)
-    if ($HelpInfo.ItemIndex[$Item.Name] -eq $null)
-    {
-        if ($Work.Functions[$Item.Name] -ne $null)
-        {
-            $Item.Category = 'Function'
-            if ($MarkFunc)
-            {
-                $Work.Functions[$Item.Name] = $null
-            }
-        }
-        $HelpInfo.ItemIndex[$Item.Name] = $HelpInfo.Items.Count
-        $HelpInfo.Items += $Item
-    }
-}   # AddItem #
-    ###########
-
-
-
-################
-# CheckXMLFile #
-################
-function CheckXMLFile
-{
-    param (
-        [System.Collections.Hashtable] $LocalFuncs,
-        [System.String] $ModuleName,
-        [System.String] $Path,
-        [System.String] $File
-    )
-
-    ################
-    # CheckXMLFile #
-    $XML = [System.Xml.XmlDocument](Get-Content "$Path\$File")
-    if ($XML.helpItems -ne $null)
-    {
-        if ($XML.helpItems.command -ne $null)
-        {
-            if (($XML.helpItems.command).GetType().Name -eq "Object[]")
-            {
-                for ($Index = 0; $Index -lt ($XML.helpItems.command).Count; $Index++)
-                {
-                    $command = ($XML.helpItems.command)[$Index]
-                    $Category = 'Cmdlet'
-                    if ($LocalFuncs[$command.details.name] -ne $null)
-                    {
-                        $Category = 'Function'
-                        $LocalFuncs[$command.details.name] = $null
-                    }
-                    $CmdInfo = Get-Command -Name $command.details.name -ErrorAction SilentlyContinue
-                    if ($CmdInfo -ne $null)
-                    {
-                        $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
-                    }
-                    else
-                    {
-                        $CommonParameters = $false
-                    }
-                    AddItem $true @{Name = $command.details.name;
-                                    ModuleName = $ModuleName;
-                                    File = "$Path\$File";
-                                    OnlineURI = '';
-                                    Format = 'xml';
-                                    Index = $Index;
-                                    Category = $Category;
-                                    Component = '';
-                                    Functionality = '';
-                                    Role = '';
-                                    Synopsis = $command.details.description.para;
-                                    CommonParameters = $CommonParameters}
-                }
-            }
-        }
-    }
-    foreach ($Function in $LocalFuncs.keys)
-    {
-        if ($LocalFuncs[$Function] -ne $null)
-        {
-            $CmdInfo = Get-Command -Name $Function -ErrorAction SilentlyContinue
-            if ($CmdInfo -ne $null)
-            {
-                $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
-            }
-            else
-            {
-                $CommonParameters = $false
-            }
-            AddItem $false @{Name = $Function;
-                             ModuleName = $ModuleName;
-                             File = '';
-                             OnlineURI = '';
-                             Format = '';
-                             Index = -1;
-                             Category = 'Function';
-                             Component = '';
-                             Functionality = '';
-                             Role = '';
-                             Synopsis = '...';
-                             CommonParameters = $CommonParameters}
-        }
-    }
-}   # CheckXMLFile #
-    ################
-
-
-#####################
-# CheckXmlHelpFiles #
-#####################
-function CheckXmlHelpFiles
-{
-    param (
-        [System.String[]] $LocalFunctions,
-        [System.String] $ModuleName,
-        [System.String] $Path,
-        [System.String] $Pattern
-    )
-
-    #####################
-    # CheckXmlHelpFiles #
-    if ( -not (Test-Path -Path $Path -PathType Container))
-    {
-        return
-    }
-    $LocalFuncs = @{}
-    if ($LocalFunctions -ne $null)
-    {
-        for ($i = 0; $i -lt $LocalFunctions.Count; $i++)
-        {
-            $LocalFuncs[$LocalFunctions[$i]] = 'Function'
-        }
-    }
-    $Files = (Get-ChildItem $Path\*$Pattern).Name
-    if ($Files.Count -gt 0)
-    {
-        foreach ($File in $Files)
-        {
-            if ($ModuleName -eq '')
-            {
-                $MN = $File.Remove($File.Length - $Pattern.Length)
-                switch ($MN)
-                {
-                    'System.Management.Automation'
-                        {
-                            $MN = 'Microsoft.PowerShell.Core'
-                        }
-                    'Microsoft.PowerShell.Consolehost'
-                        {
-                            $MN = 'Microsoft.PowerShell.Host'
-                        }
-                    'Microsoft.PowerShell.Commands.Diagnostics'
-                        {
-                            $MN = 'Microsoft.PowerShell.Diagnostics'
-                        }
-                    'Microsoft.PowerShell.Commands.Management'
-                        {
-                            $MN = 'Microsoft.PowerShell.Management'
-                        }
-                    'Microsoft.PowerShell.Commands.Utility'
-                        {
-                            $MN = 'Microsoft.PowerShell.Utility'
-                        }
-                }
-                CheckXMLFile $LocalFuncs $MN $Path $File
-            }
-            else
-            {
-                CheckXMLFile $LocalFuncs $ModuleName $Path $File
-            }
-        }
-    }
-}   # CheckXmlHelpFiles #
-    #####################
-
-
-
 ########
 # Main #
 ########
 function Main
 {
     param ()
+
+
+    ###########
+    # AddItem #
+    ###########
+    function AddItem
+    {
+        param (
+            [System.Boolean] $MarkFunc,
+            [System.Collections.Hashtable] $Item
+        )
+
+        ###########
+        # AddItem #
+        # $Item = [pscustomobject]$I
+        # Write-Host ("Adding Item "+$Item.Name)
+        if ($HelpInfo.ItemIndex[$Item.Name] -eq $null)
+        {
+            if ($Work.Functions[$Item.Name] -ne $null)
+            {
+                $Item.Category = 'Function'
+                if ($MarkFunc)
+                {
+                    $Work.Functions[$Item.Name] = $null
+                }
+            }
+            $HelpInfo.ItemIndex[$Item.Name] = $HelpInfo.Items.Count
+            $HelpInfo.Items += $Item
+        }
+    }   # AddItem #
+        ###########
 
     
     #################
@@ -1733,6 +1576,163 @@ function Main
             }
             return
         }   # CheckTxtHelpFiles #
+            #####################
+
+
+        #####################
+        # CheckXmlHelpFiles #
+        #####################
+        function CheckXmlHelpFiles
+        {
+            param (
+                [System.String[]] $LocalFunctions,
+                [System.String] $ModuleName,
+                [System.String] $Path,
+                [System.String] $Pattern
+            )
+
+
+
+            ################
+            # CheckXMLFile #
+            ################
+            function CheckXMLFile
+            {
+                param (
+                    [System.Collections.Hashtable] $LocalFuncs,
+                    [System.String] $ModuleName,
+                    [System.String] $Path,
+                    [System.String] $File
+                )
+
+                ################
+                # CheckXMLFile #
+                $XML = [System.Xml.XmlDocument](Get-Content "$Path\$File")
+                if ($XML.helpItems -ne $null)
+                {
+                    if ($XML.helpItems.command -ne $null)
+                    {
+                        if (($XML.helpItems.command).GetType().Name -eq "Object[]")
+                        {
+                            for ($Index = 0; $Index -lt ($XML.helpItems.command).Count; $Index++)
+                            {
+                                $command = ($XML.helpItems.command)[$Index]
+                                $Category = 'Cmdlet'
+                                if ($LocalFuncs[$command.details.name] -ne $null)
+                                {
+                                    $Category = 'Function'
+                                    $LocalFuncs[$command.details.name] = $null
+                                }
+                                $CmdInfo = Get-Command -Name $command.details.name -ErrorAction SilentlyContinue
+                                if ($CmdInfo -ne $null)
+                                {
+                                    $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
+                                }
+                                else
+                                {
+                                    $CommonParameters = $false
+                                }
+                                AddItem $true @{Name = $command.details.name;
+                                                ModuleName = $ModuleName;
+                                                File = "$Path\$File";
+                                                OnlineURI = '';
+                                                Format = 'xml';
+                                                Index = $Index;
+                                                Category = $Category;
+                                                Component = '';
+                                                Functionality = '';
+                                                Role = '';
+                                                Synopsis = $command.details.description.para;
+                                                CommonParameters = $CommonParameters}
+                            }
+                        }
+                    }
+                }
+                foreach ($Function in $LocalFuncs.keys)
+                {
+                    if ($LocalFuncs[$Function] -ne $null)
+                    {
+                        $CmdInfo = Get-Command -Name $Function -ErrorAction SilentlyContinue
+                        if ($CmdInfo -ne $null)
+                        {
+                            $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
+                        }
+                        else
+                        {
+                            $CommonParameters = $false
+                        }
+                        AddItem $false @{Name = $Function;
+                                         ModuleName = $ModuleName;
+                                         File = '';
+                                         OnlineURI = '';
+                                         Format = '';
+                                         Index = -1;
+                                         Category = 'Function';
+                                         Component = '';
+                                         Functionality = '';
+                                         Role = '';
+                                         Synopsis = '...';
+                                         CommonParameters = $CommonParameters}
+                    }
+                }
+            }   # CheckXMLFile #
+                ################
+
+
+            #####################
+            # CheckXmlHelpFiles #
+            if ( -not (Test-Path -Path $Path -PathType Container))
+            {
+                return
+            }
+            $LocalFuncs = @{}
+            if ($LocalFunctions -ne $null)
+            {
+                for ($i = 0; $i -lt $LocalFunctions.Count; $i++)
+                {
+                    $LocalFuncs[$LocalFunctions[$i]] = 'Function'
+                }
+            }
+            $Files = (Get-ChildItem $Path\*$Pattern).Name
+            if ($Files.Count -gt 0)
+            {
+                foreach ($File in $Files)
+                {
+                    if ($ModuleName -eq '')
+                    {
+                        $MN = $File.Remove($File.Length - $Pattern.Length)
+                        switch ($MN)
+                        {
+                            'System.Management.Automation'
+                                {
+                                    $MN = 'Microsoft.PowerShell.Core'
+                                }
+                            'Microsoft.PowerShell.Consolehost'
+                                {
+                                    $MN = 'Microsoft.PowerShell.Host'
+                                }
+                            'Microsoft.PowerShell.Commands.Diagnostics'
+                                {
+                                    $MN = 'Microsoft.PowerShell.Diagnostics'
+                                }
+                            'Microsoft.PowerShell.Commands.Management'
+                                {
+                                    $MN = 'Microsoft.PowerShell.Management'
+                                }
+                            'Microsoft.PowerShell.Commands.Utility'
+                                {
+                                    $MN = 'Microsoft.PowerShell.Utility'
+                                }
+                        }
+                        CheckXMLFile $LocalFuncs $MN $Path $File
+                    }
+                    else
+                    {
+                        CheckXMLFile $LocalFuncs $ModuleName $Path $File
+                    }
+                }
+            }
+        }   # CheckXmlHelpFiles #
             #####################
 
             
