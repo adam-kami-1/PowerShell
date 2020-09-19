@@ -161,30 +161,6 @@ function Min
 } # Min #
 
 
-Function VerCmp
-{
-    param (
-        [System.String] $Version1,
-        [System.String] $Version2
-    )
-
-    $Ver1 = $Version1.Split('.')
-    $Ver2 = $Version2.Split('.')
-    for ($i = 0; $i -lt (Min $Ver1.Count $Ver2.Count); $i++)
-    {
-        if ($Ver1[$i] -ne $Ver2[$i])
-        {
-            return $Ver1[$i] - $Ver2[$i]
-        }
-    }
-    if ($Ver1.Count -eq $Ver2.Count)
-    {
-        return 0
-    }
-    return $Ver1.Count - $Ver2.Count
-} # VerCmp #
-
-
 #####################################################################
 # Displaying stuff
 #####################################################################
@@ -326,31 +302,6 @@ function DisplayParagraph
 } # DisplayParagraph #
 
 
-function ExtractParagraphText
-{
-    param (
-        [System.Xml.XmlElement] $Para
-    )
-
-    $Text = ''
-    foreach ($Child in $Para.ChildNodes)
-    {
-        switch ($Child.GetType())
-        {
-            'System.Xml.XmlText'
-                {
-                    $Text += $Child.Value
-                }
-            'System.Xml.XmlElement'
-                {
-                    $Text += ExtractParagraphText $Child
-                }
-        }
-    }
-    return $Text
-} # ExtractParagraphText #
-
-
 function DisplayCollectionOfParagraphs
 {
     param (
@@ -359,6 +310,32 @@ function DisplayCollectionOfParagraphs
         [System.String] $DisplayedLinesVar = '',
         [System.Boolean] $WasColon = $false
     )
+
+    
+    function ExtractParagraphText
+    {
+        param (
+            [System.Xml.XmlElement] $Para
+        )
+
+        $Text = ''
+        foreach ($Child in $Para.ChildNodes)
+        {
+            switch ($Child.GetType())
+            {
+                'System.Xml.XmlText'
+                    {
+                        $Text += $Child.Value
+                    }
+                'System.Xml.XmlElement'
+                    {
+                        $Text += ExtractParagraphText $Child
+                    }
+            }
+        }
+        return $Text
+    } # ExtractParagraphText #
+
 
     if (($collection.Count -eq 0) -or ($collection[0].Length -eq 0))
     {
@@ -452,173 +429,174 @@ function DisplayCollectionOfParagraphs
 } # DisplayCollectionOfParagraphs #
 
 
-function BuildLinkValue
-{
-    param (
-        [System.String] $LinkText,
-        [System.String] $URI
-    )
-
-    if ($URI -ne '')
-    {
-        if (($URI.Substring(0,8) -ne 'https://') -and ($URI.Substring(0,7) -ne 'http://'))
-        {
-            Write-Error "Unknown link for ${LinkText}: $URI"
-        }
-    }
-    else
-    {
-        $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
-        if ($HelpInfo.ItemIndex[$LinkText] -ne $null)
-        {
-            $URI = $HelpInfo.ItemIndex[$LinkText]
-        }
-        elseif ($LinkText.IndexOf(' ') -eq -1)
-        {
-            $URI = "https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/${LinkText}"#?view=powershell-$version"
-        }
-        else
-        {
-            $Page = $LinkText.ToLower().Replace(' ', '-')
-            $URI = "https://docs.microsoft.com/en-us/powershell/scripting/developer/help/${Page}"#?view=powershell-$version"
-        }
-    }
-    if ($URI -match '^[0-9]+$')
-    {
-        $LinkValue = '['+$LinkText+']'
-    }
-    else
-    {
-        if ($LinkText.Substring($LinkText.Length-1,1) -eq ':')
-        {
-            $LinkText = $LinkText.Substring(0,$LinkText.Length-1)
-        }
-        $LinkValue = $LinkText+': '+$URI
-    }
-    return $LinkValue
-} # BuildLinkValue #
-
-
-function DisplaySingleSyntax
-{
-    param (
-        [System.Xml.XmlElement] $syntaxItem,
-        [System.Boolean] $CommonParameters
-    )
-
-    $Para = $syntaxItem.name
-    foreach ($parameter in $syntaxItem.parameter)
-    {
-        $Required = $parameter.required -eq 'true'
-        $Position = $parameter.position -ne 'named'
-        $Para += ' '
-        if (-not $Required)
-        {
-            $Para += '['
-        }
-        if ($Position)
-        {
-            $Para += '['
-        }
-        $Para += '-'+$parameter.name
-        if ($Position)
-        {
-            $Para += ']'
-        }
-        $TypeName = ''
-        if ($parameter.parameterValueGroup -ne $null)
-        {
-            if ($parameter.parameterValueGroup.parameterValue.Count -gt 0)
-            {
-                foreach ($Value in $parameter.parameterValueGroup.parameterValue)
-                {
-                    if ($TypeName -eq '')
-                    {
-                        $TypeName = '{'+$Value.InnerText
-                    }
-                    else
-                    {
-                        $TypeName += ' | '+$Value.InnerText
-                    }
-                }
-                $TypeName += '}'
-            }
-        }
-        if (($TypeName -eq '') -and ($parameter.parameterValue.FirstChild.InnerText -ne $null))
-        {
-            $TypeName = '<'+$parameter.parameterValue.FirstChild.InnerText+'>'
-        }
-        if (($TypeName -eq '') -and ($parameter.type.name -ne $null))
-        {
-            $TypeName = '<'+$parameter.type.name+'>'
-        }
-        if (($TypeName -ne '<System.Management.Automation.SwitchParameter>') -and
-            ($TypeName -ne '<SwitchParameter>') -and
-            ($TypeName -ne '') -and ($TypeName -ne $null))
-        {
-            $Para += ' '+$TypeName
-        }
-        if (-not $Required)
-        {
-            $Para += ']'
-        }
-    }
-    if ($CommonParameters)
-    {
-        $Para += ' [<CommonParameters>]'
-    }
-    DisplayParagraph 1 hangpara $Para
-} # DisplaySingleSyntax #
-
-
-function DisplaySingleParameter
-{
-    param (
-        [System.Xml.XmlElement] $Parameter
-    )
-
-    $Required = $Parameter.required
-    $Position = $Parameter.position
-    $DefVal = $Parameter.defaultValue
-    $PipelineInput = $Parameter.pipelineInput
-    $Globbing = $Parameter.globbing
-    $Aliases = $Parameter.aliases
-    DisplayParagraph 1 comppara ('-'+$Parameter.name+' <'+$Parameter.type.name+'>')
-
-    DisplayCollectionOfParagraphs 2 $Parameter.Description.para
-
-    DisplayParagraph 2 code "Required?                    $Required"
-    DisplayParagraph 2 code "Position?                    $Position"
-    DisplayParagraph 2 code "Default value                $DefVal"
-    DisplayParagraph 2 code "Accept pipeline input?       $PipelineInput"
-    DisplayParagraph 2 code "Accept wildcard characters?  $Globbing"
-    if (($Aliases -ne '') -and ($Aliases -ne 'none'))
-    {
-        DisplayParagraph 2 code "Aliases                      $Aliases"
-    }
-    DisplayParagraph 0 empty
-} # DisplaySingleParameter #
-
-
-function DisplaySingleExample
-{
-    param (
-        [System.Xml.XmlElement] $Example
-    )
-
-    DisplayParagraph 1 para $Example.title
-    DisplayParagraph 2 code $Example.code
-    DisplayParagraph 2 empty
-    DisplayCollectionOfParagraphs 2 $Example.remarks.para
-} # DisplaySingleExample #
-
-
 function DisplayXmlHelpFile
 {
     param (
         [System.Collections.Hashtable] $Item,
         [System.Xml.XmlElement] $command
     )
+
+    
+    function BuildLinkValue
+    {
+        param (
+            [System.String] $LinkText,
+            [System.String] $URI
+        )
+
+        if ($URI -ne '')
+        {
+            if (($URI.Substring(0,8) -ne 'https://') -and ($URI.Substring(0,7) -ne 'http://'))
+            {
+                Write-Error "Unknown link for ${LinkText}: $URI"
+            }
+        }
+        else
+        {
+            $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
+            if ($HelpInfo.ItemIndex[$LinkText] -ne $null)
+            {
+                $URI = $HelpInfo.ItemIndex[$LinkText]
+            }
+            elseif ($LinkText.IndexOf(' ') -eq -1)
+            {
+                $URI = "https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/${LinkText}"#?view=powershell-$version"
+            }
+            else
+            {
+                $Page = $LinkText.ToLower().Replace(' ', '-')
+                $URI = "https://docs.microsoft.com/en-us/powershell/scripting/developer/help/${Page}"#?view=powershell-$version"
+            }
+        }
+        if ($URI -match '^[0-9]+$')
+        {
+            $LinkValue = '['+$LinkText+']'
+        }
+        else
+        {
+            if ($LinkText.Substring($LinkText.Length-1,1) -eq ':')
+            {
+                $LinkText = $LinkText.Substring(0,$LinkText.Length-1)
+            }
+            $LinkValue = $LinkText+': '+$URI
+        }
+        return $LinkValue
+    } # BuildLinkValue #
+
+
+    function DisplaySingleSyntax
+    {
+        param (
+            [System.Xml.XmlElement] $syntaxItem,
+            [System.Boolean] $CommonParameters
+        )
+
+        $Para = $syntaxItem.name
+        foreach ($parameter in $syntaxItem.parameter)
+        {
+            $Required = $parameter.required -eq 'true'
+            $Position = $parameter.position -ne 'named'
+            $Para += ' '
+            if (-not $Required)
+            {
+                $Para += '['
+            }
+            if ($Position)
+            {
+                $Para += '['
+            }
+            $Para += '-'+$parameter.name
+            if ($Position)
+            {
+                $Para += ']'
+            }
+            $TypeName = ''
+            if ($parameter.parameterValueGroup -ne $null)
+            {
+                if ($parameter.parameterValueGroup.parameterValue.Count -gt 0)
+                {
+                    foreach ($Value in $parameter.parameterValueGroup.parameterValue)
+                    {
+                        if ($TypeName -eq '')
+                        {
+                            $TypeName = '{'+$Value.InnerText
+                        }
+                        else
+                        {
+                            $TypeName += ' | '+$Value.InnerText
+                        }
+                    }
+                    $TypeName += '}'
+                }
+            }
+            if (($TypeName -eq '') -and ($parameter.parameterValue.FirstChild.InnerText -ne $null))
+            {
+                $TypeName = '<'+$parameter.parameterValue.FirstChild.InnerText+'>'
+            }
+            if (($TypeName -eq '') -and ($parameter.type.name -ne $null))
+            {
+                $TypeName = '<'+$parameter.type.name+'>'
+            }
+            if (($TypeName -ne '<System.Management.Automation.SwitchParameter>') -and
+                ($TypeName -ne '<SwitchParameter>') -and
+                ($TypeName -ne '') -and ($TypeName -ne $null))
+            {
+                $Para += ' '+$TypeName
+            }
+            if (-not $Required)
+            {
+                $Para += ']'
+            }
+        }
+        if ($CommonParameters)
+        {
+            $Para += ' [<CommonParameters>]'
+        }
+        DisplayParagraph 1 hangpara $Para
+    } # DisplaySingleSyntax #
+
+
+    function DisplaySingleParameter
+    {
+        param (
+            [System.Xml.XmlElement] $Parameter
+        )
+
+        $Required = $Parameter.required
+        $Position = $Parameter.position
+        $DefVal = $Parameter.defaultValue
+        $PipelineInput = $Parameter.pipelineInput
+        $Globbing = $Parameter.globbing
+        $Aliases = $Parameter.aliases
+        DisplayParagraph 1 comppara ('-'+$Parameter.name+' <'+$Parameter.type.name+'>')
+
+        DisplayCollectionOfParagraphs 2 $Parameter.Description.para
+
+        DisplayParagraph 2 code "Required?                    $Required"
+        DisplayParagraph 2 code "Position?                    $Position"
+        DisplayParagraph 2 code "Default value                $DefVal"
+        DisplayParagraph 2 code "Accept pipeline input?       $PipelineInput"
+        DisplayParagraph 2 code "Accept wildcard characters?  $Globbing"
+        if (($Aliases -ne '') -and ($Aliases -ne 'none'))
+        {
+            DisplayParagraph 2 code "Aliases                      $Aliases"
+        }
+        DisplayParagraph 0 empty
+    } # DisplaySingleParameter #
+
+
+    function DisplaySingleExample
+    {
+        param (
+            [System.Xml.XmlElement] $Example
+        )
+
+        DisplayParagraph 1 para $Example.title
+        DisplayParagraph 2 code $Example.code
+        DisplayParagraph 2 empty
+        DisplayCollectionOfParagraphs 2 $Example.remarks.para
+    } # DisplaySingleExample #
+
 
     DisplayParagraph 0 empty
 
@@ -840,6 +818,7 @@ function DisplayXmlHelpFile
         DisplayParagraph 0 sect "REMARKS"
         DisplayParagraph 1 para 'Remarks will be described later !!!'
     }
+
 } # DisplayXmlHelpFile #
 
 
@@ -1647,6 +1626,31 @@ function CheckModule
 function FindHelpFiles
 {
     param ()
+
+
+    Function VerCmp
+    {
+        param (
+            [System.String] $Version1,
+            [System.String] $Version2
+        )
+
+        $Ver1 = $Version1.Split('.')
+        $Ver2 = $Version2.Split('.')
+        for ($i = 0; $i -lt [System.Math]::Min($Ver1.Count,$Ver2.Count); $i++)
+        {
+            if ($Ver1[$i] -ne $Ver2[$i])
+            {
+                return $Ver1[$i] - $Ver2[$i]
+            }
+        }
+        if ($Ver1.Count -eq $Ver2.Count)
+        {
+            return 0
+        }
+        return $Ver1.Count - $Ver2.Count
+    } # VerCmp #
+
 
     Get-ChildItem function: | ForEach-Object { $Work.Functions[$_.Name] = 'Function' }
     CheckTxtHelpFiles '' $PSHOME\$PSUICulture
