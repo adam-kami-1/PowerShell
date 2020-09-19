@@ -180,11 +180,13 @@ $Work = @{
 
     # Used only during displaying results
     Colors = @{};
-    Output = [System.String[]] @();
     }
 
 
-function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format, [System.String] $Text = '', [System.String] $DisplayedLinesVar = '')
+function DisplayParagraph ( [System.Int32] $IndentLevel,
+                            [System.String] $Format,
+                            [System.String] $Text = '',
+                            [System.String] $DisplayedLinesVar = '')
 {
     $Indent = 4 * $IndentLevel
     $TextWidth = $Width-$Indent
@@ -197,7 +199,6 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
     {
         'empty'
             {
-                #$Work.Output += @('')
                 Write-Output ''
                 $DisplayedLines++
             }
@@ -248,7 +249,6 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
                     $no = 0
                     foreach ($Line in $Lines)
                     {
-                        #$Work.Output += @()
                         Write-Output ((' ' * $Indent)+$Line)
                         $DisplayedLines++
                         $no++
@@ -267,7 +267,6 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
                 }
                 if (($_ -ne 'comppara') -and ($_ -ne 'listpara'))
                 {
-                    #$Work.Output += @('')
                     Write-Output ''
                     $DisplayedLines++
                 }
@@ -281,20 +280,17 @@ function DisplayParagraph ( [System.Int32] $IndentLevel, [System.String] $Format
                     {
                         $Line = $Line.Substring(0, $TextWidth-3)+'...'
                     }
-                    #$Work.Output += @((' ' * $Indent)+$Line)
                     Write-Output ((' ' * $Indent)+$Line)
                     $DisplayedLines++
                 }
             }
         'sect'
             {
-                #$Work.Output += @((' ' * $Indent)+$Work.Colors.Section+$Text+$Work.Colors.Default)
                 Write-Output ((' ' * $Indent)+$Work.Colors.Section+$Text+$Work.Colors.Default)
                 $DisplayedLines++
             }
         'subsect'
             {
-                #$Work.Output += @((' ' * $Indent)+$Work.Colors.ExtraSection+$Text+$Work.Colors.Default)
                 Write-Output ((' ' * $Indent)+$Work.Colors.ExtraSection+$Text+$Work.Colors.Default)
                 $DisplayedLines++
             }
@@ -424,7 +420,8 @@ function DisplayCollectionOfParagraphs ( [System.Int32] $IndentLevel,
 } # DisplayCollectionOfParagraphs #
 
 
-function BuildLinkValue ( [System.String] $LinkText, [System.String] $URI)
+function BuildLinkValue ( [System.String] $LinkText,
+                          [System.String] $URI)
 {
     if ($URI -ne '')
     {
@@ -466,7 +463,8 @@ function BuildLinkValue ( [System.String] $LinkText, [System.String] $URI)
 } # BuildLinkValue #
 
 
-function DisplaySingleSyntax ( [System.Xml.XmlElement] $syntaxItem, [System.Boolean] $CommonParameters )
+function DisplaySingleSyntax ( [System.Xml.XmlElement] $syntaxItem,
+                               [System.Boolean] $CommonParameters )
 {
     $Para = $syntaxItem.name
     foreach ($parameter in $syntaxItem.parameter)
@@ -567,7 +565,8 @@ function DisplaySingleExample ( [System.Xml.XmlElement] $Example )
 } # DisplaySingleExample #
 
 
-function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item, [System.Xml.XmlElement] $command )
+function DisplayXmlHelpFile ( [System.Collections.Hashtable] $Item,
+                              [System.Xml.XmlElement] $command )
 {
     DisplayParagraph 0 empty
 
@@ -1248,7 +1247,8 @@ function DisplayHelpItem ( [System.Collections.Hashtable] $Item )
 #####################################################################
 
 
-function AddItem ( [System.Boolean] $MarkFunc, [System.Collections.Hashtable] $Item )
+function AddItem ( [System.Boolean] $MarkFunc,
+                   [System.Collections.Hashtable] $Item )
 {
     # $Item = [pscustomobject]$I
     # Write-Host ("Adding Item "+$Item.Name)
@@ -1297,7 +1297,8 @@ $TxtHelpFileModule = @{
     }
 
 
-function GetModuleAndOnlineURI ( [System.String] $Name, [System.String] $ModuleName )
+function GetModuleAndOnlineURI ( [System.String] $Name,
+                                 [System.String] $ModuleName )
 {
     $URI = ''
     if ($ModuleName -eq '')
@@ -1330,7 +1331,8 @@ function GetModuleAndOnlineURI ( [System.String] $Name, [System.String] $ModuleN
 } # GetModuleAndOnlineURI #
 
 
-function CheckTxtHelpFiles ( [System.String] $ModuleName, [System.String] $Path )
+function CheckTxtHelpFiles ( [System.String] $ModuleName,
+                             [System.String] $Path )
 {
     if ( -not (Test-Path -Path $Path -PathType Container))
     {
@@ -1365,7 +1367,10 @@ function CheckTxtHelpFiles ( [System.String] $ModuleName, [System.String] $Path 
 } # CheckTxtHelpFiles #
 
 
-function CheckXMLFile ( [System.Collections.Hashtable] $LocalFuncs, [System.String] $ModuleName, [System.String] $Path, [System.String] $File )
+function CheckXMLFile ( [System.Collections.Hashtable] $LocalFuncs,
+                        [System.String] $ModuleName,
+                        [System.String] $Path,
+                        [System.String] $File )
 {
     $XML = [System.Xml.XmlDocument](Get-Content "$Path\$File")
     if ($XML.helpItems -ne $null)
@@ -1438,7 +1443,10 @@ function CheckXMLFile ( [System.Collections.Hashtable] $LocalFuncs, [System.Stri
 } # CheckXMLFile #
 
 
-function CheckXmlHelpFiles ( [System.String[]] $LocalFunctions, [System.String] $ModuleName, [System.String] $Path, [System.String] $Pattern )
+function CheckXmlHelpFiles ( [System.String[]] $LocalFunctions,
+                             [System.String] $ModuleName,
+                             [System.String] $Path,
+                             [System.String] $Pattern )
 {
     if ( -not (Test-Path -Path $Path -PathType Container))
     {
@@ -1494,7 +1502,9 @@ function CheckXmlHelpFiles ( [System.String[]] $LocalFunctions, [System.String] 
 } # CheckXmlHelpFiles #
 
 
-function CheckModule ( [System.String] $Path, [System.String] $ModuleName, [System.String] $Version)
+function CheckModule ( [System.String] $Path,
+                       [System.String] $ModuleName,
+                       [System.String] $Version)
 {
     if ($Version -eq '')
     {
@@ -1695,19 +1705,18 @@ switch ($found.Count)
     1
         {
             DisplayHelpItem $HelpInfo.Items[$found[0]]
-            #$Work.Output
         }
     default
         {
             for ($i = 0; $i -lt $found.Count; $i++)
             {
-                Write-Output [pscustomobject]@{Name = $HelpInfo.Items[$found[$i]].Name;
+                Write-Output ([pscustomobject]@{Name = $HelpInfo.Items[$found[$i]].Name;
                                                Category = $HelpInfo.Items[$found[$i]].Category;
                                                Module = $HelpInfo.Items[$found[$i]].ModuleName;
                                                Synopsis = $HelpInfo.Items[$found[$i]].Synopsis;
                                                #File = $HelpInfo.Items[$found[$i]].File;
                                                #Index = $HelpInfo.Items[$found[$i]].Index
-                                               }
+                                               })
             }
         }
 }
