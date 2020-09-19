@@ -125,42 +125,6 @@ function ToCamelCase
 } # ToCamelCase #
 
 
-function Max
-{
-    param (
-        $Val1,
-        $Val2
-    )
-
-    if ($Val1 -ge $Val2)
-    {
-        return $Val1
-    }
-    else
-    {
-        return $Val2
-    }
-} # Max #
-
-
-function Min
-{
-    param (
-        $Val1,
-        $Val2
-    )
-
-    if ($Val1 -le $Val2)
-    {
-        return $Val1
-    }
-    else
-    {
-        return $Val2
-    }
-} # Min #
-
-
 #####################################################################
 # Displaying stuff
 #####################################################################
@@ -177,256 +141,6 @@ $Work = @{
     # Used only during displaying results
     Colors = @{};
     }
-
-
-function DisplayParagraph
-{
-    param ( 
-        [System.Int32] $IndentLevel,
-        [System.String] $Format,
-        [System.String] $Text = '',
-        [System.String] $DisplayedLinesVar = ''
-    )
-
-    $Indent = 4 * $IndentLevel
-    $TextWidth = $Width-$Indent
-    if ($Text -eq '')
-    {
-        $Format = 'empty'
-    }
-    $DisplayedLines = 0
-    switch ($Format)
-    {
-        'empty'
-            {
-                Write-Output ''
-                $DisplayedLines++
-            }
-        {($_ -eq 'para') -or
-         ($_ -eq 'hangpara') -or
-         ($_ -eq 'comppara') -or
-         ($_ -eq 'listpara')}
-            {
-                $Text = $Text.Trim()
-                while ($Text.IndexOf('  ') -ne -1)
-                {
-                    $Text = $Text.Replace('  ', ' ')
-                }
-                while ($Text.IndexOf(' .') -ne -1)
-                {
-                    $Text = $Text.Replace(' .', '.')
-                }
-                $Lines = @()
-                if ($Text.Length -gt 0)
-                {
-                    while ($Text.Length -gt $TextWidth)
-                    {
-                        $Line = $Text.Substring(0, $TextWidth)
-                        $NextLine = ''
-                        if ($Line.IndexOf(' ') -ne -1)
-                        {
-                            while (($Line.Length -gt 0) -and ($Line.Substring($Line.Length-1, 1) -ne ' '))
-                            {
-                                $NextLine = $NextLine.Insert(0, $Line.Substring($Line.Length-1, 1))
-                                $Line = $Line.Substring(0, $Line.Length-1)
-                            }
-                        }
-                        $Lines += @($Line.TrimEnd())
-                        $Text = $NextLine+$Text.Substring($TextWidth)
-                        if ((($_ -eq 'hangpara') -or ($_ -eq 'listpara')) -and ($Lines.Count -eq 1))
-                        {
-                            if ($_ -eq 'listpara')
-                            {
-                                $TextWidth -= 2
-                            }
-                            else
-                            {
-                                $TextWidth -= 4
-                            }
-                        }
-                    }
-                    $Lines += @($Text)
-                    $no = 0
-                    foreach ($Line in $Lines)
-                    {
-                        Write-Output ((' ' * $Indent)+$Line)
-                        $DisplayedLines++
-                        $no++
-                        if ((($_ -eq 'hangpara') -or ($_ -eq 'listpara')) -and ($no -eq 1))
-                        {
-                            if ($_ -eq 'listpara')
-                            {
-                                $Indent += 2
-                            }
-                            else
-                            {
-                                $Indent += 4
-                            }
-                        }
-                    }
-                }
-                if (($_ -ne 'comppara') -and ($_ -ne 'listpara'))
-                {
-                    Write-Output ''
-                    $DisplayedLines++
-                }
-            }
-        'code'
-            {
-                $Lines = $Text.Split("`n")
-                foreach ($Line in $Lines)
-                {
-                    if ($Line.Length -gt $TextWidth)
-                    {
-                        $Line = $Line.Substring(0, $TextWidth-3)+'...'
-                    }
-                    Write-Output ((' ' * $Indent)+$Line)
-                    $DisplayedLines++
-                }
-            }
-        'sect'
-            {
-                Write-Output ((' ' * $Indent)+$Work.Colors.Section+$Text+$Work.Colors.Default)
-                $DisplayedLines++
-            }
-        'subsect'
-            {
-                Write-Output ((' ' * $Indent)+$Work.Colors.ExtraSection+$Text+$Work.Colors.Default)
-                $DisplayedLines++
-            }
-    }
-    if ($DisplayedLinesVar -ne '')
-    {
-        Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
-    }
-} # DisplayParagraph #
-
-
-function DisplayCollectionOfParagraphs
-{
-    param (
-        [System.Int32] $IndentLevel,
-        [System.Object[]] $collection,
-        [System.String] $DisplayedLinesVar = '',
-        [System.Boolean] $WasColon = $false
-    )
-
-    
-    function ExtractParagraphText
-    {
-        param (
-            [System.Xml.XmlElement] $Para
-        )
-
-        $Text = ''
-        foreach ($Child in $Para.ChildNodes)
-        {
-            switch ($Child.GetType())
-            {
-                'System.Xml.XmlText'
-                    {
-                        $Text += $Child.Value
-                    }
-                'System.Xml.XmlElement'
-                    {
-                        $Text += ExtractParagraphText $Child
-                    }
-            }
-        }
-        return $Text
-    } # ExtractParagraphText #
-
-
-    if (($collection.Count -eq 0) -or ($collection[0].Length -eq 0))
-    {
-        if ($DisplayedLinesVar -ne '')
-        {
-            Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value 0
-        }
-        return
-    }
-    #$WasColon = $false
-    $DisplayedLines = 0
-    foreach ($Para in $collection)
-    {
-        if ($Para.GetType().FullName -eq 'System.Xml.XmlElement')
-        {
-            # This is a temporary solution. In target version we will need reverse operation:
-            # gues the links even wen they are not fully tagged.
-            $Para = ExtractParagraphText $Para
-        }
-        if ($Para.Length -eq 0)
-        {
-            continue
-        }
-        if ($Para.IndexOf("`n") -ne -1)
-        {
-            # Instead of $WasColon there should be used info about colon in last paragraph
-            DisplayCollectionOfParagraphs $IndentLevel ($Para.Split("`n")) 'Displayed' $WasColon
-            $DisplayedLines += $Displayed
-        }
-        else
-        {
-            $Para = $Para.TrimEnd()
-            if (-not $WasColon)
-            {
-                if ($Para.Substring($Para.Length-1, 1) -eq ':')
-                {
-                    # List heading paragraph
-                    $WasColon = $true
-                    DisplayParagraph $IndentLevel comppara $Para 'Displayed'
-                    $DisplayedLines += $Displayed
-                }
-                else
-                {
-                    # Regular paragraph
-                    DisplayParagraph $IndentLevel para $Para 'Displayed'
-                    $DisplayedLines += $Displayed
-                }
-            }
-            else
-            {
-                if ($Para.Substring(0, 2) -eq '- ')
-                {
-                    # List item
-                    DisplayParagraph $IndentLevel listpara $Para 'Displayed'
-                    $DisplayedLines += $Displayed
-                }
-                elseif ($Para.Substring(0, 2) -eq '-- ')
-                {
-                    # List item
-                    DisplayParagraph $IndentLevel listpara ('- '+$Para.Substring(3)) 'Displayed'
-                    $DisplayedLines += $Displayed
-                }
-                elseif ($Para.Substring(0, 2) -eq '--')
-                {
-                    # List item
-                    DisplayParagraph $IndentLevel listpara ('- '+$Para.Substring(2)) 'Displayed'
-                    $DisplayedLines += $Displayed
-                }
-                else
-                {
-                    # End of the list
-                    DisplayParagraph $IndentLevel empty
-                    $DisplayedLines += 1
-                    $WasColon = $false
-                    # Regular paragraph
-                    DisplayParagraph $IndentLevel para $Para 'Displayed'
-                    $DisplayedLines += $Displayed
-                }
-            }
-        }
-    }
-    if ($WasColon)
-    {
-        DisplayParagraph $IndentLevel empty
-        $DisplayedLines += 1
-    }
-    if ($DisplayedLinesVar -ne '')
-    {
-        Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
-    }
-} # DisplayCollectionOfParagraphs #
 
 
 function DisplayXmlHelpFile
@@ -482,6 +196,256 @@ function DisplayXmlHelpFile
         }
         return $LinkValue
     } # BuildLinkValue #
+
+
+    function DisplayParagraph
+    {
+        param ( 
+            [System.Int32] $IndentLevel,
+            [System.String] $Format,
+            [System.String] $Text = '',
+            [System.String] $DisplayedLinesVar = ''
+        )
+
+        $Indent = 4 * $IndentLevel
+        $TextWidth = $Width-$Indent
+        if ($Text -eq '')
+        {
+            $Format = 'empty'
+        }
+        $DisplayedLines = 0
+        switch ($Format)
+        {
+            'empty'
+                {
+                    Write-Output ''
+                    $DisplayedLines++
+                }
+            {($_ -eq 'para') -or
+             ($_ -eq 'hangpara') -or
+             ($_ -eq 'comppara') -or
+             ($_ -eq 'listpara')}
+                {
+                    $Text = $Text.Trim()
+                    while ($Text.IndexOf('  ') -ne -1)
+                    {
+                        $Text = $Text.Replace('  ', ' ')
+                    }
+                    while ($Text.IndexOf(' .') -ne -1)
+                    {
+                        $Text = $Text.Replace(' .', '.')
+                    }
+                    $Lines = @()
+                    if ($Text.Length -gt 0)
+                    {
+                        while ($Text.Length -gt $TextWidth)
+                        {
+                            $Line = $Text.Substring(0, $TextWidth)
+                            $NextLine = ''
+                            if ($Line.IndexOf(' ') -ne -1)
+                            {
+                                while (($Line.Length -gt 0) -and ($Line.Substring($Line.Length-1, 1) -ne ' '))
+                                {
+                                    $NextLine = $NextLine.Insert(0, $Line.Substring($Line.Length-1, 1))
+                                    $Line = $Line.Substring(0, $Line.Length-1)
+                                }
+                            }
+                            $Lines += @($Line.TrimEnd())
+                            $Text = $NextLine+$Text.Substring($TextWidth)
+                            if ((($_ -eq 'hangpara') -or ($_ -eq 'listpara')) -and ($Lines.Count -eq 1))
+                            {
+                                if ($_ -eq 'listpara')
+                                {
+                                    $TextWidth -= 2
+                                }
+                                else
+                                {
+                                    $TextWidth -= 4
+                                }
+                            }
+                        }
+                        $Lines += @($Text)
+                        $no = 0
+                        foreach ($Line in $Lines)
+                        {
+                            Write-Output ((' ' * $Indent)+$Line)
+                            $DisplayedLines++
+                            $no++
+                            if ((($_ -eq 'hangpara') -or ($_ -eq 'listpara')) -and ($no -eq 1))
+                            {
+                                if ($_ -eq 'listpara')
+                                {
+                                    $Indent += 2
+                                }
+                                else
+                                {
+                                    $Indent += 4
+                                }
+                            }
+                        }
+                    }
+                    if (($_ -ne 'comppara') -and ($_ -ne 'listpara'))
+                    {
+                        Write-Output ''
+                        $DisplayedLines++
+                    }
+                }
+            'code'
+                {
+                    $Lines = $Text.Split("`n")
+                    foreach ($Line in $Lines)
+                    {
+                        if ($Line.Length -gt $TextWidth)
+                        {
+                            $Line = $Line.Substring(0, $TextWidth-3)+'...'
+                        }
+                        Write-Output ((' ' * $Indent)+$Line)
+                        $DisplayedLines++
+                    }
+                }
+            'sect'
+                {
+                    Write-Output ((' ' * $Indent)+$Work.Colors.Section+$Text+$Work.Colors.Default)
+                    $DisplayedLines++
+                }
+            'subsect'
+                {
+                    Write-Output ((' ' * $Indent)+$Work.Colors.ExtraSection+$Text+$Work.Colors.Default)
+                    $DisplayedLines++
+                }
+        }
+        if ($DisplayedLinesVar -ne '')
+        {
+            Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
+        }
+    } # DisplayParagraph #
+
+    
+    function DisplayCollectionOfParagraphs
+    {
+        param (
+            [System.Int32] $IndentLevel,
+            [System.Object[]] $collection,
+            [System.String] $DisplayedLinesVar = '',
+            [System.Boolean] $WasColon = $false
+        )
+
+    
+        function ExtractParagraphText
+        {
+            param (
+                [System.Xml.XmlElement] $Para
+            )
+
+            $Text = ''
+            foreach ($Child in $Para.ChildNodes)
+            {
+                switch ($Child.GetType())
+                {
+                    'System.Xml.XmlText'
+                        {
+                            $Text += $Child.Value
+                        }
+                    'System.Xml.XmlElement'
+                        {
+                            $Text += ExtractParagraphText $Child
+                        }
+                }
+            }
+            return $Text
+        } # ExtractParagraphText #
+
+
+        if (($collection.Count -eq 0) -or ($collection[0].Length -eq 0))
+        {
+            if ($DisplayedLinesVar -ne '')
+            {
+                Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value 0
+            }
+            return
+        }
+        #$WasColon = $false
+        $DisplayedLines = 0
+        foreach ($Para in $collection)
+        {
+            if ($Para.GetType().FullName -eq 'System.Xml.XmlElement')
+            {
+                # This is a temporary solution. In target version we will need reverse operation:
+                # gues the links even wen they are not fully tagged.
+                $Para = ExtractParagraphText $Para
+            }
+            if ($Para.Length -eq 0)
+            {
+                continue
+            }
+            if ($Para.IndexOf("`n") -ne -1)
+            {
+                # Instead of $WasColon there should be used info about colon in last paragraph
+                DisplayCollectionOfParagraphs $IndentLevel ($Para.Split("`n")) 'Displayed' $WasColon
+                $DisplayedLines += $Displayed
+            }
+            else
+            {
+                $Para = $Para.TrimEnd()
+                if (-not $WasColon)
+                {
+                    if ($Para.Substring($Para.Length-1, 1) -eq ':')
+                    {
+                        # List heading paragraph
+                        $WasColon = $true
+                        DisplayParagraph $IndentLevel comppara $Para 'Displayed'
+                        $DisplayedLines += $Displayed
+                    }
+                    else
+                    {
+                        # Regular paragraph
+                        DisplayParagraph $IndentLevel para $Para 'Displayed'
+                        $DisplayedLines += $Displayed
+                    }
+                }
+                else
+                {
+                    if ($Para.Substring(0, 2) -eq '- ')
+                    {
+                        # List item
+                        DisplayParagraph $IndentLevel listpara $Para 'Displayed'
+                        $DisplayedLines += $Displayed
+                    }
+                    elseif ($Para.Substring(0, 2) -eq '-- ')
+                    {
+                        # List item
+                        DisplayParagraph $IndentLevel listpara ('- '+$Para.Substring(3)) 'Displayed'
+                        $DisplayedLines += $Displayed
+                    }
+                    elseif ($Para.Substring(0, 2) -eq '--')
+                    {
+                        # List item
+                        DisplayParagraph $IndentLevel listpara ('- '+$Para.Substring(2)) 'Displayed'
+                        $DisplayedLines += $Displayed
+                    }
+                    else
+                    {
+                        # End of the list
+                        DisplayParagraph $IndentLevel empty
+                        $DisplayedLines += 1
+                        $WasColon = $false
+                        # Regular paragraph
+                        DisplayParagraph $IndentLevel para $Para 'Displayed'
+                        $DisplayedLines += $Displayed
+                    }
+                }
+            }
+        }
+        if ($WasColon)
+        {
+            DisplayParagraph $IndentLevel empty
+            $DisplayedLines += 1
+        }
+        if ($DisplayedLinesVar -ne '')
+        {
+            Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
+        }
+    } # DisplayCollectionOfParagraphs #
 
 
     function DisplaySingleSyntax
