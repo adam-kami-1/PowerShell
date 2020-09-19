@@ -1444,124 +1444,6 @@ function AddItem
     ###########
 
 
-$TxtHelpFileModule = @{
-    'about_ActivityCommonParameters'       = 'PSWorkflow';
-    'about_Certificate_Provider'           = 'Microsoft.PowerShell.Security';
-    'about_Checkpoint-Workflow'            = 'PSWorkflow';
-    'about_Classes_and_DSC'                = 'PSDesiredStateConfiguration';
-    'about_Escape_Characters'              = 'drop it !!!'; # there is about_Special_Characters
-    'about_ForEach-Parallel'               = 'PSWorkflow';
-    'about_InlineScript'                   = 'PSWorkflow';
-    'about_PSReadline'                     = 'PSReadLine';
-    'about_Parallel'                       = 'PSWorkflow';
-    'about_Parsing_LocTest'                = 'drop it !!!'; # there is about_Parsing
-    'about_PowerShell.exe'                 = 'drop it !!!'; # there is newer about_PowerShell_exe
-    'about_PowerShell_Ise.exe'             = 'drop it !!!'; # there is newer about_PowerShell_Ise_exe
-    'about_Scheduled_Jobs'                 = 'PSScheduledJob';
-    'about_Scheduled_Jobs_Advanced'        = 'PSScheduledJob';
-    'about_Scheduled_Jobs_Basics'          = 'PSScheduledJob';
-    'about_Scheduled_Jobs_Troubleshooting' = 'PSScheduledJob';
-    'about_Sequence'                       = 'PSWorkflow';
-    'about_Suspend-Workflow'               = 'PSWorkflow';
-    'about_WS-Management_Cmdlets'          = 'Microsoft.WSMan.Management';
-    'about_WSMan_Provider'                 = 'Microsoft.WSMan.Management';
-    'about_Windows_PowerShell_5.0'         = 'drop it !!!'; # This is old
-    'about_WorkflowCommonParameters'       = 'PSWorkflow';
-    'about_Workflows'                      = 'PSWorkflow';
-    'default'                              = '';
-    'WSManAbout'                           = 'drop it !!!'; # This is not a help file
-    }
-
-
-#########################
-# GetModuleAndOnlineURI #
-#########################
-function GetModuleAndOnlineURI
-{
-    param (
-        [System.String] $Name,
-        [System.String] $ModuleName
-    )
-
-    #########################
-    # GetModuleAndOnlineURI #    
-    $URI = ''
-    if ($ModuleName -eq '')
-    {
-        $ModuleName = $TxtHelpFileModule[$Name]
-        if ($ModuleName -ne 'drop it !!!')
-        {
-            if ($ModuleName -eq '')
-            {
-                $ModuleName = 'Microsoft.PowerShell.Core'
-            }
-            $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
-
-            #$a0 = $ModuleName.Value
-            #$a1 = $a0.ToLower()
-            #$a2 = ($ModuleName.Value).ToLower()
-            #$a3 = $Name.ToLower()
-
-            if ($Name -ne 'default')
-            {
-                $URI = 'https://docs.microsoft.com/en-us/powershell/module/'+$ModuleName.ToLower()+
-                       '/about/'+$Name.ToLower()+'?view=powershell-'+$version
-            }
-            return @{'Module'=$ModuleName;
-                     'URI'=$URI}
-        }
-    }
-    return $URI = @{'Module'=$ModuleName;
-                    'URI'=$URI}
-}   # GetModuleAndOnlineURI #
-    #########################
-
-
-#####################
-# CheckTxtHelpFiles #
-#####################
-function CheckTxtHelpFiles
-{
-    param (
-        [System.String] $ModuleName,
-        [System.String] $Path
-    )
-
-    #####################
-    # CheckTxtHelpFiles #
-    if ( -not (Test-Path -Path $Path -PathType Container))
-    {
-        return
-    }
-    $Files = (Get-ChildItem $Path\*.help.txt).Name
-    if ($Files.Count -gt 0)
-    {
-        foreach ($File in $Files)
-        {
-            $Name = $File -replace '.help.txt',''
-            $URI = GetModuleAndOnlineURI $Name $ModuleName
-            if ($URI.Module -eq 'drop it !!!')
-            {
-                continue
-            }
-            $Item = @{Name = $Name;
-                      ModuleName = $URI.Module;
-                      File = "$Path\$File";
-                      OnlineURI = $URI.URI;
-                      Format = 'txt';
-                      Index = -1;
-                      Category = 'HelpFile';
-                      Synopsis = '';
-                      CommonParameters = $false}
-            $XML = ParseTxtHelpFile $Item
-            $Item.Synopsis = $XML.helpItems.command.details.description.para
-            AddItem $true $Item
-        }
-    }
-    return
-}   # CheckTxtHelpFiles #
-    #####################
-
 
 ################
 # CheckXMLFile #
@@ -1718,42 +1600,6 @@ function CheckXmlHelpFiles
     #####################
 
 
-###############
-# CheckModule #
-###############
-function CheckModule
-{
-    param (
-        [System.String] $Path,
-        [System.String] $ModuleName,
-        [System.String] $Version
-    )
-
-    ###############
-    # CheckModule #
-    if ($Version -eq '')
-    {
-        $Path = "$Path\$ModuleName"
-    }
-    else
-    {
-        $Path = "$Path\$ModuleName\$Version"
-    }
-    $LocalFuncs = @()
-    if (Test-Path -Path "$Path\$ModuleName.psd1")
-    {
-        $LocalFuncs = (Import-PowerShellDataFile -Path "$Path\$ModuleName.psd1" -ErrorAction SilentlyContinue).FunctionsToExport
-    }
-    CheckTxtHelpFiles $ModuleName "$Path\$PSUICulture"
-    #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.dll-help.xml'
-    #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.cdxml-help.xml'
-    #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.psd1-help.xml'
-    #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.psm1-help.xml'
-    CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '-help.xml'
-}   # CheckModule #
-    ###############
-
-
 
 ########
 # Main #
@@ -1771,18 +1617,174 @@ function Main
         param ()
 
 
-        ##########
-        # VerCmp #
-        ##########
-        Function VerCmp
+        #####################
+        # CheckTxtHelpFiles #
+        #####################
+        function CheckTxtHelpFiles
+        {
+            param (
+                [System.String] $ModuleName,
+                [System.String] $Path
+            )
+
+            
+            #########################
+            # GetModuleAndOnlineURI #
+            #########################
+            function GetModuleAndOnlineURI
+            {
+                param (
+                    [System.String] $Name,
+                    [System.String] $ModuleName
+                )
+                
+                $TxtHelpFileModule = @{
+                    'about_ActivityCommonParameters'       = 'PSWorkflow';
+                    'about_Certificate_Provider'           = 'Microsoft.PowerShell.Security';
+                    'about_Checkpoint-Workflow'            = 'PSWorkflow';
+                    'about_Classes_and_DSC'                = 'PSDesiredStateConfiguration';
+                    'about_Escape_Characters'              = 'drop it !!!'; # there is about_Special_Characters
+                    'about_ForEach-Parallel'               = 'PSWorkflow';
+                    'about_InlineScript'                   = 'PSWorkflow';
+                    'about_PSReadline'                     = 'PSReadLine';
+                    'about_Parallel'                       = 'PSWorkflow';
+                    'about_Parsing_LocTest'                = 'drop it !!!'; # there is about_Parsing
+                    'about_PowerShell.exe'                 = 'drop it !!!'; # there is newer about_PowerShell_exe
+                    'about_PowerShell_Ise.exe'             = 'drop it !!!'; # there is newer about_PowerShell_Ise_exe
+                    'about_Scheduled_Jobs'                 = 'PSScheduledJob';
+                    'about_Scheduled_Jobs_Advanced'        = 'PSScheduledJob';
+                    'about_Scheduled_Jobs_Basics'          = 'PSScheduledJob';
+                    'about_Scheduled_Jobs_Troubleshooting' = 'PSScheduledJob';
+                    'about_Sequence'                       = 'PSWorkflow';
+                    'about_Suspend-Workflow'               = 'PSWorkflow';
+                    'about_WS-Management_Cmdlets'          = 'Microsoft.WSMan.Management';
+                    'about_WSMan_Provider'                 = 'Microsoft.WSMan.Management';
+                    'about_Windows_PowerShell_5.0'         = 'drop it !!!'; # This is old
+                    'about_WorkflowCommonParameters'       = 'PSWorkflow';
+                    'about_Workflows'                      = 'PSWorkflow';
+                    'default'                              = '';
+                    'WSManAbout'                           = 'drop it !!!'; # This is not a help file
+                    }
+
+                #########################
+                # GetModuleAndOnlineURI #    
+                $URI = ''
+                if ($ModuleName -eq '')
+                {
+                    $ModuleName = $TxtHelpFileModule[$Name]
+                    if ($ModuleName -ne 'drop it !!!')
+                    {
+                        if ($ModuleName -eq '')
+                        {
+                            $ModuleName = 'Microsoft.PowerShell.Core'
+                        }
+                        $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
+
+                        #$a0 = $ModuleName.Value
+                        #$a1 = $a0.ToLower()
+                        #$a2 = ($ModuleName.Value).ToLower()
+                        #$a3 = $Name.ToLower()
+
+                        if ($Name -ne 'default')
+                        {
+                            $URI = 'https://docs.microsoft.com/en-us/powershell/module/'+$ModuleName.ToLower()+
+                                   '/about/'+$Name.ToLower()+'?view=powershell-'+$version
+                        }
+                        return @{'Module'=$ModuleName;
+                                 'URI'=$URI}
+                    }
+                }
+                return $URI = @{'Module'=$ModuleName;
+                                'URI'=$URI}
+            }   # GetModuleAndOnlineURI #
+                #########################
+
+
+            #####################
+            # CheckTxtHelpFiles #
+            if ( -not (Test-Path -Path $Path -PathType Container))
+            {
+                return
+            }
+            $Files = (Get-ChildItem $Path\*.help.txt).Name
+            if ($Files.Count -gt 0)
+            {
+                foreach ($File in $Files)
+                {
+                    $Name = $File -replace '.help.txt',''
+                    $URI = GetModuleAndOnlineURI $Name $ModuleName
+                    if ($URI.Module -eq 'drop it !!!')
+                    {
+                        continue
+                    }
+                    $Item = @{Name = $Name;
+                              ModuleName = $URI.Module;
+                              File = "$Path\$File";
+                              OnlineURI = $URI.URI;
+                              Format = 'txt';
+                              Index = -1;
+                              Category = 'HelpFile';
+                              Synopsis = '';
+                              CommonParameters = $false}
+                    $XML = ParseTxtHelpFile $Item
+                    $Item.Synopsis = $XML.helpItems.command.details.description.para
+                    AddItem $true $Item
+                }
+            }
+            return
+        }   # CheckTxtHelpFiles #
+            #####################
+
+            
+        ###############
+        # CheckModule #
+        ###############
+        function CheckModule
+        {
+            param (
+                [System.String] $Path,
+                [System.String] $ModuleName,
+                [System.String] $Version
+            )
+
+            ###############
+            # CheckModule #
+            if ($Version -eq '')
+            {
+                $Path = "$Path\$ModuleName"
+            }
+            else
+            {
+                $Path = "$Path\$ModuleName\$Version"
+            }
+            $LocalFuncs = @()
+            if (Test-Path -Path "$Path\$ModuleName.psd1")
+            {
+                $LocalFuncs = (Import-PowerShellDataFile -Path "$Path\$ModuleName.psd1" -ErrorAction SilentlyContinue).FunctionsToExport
+            }
+            CheckTxtHelpFiles $ModuleName "$Path\$PSUICulture"
+            #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.dll-help.xml'
+            #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.cdxml-help.xml'
+            #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.psd1-help.xml'
+            #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.psm1-help.xml'
+            CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '-help.xml'
+        }   # CheckModule #
+            ###############
+
+
+
+        ###################
+        # CompareVersions #
+        ###################
+        Function CompareVersions
         {
             param (
                 [System.String] $Version1,
                 [System.String] $Version2
             )
 
-            ##########
-            # VerCmp #
+            ###################
+            # CompareVersions #
             $Ver1 = $Version1.Split('.')
             $Ver2 = $Version2.Split('.')
             for ($i = 0; $i -lt [System.Math]::Min($Ver1.Count,$Ver2.Count); $i++)
@@ -1797,17 +1799,24 @@ function Main
                 return 0
             }
             return $Ver1.Count - $Ver2.Count
-        }   # VerCmp #
-            ##########
+        }   # CompareVersions #
+            ###################
 
 
         #################
         # FindHelpFiles #
-        Get-ChildItem function: | ForEach-Object { $Work.Functions[$_.Name] = 'Function' }
+
+        # Extract list of all global functions into $Work.Functions
+        Get-ChildItem -Path function: | ForEach-Object -Process { $Work.Functions[$_.Name] = 'Function' }
+
+        # Find all *.help.txt in PowerShell home directory
         CheckTxtHelpFiles '' $PSHOME\$PSUICulture
+
         $LocalFuncs = @()
         CheckXmlHelpFiles $LocalFuncs '' $PSHOME\$PSUICulture '.dll-help.xml'
         CheckXmlHelpFiles $LocalFuncs '' $PSHOME\$PSUICulture '-help.xml'
+
+        # Check all module directories for 
         foreach ($ModulePath in (($env:PSModulePath).Split(';')))
         {
             foreach ($Module in ((Get-Childitem $ModulePath -Directory).Name))
@@ -1821,7 +1830,7 @@ function Main
                     }
                     elseif ($SubDir -match '^([0-9]\.)+[0-9]+$')
                     {
-                        if ((VerCmp $Version $SubDir) -le 0)
+                        if ((CompareVersions $Version $SubDir) -le 0)
                         {
                             $Version = $SubDir
                         }
@@ -1899,7 +1908,7 @@ function Main
     }
     else
     {
-        # Find all *.help.txt and  *.dll-help.xml files HelpFiles
+        # Find all *.help.txt and  *.dll-help.xml HelpFiles and parse them
         Write-Verbose "Find all *.help.txt and  *.dll-help.xml files HelpFiles"
         FindHelpFiles
         # Export description of all found help items
