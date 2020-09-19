@@ -101,13 +101,17 @@ param (
 #!/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
 
 
-
+###############
+# ToCamelCase #
+###############
 function ToCamelCase
 {
     param (
         [System.String] $Str
     )
 
+    ###############
+    # ToCamelCase #
     $ChArr = $Str.ToCharArray()
     $Str = ''
     for ($i = 0; $i -lt $ChArr.Length; $i++)
@@ -122,7 +126,8 @@ function ToCamelCase
         }
     }
     return $Str
-} # ToCamelCase #
+}   # ToCamelCase #
+    ###############
 
 
 #####################################################################
@@ -143,6 +148,9 @@ $Work = @{
     }
 
 
+######################
+# DisplayXmlHelpFile #
+######################
 function DisplayXmlHelpFile
 {
     param (
@@ -150,7 +158,10 @@ function DisplayXmlHelpFile
         [System.Xml.XmlElement] $command
     )
 
-    
+
+    ##################
+    # BuildLinkValue #    
+    ##################
     function BuildLinkValue
     {
         param (
@@ -158,6 +169,8 @@ function DisplayXmlHelpFile
             [System.String] $URI
         )
 
+        ##################
+        # BuildLinkValue #
         if ($URI -ne '')
         {
             if (($URI.Substring(0,8) -ne 'https://') -and ($URI.Substring(0,7) -ne 'http://'))
@@ -195,9 +208,13 @@ function DisplayXmlHelpFile
             $LinkValue = $LinkText+': '+$URI
         }
         return $LinkValue
-    } # BuildLinkValue #
+    }   # BuildLinkValue #
+        ##################
 
 
+    ####################
+    # DisplayParagraph #
+    ####################
     function DisplayParagraph
     {
         param ( 
@@ -207,6 +224,8 @@ function DisplayXmlHelpFile
             [System.String] $DisplayedLinesVar = ''
         )
 
+        ####################
+        # DisplayParagraph #
         $Indent = 4 * $IndentLevel
         $TextWidth = $Width-$Indent
         if ($Text -eq '')
@@ -318,9 +337,13 @@ function DisplayXmlHelpFile
         {
             Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
         }
-    } # DisplayParagraph #
+    }   # DisplayParagraph #
+        ####################
 
     
+    #################################
+    # DisplayCollectionOfParagraphs #
+    #################################
     function DisplayCollectionOfParagraphs
     {
         param (
@@ -331,12 +354,17 @@ function DisplayXmlHelpFile
         )
 
     
+        ########################
+        # ExtractParagraphText #
+        ########################
         function ExtractParagraphText
         {
             param (
                 [System.Xml.XmlElement] $Para
             )
 
+            ########################
+            # ExtractParagraphText #
             $Text = ''
             foreach ($Child in $Para.ChildNodes)
             {
@@ -353,9 +381,12 @@ function DisplayXmlHelpFile
                 }
             }
             return $Text
-        } # ExtractParagraphText #
+        }   # ExtractParagraphText #
+            ########################
 
 
+        #################################
+        # DisplayCollectionOfParagraphs #
         if (($collection.Count -eq 0) -or ($collection[0].Length -eq 0))
         {
             if ($DisplayedLinesVar -ne '')
@@ -445,9 +476,13 @@ function DisplayXmlHelpFile
         {
             Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
         }
-    } # DisplayCollectionOfParagraphs #
+    }   # DisplayCollectionOfParagraphs #
+        #################################
 
 
+    #######################
+    # DisplaySingleSyntax #
+    #######################
     function DisplaySingleSyntax
     {
         param (
@@ -455,6 +490,8 @@ function DisplayXmlHelpFile
             [System.Boolean] $CommonParameters
         )
 
+        #######################
+        # DisplaySingleSyntax #
         $Para = $syntaxItem.name
         foreach ($parameter in $syntaxItem.parameter)
         {
@@ -517,15 +554,20 @@ function DisplayXmlHelpFile
             $Para += ' [<CommonParameters>]'
         }
         DisplayParagraph 1 hangpara $Para
-    } # DisplaySingleSyntax #
+    }   # DisplaySingleSyntax #
+        #######################
 
 
+    ##########################
+    # DisplaySingleParameter #
     function DisplaySingleParameter
     {
         param (
             [System.Xml.XmlElement] $Parameter
         )
 
+        ##########################
+        # DisplaySingleParameter #
         $Required = $Parameter.required
         $Position = $Parameter.position
         $DefVal = $Parameter.defaultValue
@@ -546,22 +588,31 @@ function DisplayXmlHelpFile
             DisplayParagraph 2 code "Aliases                      $Aliases"
         }
         DisplayParagraph 0 empty
-    } # DisplaySingleParameter #
+    }   # DisplaySingleParameter #
+        ##########################
 
 
+    ########################
+    # DisplaySingleExample #
+    ########################
     function DisplaySingleExample
     {
         param (
             [System.Xml.XmlElement] $Example
         )
 
+        ########################
+        # DisplaySingleExample #
         DisplayParagraph 1 para $Example.title
         DisplayParagraph 2 code $Example.code
         DisplayParagraph 2 empty
         DisplayCollectionOfParagraphs 2 $Example.remarks.para
-    } # DisplaySingleExample #
+    }   # DisplaySingleExample #
+        ########################
 
 
+    ######################
+    # DisplayXmlHelpFile #
     DisplayParagraph 0 empty
 
     # ========================================
@@ -783,15 +834,21 @@ function DisplayXmlHelpFile
         DisplayParagraph 1 para 'Remarks will be described later !!!'
     }
 
-} # DisplayXmlHelpFile #
+}   # DisplayXmlHelpFile #
+    ######################
 
 
+##################
+# CleanParagraph #
+##################
 function CleanParagraph
 {
     param (
         [System.String] $Paragraph
     )
 
+    ##################
+    # CleanParagraph #
     # Replace all new lines with spaces
     $Paragraph = $Paragraph.Replace("`n", ' ')
 
@@ -801,8 +858,13 @@ function CleanParagraph
         $Paragraph = $Paragraph.Replace('  ', ' ')
     }
     return $Paragraph.Trim()
-} # CleanParagraph #
+}   # CleanParagraph #
+    ##################
 
+
+######################
+# AddLinesToNewChild #
+######################
 function AddLinesToNewChild
 {
     param (
@@ -813,6 +875,8 @@ function AddLinesToNewChild
         [System.String] $Paragraph
     )
 
+    ######################
+    # AddLinesToNewChild #
     # Ignore first $SkipLines lines from the $Paragraph
     while (($SkipLines -gt 0) -and ($Paragraph.IndexOf("`n") -gt 0))
     {
@@ -829,9 +893,13 @@ function AddLinesToNewChild
     }
     $Child = $Parent.AppendChild($XML.CreateElement($ChildName))
     $Child.Set_innerText($Paragraph)
-} # AddLinesToNewChild #
+}   # AddLinesToNewChild #
+    ######################
 
 
+#####################
+# AddNavigationLink #
+#####################
 function AddNavigationLink
 {
     param (
@@ -840,6 +908,8 @@ function AddNavigationLink
         [System.String] $Line
     )
 
+    #####################
+    # AddNavigationLink #
     $Line = $Line.Trim()
     if ($Line.Length -lt 1)
     {
@@ -894,212 +964,250 @@ function AddNavigationLink
         $Uri = $NavigationLink.AppendChild($XML.CreateElement('uri'))
         $Uri.Set_innerText($Url)
     }
-} # AddNavigationLink #
+}   # AddNavigationLink #
+    #####################
 
 
-function AddLinesToRelatedLinks
-{
-    param (
-        [System.Xml.XmlDocument] $XML,
-        [System.Int32] $SkipLines,
-        [System.String] $Paragraph
-    )
-
-    # Ignore first $SkipLines lines from the $Paragraph
-    while (($SkipLines -gt 0) -and ($Paragraph.IndexOf("`n") -gt 0))
-    {
-        $Paragraph = $Paragraph.Substring($Paragraph.IndexOf("`n")+1)
-        $SkipLines--
-    }
-    $RelatedLinks = (Select-XML -Xml $XML -XPath '/helpItems/command/relatedLinks').Node
-    $Lines = $Paragraph.Split("`n")
-    foreach ($Line in $Lines)
-    {
-        AddNavigationLink $XML $RelatedLinks $Line
-    }
-} # AddLinesToRelatedLinks #
-
-
-function AddDescriptionParagraph
-{
-    param (
-        [System.Xml.XmlDocument] $XML,
-        [System.String] $Paragraph
-    )
-
-    $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
-    if ($Description -eq $null)
-    {
-        # There was no LONG DESCRIPTION header in file
-        $Description = $Command.AppendChild($XML.CreateElement('description'))
-    }
-    AddLinesToNewChild $XML $Description 'para' 0 $Paragraph
-}
-
-
-function ExtraSectionHeading
-{
-    param (
-        [System.String] $Paragraph
-    )
-
-    if (($Paragraph.IndexOf("`n") -ne -1) -or
-        ($Paragraph.Trim().Length -eq 0)) 
-    {
-        return ''
-    }
-    $Paragraph = $Paragraph.TrimEnd()
-    if ($Paragraph.Substring(0,1) -in @(' ','-'))
-    {
-        return ''
-    }
-    $Paragraph = $Paragraph.TrimStart()
-    if ($Paragraph -in @('or', 'and'))
-    {
-        return ''
-    }
-    if ($Paragraph.Substring($Paragraph.Length-1,1) -in @('.', ':'))
-    {
-        return ''
-    }
-    if (-not ($Paragraph -match '^[-:, a-z0-9]+$'))
-    {
-        return ''
-    }
-    return $Paragraph
-} # ExtraSectionHeading #
-
-
-function StoreRegularparagraph
-{
-    param (
-        [System.Collections.Hashtable] $Item,
-        [System.Xml.XmlDocument] $XML,
-        [System.String] $Paragraph
-    )
-
-    if ($Item.CurrentSectionName -eq 'NOTES')
-    {
-        $Alert = (Select-XML -Xml $XML -XPath '/helpItems/command/alertSet/alert').Node
-        AddLinesToNewChild $XML $Alert 'para' 0 $Paragraph
-    }
-    elseif ($Item.CurrentExtraSectionNode -ne $null)
-    {
-        AddLinesToNewChild $XML $Item.CurrentExtraSectionNode 'para' 0 $Paragraph
-    }
-    else
-    {
-        AddDescriptionParagraph $XML $Paragraph
-    }
-} # StoreRegularparagraph #
-
-
-function ParseRegularParagraph
-{
-    param (
-        [System.Collections.Hashtable] $Item,
-        [System.Xml.XmlDocument] $XML,
-        [System.String] $Paragraph
-    )
-
-    #Write-Host $Paragraph
-    switch ($Item.CurrentSectionName)
-    {
-        {($_ -eq 'NAME') -or
-         ($_ -eq 'SYNOPSIS')}
-            {
-                $Details = (Select-XML -Xml $XML -XPath '/helpItems/command/details').Node
-                if ($Details -eq $null)
-                {
-                    # There was no TOPIC nor item name. Put name into XML.
-                    $Details = $Command.AppendChild($XML.CreateElement('details'))
-                    $Name = $Details.AppendChild($XML.CreateElement('name'))
-                    $Name.Set_innerText($Item.DisplayName)
-                }
-                if ($XML.helpItems.command.details.description -eq $null)
-                {
-                    # The synopsis was separated with empty line from SHORT DESCRIPTION.
-                    $Description = $Details.AppendChild($XML.CreateElement('description'))
-                    $Para = $Description.AppendChild($XML.CreateElement('para'))
-                    $Paragraph = CleanParagraph $Paragraph
-                    $Para.Set_innerText($Paragraph)
-                }
-                else
-                {
-                    AddDescriptionParagraph $XML $Paragraph
-                    $Item.CurrentSectionName = 'DESCRIPTION'
-                }
-            }
-        'RELATED LINKS'
-            {
-                $RelatedLinks = (Select-XML -Xml $XML -XPath '/helpItems/command/relatedLinks').Node
-                if ($Paragraph.IndexOf("`n") -eq -1)
-                {
-                    AddNavigationLink $XML $RelatedLinks $Paragraph
-                }
-                else
-                {
-                    AddLinesToRelatedLinks $XML 0 $Paragraph
-                }
-            }
-        {($_ -eq 'DESCRIPTION') -or
-         ($_ -eq 'NOTES')}
-            {
-                $ExtraSection = ExtraSectionHeading $Paragraph
-                if ($Item.Name -eq 'about_Comment_Based_Help')
-                {
-                    if (($ExtraSection -eq 'Name') -or
-                        ($ExtraSection -eq 'Syntax') -or
-                        ($ExtraSection -eq 'Description') -or
-                        ($ExtraSection -eq 'Parameters') -or
-                        ($ExtraSection -eq 'Parameter List') -or
-                        ($ExtraSection -eq 'Common Parameters') -or
-                        ($ExtraSection -eq 'Parameter Attribute Table') -or
-                        ($ExtraSection -eq 'Inputs') -or
-                        ($ExtraSection -eq 'Outputs') -or
-                        ($ExtraSection -eq 'Remarks') -or
-                        ($ExtraSection -eq 'Related Links'))
-                    {
-                        $ExtraSection = ''
-                    }
-                }
-                switch -Regex ($ExtraSection)
-                {
-                    '^$'
-                        {
-                            # Really regular paragraph, add to appropriate section
-                            StoreRegularparagraph $Item $XML $Paragraph
-                        }
-                    '^(NOTES|REMARKS)$'
-                        {
-                            $Command = (Select-XML -Xml $XML -XPath '/helpItems/command').Node
-                            $AlertSet = $Command.AppendChild($XML.CreateElement('alertSet'))
-                            $Alert = $AlertSet.AppendChild($XML.CreateElement('alert'))
-                            $Item.CurrentSectionName = 'NOTES'
-                            $Item.CurrentExtraSectionNode = $null
-                        }
-                    default
-                        {
-                            $Item.CurrentExtraSectionName = $ExtraSection.ToUpper()
-                            #Write-Host "ExtraSection: " $Item.CurrentExtraSectionName
-                            $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
-                            $Item.CurrentExtraSectionNode = $Description.AppendChild($XML.CreateElement('section'))
-                            $Name = $Item.CurrentExtraSectionNode.AppendChild($XML.CreateElement('name'))
-                            $Name.Set_innerText($Item.CurrentExtraSectionName)
-                            $Item.CurrentSectionName = 'DESCRIPTION'
-                        }
-                }
-            }
-    }
-} # ParseRegularParagraph #
-
-
+####################
+# ParseTxtHelpFile #
+####################
 function ParseTxtHelpFile
 {
     param (
         [System.Collections.Hashtable] $Item
     )
 
+
+    ##########################
+    # AddLinesToRelatedLinks #
+    ##########################
+    function AddLinesToRelatedLinks
+    {
+        param (
+            [System.Xml.XmlDocument] $XML,
+            [System.Int32] $SkipLines,
+            [System.String] $Paragraph
+        )
+
+        ##########################
+        # AddLinesToRelatedLinks #
+        # Ignore first $SkipLines lines from the $Paragraph
+        while (($SkipLines -gt 0) -and ($Paragraph.IndexOf("`n") -gt 0))
+        {
+            $Paragraph = $Paragraph.Substring($Paragraph.IndexOf("`n")+1)
+            $SkipLines--
+        }
+        $RelatedLinks = (Select-XML -Xml $XML -XPath '/helpItems/command/relatedLinks').Node
+        $Lines = $Paragraph.Split("`n")
+        foreach ($Line in $Lines)
+        {
+            AddNavigationLink $XML $RelatedLinks $Line
+        }
+    }   # AddLinesToRelatedLinks #
+        ##########################
+
+
+    #########################
+    # ParseRegularParagraph #
+    #########################
+    function ParseRegularParagraph
+    {
+        param (
+            [System.Collections.Hashtable] $Item,
+            [System.Xml.XmlDocument] $XML,
+            [System.String] $Paragraph
+        )
+
+
+        ###########################    
+        # AddDescriptionParagraph #
+        ###########################    
+        function AddDescriptionParagraph
+        {
+            param (
+                [System.Xml.XmlDocument] $XML,
+                [System.String] $Paragraph
+            )
+
+            ###########################    
+            # AddDescriptionParagraph #
+            $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
+            if ($Description -eq $null)
+            {
+                # There was no LONG DESCRIPTION header in file
+                $Description = $Command.AppendChild($XML.CreateElement('description'))
+            }
+            AddLinesToNewChild $XML $Description 'para' 0 $Paragraph
+        }   # AddDescriptionParagraph #
+            ###########################    
+
+
+        #########################
+        # StoreRegularparagraph #
+        #########################
+        function StoreRegularparagraph
+        {
+            param (
+                [System.Collections.Hashtable] $Item,
+                [System.Xml.XmlDocument] $XML,
+                [System.String] $Paragraph
+            )
+
+            #########################
+            # StoreRegularparagraph #
+            if ($Item.CurrentSectionName -eq 'NOTES')
+            {
+                $Alert = (Select-XML -Xml $XML -XPath '/helpItems/command/alertSet/alert').Node
+                AddLinesToNewChild $XML $Alert 'para' 0 $Paragraph
+            }
+            elseif ($Item.CurrentExtraSectionNode -ne $null)
+            {
+                AddLinesToNewChild $XML $Item.CurrentExtraSectionNode 'para' 0 $Paragraph
+            }
+            else
+            {
+                AddDescriptionParagraph $XML $Paragraph
+            }
+        }   # StoreRegularparagraph #
+            #########################
+
+        
+        #######################
+        # ExtraSectionHeading #
+        #######################
+        function ExtraSectionHeading
+        {
+            param (
+                [System.String] $Paragraph
+            )
+
+            #######################
+            # ExtraSectionHeading #
+            if (($Paragraph.IndexOf("`n") -ne -1) -or
+                ($Paragraph.Trim().Length -eq 0)) 
+            {
+                return ''
+            }
+            $Paragraph = $Paragraph.TrimEnd()
+            if ($Paragraph.Substring(0,1) -in @(' ','-'))
+            {
+                return ''
+            }
+            $Paragraph = $Paragraph.TrimStart()
+            if ($Paragraph -in @('or', 'and'))
+            {
+                return ''
+            }
+            if ($Paragraph.Substring($Paragraph.Length-1,1) -in @('.', ':'))
+            {
+                return ''
+            }
+            if (-not ($Paragraph -match '^[-:, a-z0-9]+$'))
+            {
+                return ''
+            }
+            return $Paragraph
+        }   # ExtraSectionHeading #
+            #######################
+        
+
+        #########################
+        # ParseRegularParagraph #
+        #Write-Host $Paragraph
+        switch ($Item.CurrentSectionName)
+        {
+            {($_ -eq 'NAME') -or
+             ($_ -eq 'SYNOPSIS')}
+                {
+                    $Details = (Select-XML -Xml $XML -XPath '/helpItems/command/details').Node
+                    if ($Details -eq $null)
+                    {
+                        # There was no TOPIC nor item name. Put name into XML.
+                        $Details = $Command.AppendChild($XML.CreateElement('details'))
+                        $Name = $Details.AppendChild($XML.CreateElement('name'))
+                        $Name.Set_innerText($Item.DisplayName)
+                    }
+                    if ($XML.helpItems.command.details.description -eq $null)
+                    {
+                        # The synopsis was separated with empty line from SHORT DESCRIPTION.
+                        $Description = $Details.AppendChild($XML.CreateElement('description'))
+                        $Para = $Description.AppendChild($XML.CreateElement('para'))
+                        $Paragraph = CleanParagraph $Paragraph
+                        $Para.Set_innerText($Paragraph)
+                    }
+                    else
+                    {
+                        AddDescriptionParagraph $XML $Paragraph
+                        $Item.CurrentSectionName = 'DESCRIPTION'
+                    }
+                }
+            'RELATED LINKS'
+                {
+                    $RelatedLinks = (Select-XML -Xml $XML -XPath '/helpItems/command/relatedLinks').Node
+                    if ($Paragraph.IndexOf("`n") -eq -1)
+                    {
+                        AddNavigationLink $XML $RelatedLinks $Paragraph
+                    }
+                    else
+                    {
+                        AddLinesToRelatedLinks $XML 0 $Paragraph
+                    }
+                }
+            {($_ -eq 'DESCRIPTION') -or
+             ($_ -eq 'NOTES')}
+                {
+                    $ExtraSection = ExtraSectionHeading $Paragraph
+                    if ($Item.Name -eq 'about_Comment_Based_Help')
+                    {
+                        if (($ExtraSection -eq 'Name') -or
+                            ($ExtraSection -eq 'Syntax') -or
+                            ($ExtraSection -eq 'Description') -or
+                            ($ExtraSection -eq 'Parameters') -or
+                            ($ExtraSection -eq 'Parameter List') -or
+                            ($ExtraSection -eq 'Common Parameters') -or
+                            ($ExtraSection -eq 'Parameter Attribute Table') -or
+                            ($ExtraSection -eq 'Inputs') -or
+                            ($ExtraSection -eq 'Outputs') -or
+                            ($ExtraSection -eq 'Remarks') -or
+                            ($ExtraSection -eq 'Related Links'))
+                        {
+                            $ExtraSection = ''
+                        }
+                    }
+                    switch -Regex ($ExtraSection)
+                    {
+                        '^$'
+                            {
+                                # Really regular paragraph, add to appropriate section
+                                StoreRegularparagraph $Item $XML $Paragraph
+                            }
+                        '^(NOTES|REMARKS)$'
+                            {
+                                $Command = (Select-XML -Xml $XML -XPath '/helpItems/command').Node
+                                $AlertSet = $Command.AppendChild($XML.CreateElement('alertSet'))
+                                $Alert = $AlertSet.AppendChild($XML.CreateElement('alert'))
+                                $Item.CurrentSectionName = 'NOTES'
+                                $Item.CurrentExtraSectionNode = $null
+                            }
+                        default
+                            {
+                                $Item.CurrentExtraSectionName = $ExtraSection.ToUpper()
+                                #Write-Host "ExtraSection: " $Item.CurrentExtraSectionName
+                                $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
+                                $Item.CurrentExtraSectionNode = $Description.AppendChild($XML.CreateElement('section'))
+                                $Name = $Item.CurrentExtraSectionNode.AppendChild($XML.CreateElement('name'))
+                                $Name.Set_innerText($Item.CurrentExtraSectionName)
+                                $Item.CurrentSectionName = 'DESCRIPTION'
+                            }
+                    }
+                }
+        }
+    }   # ParseRegularParagraph #
+        #########################
+
+
+    ####################
+    # ParseTxtHelpFile #
     # Convert contents of the HelpFile into array of paragraphs
     $File = Get-Content $Item.File
     $Paragraphs = @()
@@ -1250,15 +1358,21 @@ function ParseTxtHelpFile
         }
     }
     return $XML
-} # ParseTxtHelpFile #
+}   # ParseTxtHelpFile #
+    ####################
 
 
+###################
+# DisplayHelpItem #
+###################
 function DisplayHelpItem
 {
     param (
         [System.Collections.Hashtable] $Item
     )
 
+    ###################
+    # DisplayHelpItem #
     switch ($Item.Format)
     {
         "txt"
@@ -1274,7 +1388,8 @@ function DisplayHelpItem
                 DisplayXmlHelpFile $Item ($XML.helpItems.command)[$Item.Index]
             }
     }
-} # DisplayHelpItem #
+}   # DisplayHelpItem #
+    ###################
 
 
 #####################################################################
@@ -1282,6 +1397,9 @@ function DisplayHelpItem
 #####################################################################
 
 
+###########
+# AddItem #
+###########
 function AddItem
 {
     param (
@@ -1289,6 +1407,8 @@ function AddItem
         [System.Collections.Hashtable] $Item
     )
 
+    ###########
+    # AddItem #
     # $Item = [pscustomobject]$I
     # Write-Host ("Adding Item "+$Item.Name)
     if ($HelpInfo.ItemIndex[$Item.Name] -eq $null)
@@ -1304,7 +1424,8 @@ function AddItem
         $HelpInfo.ItemIndex[$Item.Name] = $HelpInfo.Items.Count
         $HelpInfo.Items += $Item
     }
-} # AddItem #
+}   # AddItem #
+    ###########
 
 
 $TxtHelpFileModule = @{
@@ -1336,13 +1457,18 @@ $TxtHelpFileModule = @{
     }
 
 
+#########################
+# GetModuleAndOnlineURI #
+#########################
 function GetModuleAndOnlineURI
 {
     param (
         [System.String] $Name,
         [System.String] $ModuleName
     )
-    
+
+    #########################
+    # GetModuleAndOnlineURI #    
     $URI = ''
     if ($ModuleName -eq '')
     {
@@ -1371,9 +1497,13 @@ function GetModuleAndOnlineURI
     }
     return $URI = @{'Module'=$ModuleName;
                     'URI'=$URI}
-} # GetModuleAndOnlineURI #
+}   # GetModuleAndOnlineURI #
+    #########################
 
 
+#####################
+# CheckTxtHelpFiles #
+#####################
 function CheckTxtHelpFiles
 {
     param (
@@ -1381,6 +1511,8 @@ function CheckTxtHelpFiles
         [System.String] $Path
     )
 
+    #####################
+    # CheckTxtHelpFiles #
     if ( -not (Test-Path -Path $Path -PathType Container))
     {
         return
@@ -1411,9 +1543,13 @@ function CheckTxtHelpFiles
         }
     }
     return
-} # CheckTxtHelpFiles #
+}   # CheckTxtHelpFiles #
+    #####################
 
 
+################
+# CheckXMLFile #
+################
 function CheckXMLFile
 {
     param (
@@ -1423,6 +1559,8 @@ function CheckXMLFile
         [System.String] $File
     )
 
+    ################
+    # CheckXMLFile #
     $XML = [System.Xml.XmlDocument](Get-Content "$Path\$File")
     if ($XML.helpItems -ne $null)
     {
@@ -1491,9 +1629,13 @@ function CheckXMLFile
                              CommonParameters = $CommonParameters}
         }
     }
-} # CheckXMLFile #
+}   # CheckXMLFile #
+    ################
 
 
+#####################
+# CheckXmlHelpFiles #
+#####################
 function CheckXmlHelpFiles
 {
     param (
@@ -1503,6 +1645,8 @@ function CheckXmlHelpFiles
         [System.String] $Pattern
     )
 
+    #####################
+    # CheckXmlHelpFiles #
     if ( -not (Test-Path -Path $Path -PathType Container))
     {
         return
@@ -1554,9 +1698,13 @@ function CheckXmlHelpFiles
             }
         }
     }
-} # CheckXmlHelpFiles #
+}   # CheckXmlHelpFiles #
+    #####################
 
 
+###############
+# CheckModule #
+###############
 function CheckModule
 {
     param (
@@ -1565,6 +1713,8 @@ function CheckModule
         [System.String] $Version
     )
 
+    ###############
+    # CheckModule #
     if ($Version -eq '')
     {
         $Path = "$Path\$ModuleName"
@@ -1584,14 +1734,21 @@ function CheckModule
     #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.psd1-help.xml'
     #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.psm1-help.xml'
     CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '-help.xml'
-} # CheckModule #
+}   # CheckModule #
+    ###############
 
 
+#################
+# FindHelpFiles #
+#################
 function FindHelpFiles
 {
     param ()
 
 
+    ##########
+    # VerCmp #
+    ##########
     Function VerCmp
     {
         param (
@@ -1599,6 +1756,8 @@ function FindHelpFiles
             [System.String] $Version2
         )
 
+        ##########
+        # VerCmp #
         $Ver1 = $Version1.Split('.')
         $Ver2 = $Version2.Split('.')
         for ($i = 0; $i -lt [System.Math]::Min($Ver1.Count,$Ver2.Count); $i++)
@@ -1613,9 +1772,12 @@ function FindHelpFiles
             return 0
         }
         return $Ver1.Count - $Ver2.Count
-    } # VerCmp #
+    }   # VerCmp #
+        ##########
 
 
+    #################
+    # FindHelpFiles #
     Get-ChildItem function: | ForEach-Object { $Work.Functions[$_.Name] = 'Function' }
     CheckTxtHelpFiles '' $PSHOME\$PSUICulture
     $LocalFuncs = @()
@@ -1697,7 +1859,9 @@ function FindHelpFiles
         }
     }
     $Work.Functions = @{}
-} # FindHelpFiles #
+}   # FindHelpFiles #
+    #################
+    ###############
 
 
 #####################################################################
