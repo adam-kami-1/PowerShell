@@ -169,6 +169,31 @@ function Main
     #==========================================================
     # Parsing about*.txt HelpFile
     #==========================================================
+    
+    ###########################
+    # function CleanParagraph #
+    ###########################
+    function CleanParagraph
+    {
+        param (
+            [System.String] $Paragraph
+        )
+
+        ###########################
+        # function CleanParagraph #
+
+        # Replace all new lines with spaces
+        $Paragraph = $Paragraph.Replace("`n", ' ')
+
+        # Compress every spaces string into single space
+        while ($Paragraph.IndexOf('  ') -ne -1)
+        {
+            $Paragraph = $Paragraph.Replace('  ', ' ')
+        }
+        return $Paragraph.Trim()
+    }   # function CleanParagraph #
+        ###########################
+
 
     #############################
     # function ParseTxtHelpFile #
@@ -179,31 +204,6 @@ function Main
             [System.Collections.Hashtable] $Item
         )
     
-
-        ###########################
-        # function CleanParagraph #
-        ###########################
-        function CleanParagraph
-        {
-            param (
-                [System.String] $Paragraph
-            )
-
-            ###########################
-            # function CleanParagraph #
-
-            # Replace all new lines with spaces
-            $Paragraph = $Paragraph.Replace("`n", ' ')
-
-            # Compress every spaces string into single space
-            while ($Paragraph.IndexOf('  ') -ne -1)
-            {
-                $Paragraph = $Paragraph.Replace('  ', ' ')
-            }
-            return $Paragraph.Trim()
-        }   # function CleanParagraph #
-            ###########################
-
 
         ##############################
         # function AddNavigationLink #
@@ -860,7 +860,7 @@ function Main
                               Synopsis = '';
                               CommonParameters = $false}
                     $XML = ParseTxtHelpFile $Item
-                    $Item.Synopsis = $XML.helpItems.command.details.description.para
+                    $Item.Synopsis = CleanParagraph $XML.helpItems.command.details.description.para
                     AddItem $true $Item
                 }
             }
