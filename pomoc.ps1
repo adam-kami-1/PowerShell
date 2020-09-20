@@ -152,703 +152,9 @@ function ToCamelCase
     ###############
 
 
-#----------------------------------------------------------
-# Displaying stuff
-#----------------------------------------------------------
-
-######################
-# DisplayXmlHelpFile #
-######################
-function DisplayXmlHelpFile
-{
-    param (
-        [System.Collections.Hashtable] $Item,
-        [System.Xml.XmlElement] $command
-    )
-
-
-    ##################
-    # BuildLinkValue #    
-    ##################
-    function BuildLinkValue
-    {
-        param (
-            [System.String] $LinkText,
-            [System.String] $URI
-        )
-
-        ##################
-        # BuildLinkValue #
-        if ($URI -ne '')
-        {
-            if (($URI.Substring(0,8) -ne 'https://') -and ($URI.Substring(0,7) -ne 'http://'))
-            {
-                Write-Error "Unknown link for ${LinkText}: $URI"
-            }
-        }
-        else
-        {
-            $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
-            if ($HelpInfo.ItemIndex[$LinkText] -ne $null)
-            {
-                $URI = $HelpInfo.ItemIndex[$LinkText]
-            }
-            elseif ($LinkText.IndexOf(' ') -eq -1)
-            {
-                $URI = "https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/${LinkText}"#?view=powershell-$version"
-            }
-            else
-            {
-                $Page = $LinkText.ToLower().Replace(' ', '-')
-                $URI = "https://docs.microsoft.com/en-us/powershell/scripting/developer/help/${Page}"#?view=powershell-$version"
-            }
-        }
-        if ($URI -match '^[0-9]+$')
-        {
-            $LinkValue = '['+$LinkText+']'
-        }
-        else
-        {
-            if ($LinkText.Substring($LinkText.Length-1,1) -eq ':')
-            {
-                $LinkText = $LinkText.Substring(0,$LinkText.Length-1)
-            }
-            $LinkValue = $LinkText+': '+$URI
-        }
-        return $LinkValue
-    }   # BuildLinkValue #
-        ##################
-
-
-    ####################
-    # DisplayParagraph #
-    ####################
-    function DisplayParagraph
-    {
-        param ( 
-            [System.Int32] $IndentLevel,
-            [System.String] $Format,
-            [System.String] $Text = '',
-            [System.String] $DisplayedLinesVar = ''
-        )
-
-        ####################
-        # DisplayParagraph #
-        $Indent = 4 * $IndentLevel
-        $TextWidth = $Work.OutputWidth-$Indent
-        if ($Text -eq '')
-        {
-            $Format = 'empty'
-        }
-        $DisplayedLines = 0
-        switch ($Format)
-        {
-            'empty'
-                {
-                    Write-Output ''
-                    $DisplayedLines++
-                }
-            {($_ -eq 'para') -or
-             ($_ -eq 'hangpara') -or
-             ($_ -eq 'comppara') -or
-             ($_ -eq 'listpara')}
-                {
-                    $Text = $Text.Trim()
-                    while ($Text.IndexOf('  ') -ne -1)
-                    {
-                        $Text = $Text.Replace('  ', ' ')
-                    }
-                    while ($Text.IndexOf(' .') -ne -1)
-                    {
-                        $Text = $Text.Replace(' .', '.')
-                    }
-                    $Lines = @()
-                    if ($Text.Length -gt 0)
-                    {
-                        while ($Text.Length -gt $TextWidth)
-                        {
-                            $Line = $Text.Substring(0, $TextWidth)
-                            $NextLine = ''
-                            if ($Line.IndexOf(' ') -ne -1)
-                            {
-                                while (($Line.Length -gt 0) -and ($Line.Substring($Line.Length-1, 1) -ne ' '))
-                                {
-                                    $NextLine = $NextLine.Insert(0, $Line.Substring($Line.Length-1, 1))
-                                    $Line = $Line.Substring(0, $Line.Length-1)
-                                }
-                            }
-                            $Lines += @($Line.TrimEnd())
-                            $Text = $NextLine+$Text.Substring($TextWidth)
-                            if ((($_ -eq 'hangpara') -or ($_ -eq 'listpara')) -and ($Lines.Count -eq 1))
-                            {
-                                if ($_ -eq 'listpara')
-                                {
-                                    $TextWidth -= 2
-                                }
-                                else
-                                {
-                                    $TextWidth -= 4
-                                }
-                            }
-                        }
-                        $Lines += @($Text)
-                        $no = 0
-                        foreach ($Line in $Lines)
-                        {
-                            Write-Output ((' ' * $Indent)+$Line)
-                            $DisplayedLines++
-                            $no++
-                            if ((($_ -eq 'hangpara') -or ($_ -eq 'listpara')) -and ($no -eq 1))
-                            {
-                                if ($_ -eq 'listpara')
-                                {
-                                    $Indent += 2
-                                }
-                                else
-                                {
-                                    $Indent += 4
-                                }
-                            }
-                        }
-                    }
-                    if (($_ -ne 'comppara') -and ($_ -ne 'listpara'))
-                    {
-                        Write-Output ''
-                        $DisplayedLines++
-                    }
-                }
-            'code'
-                {
-                    $Lines = $Text.Split("`n")
-                    foreach ($Line in $Lines)
-                    {
-                        if ($Line.Length -gt $TextWidth)
-                        {
-                            $Line = $Line.Substring(0, $TextWidth-3)+'...'
-                        }
-                        Write-Output ((' ' * $Indent)+$Line)
-                        $DisplayedLines++
-                    }
-                }
-            'sect'
-                {
-                    Write-Output ((' ' * $Indent)+$Work.Colors.Section+$Text+$Work.Colors.Default)
-                    $DisplayedLines++
-                }
-            'subsect'
-                {
-                    Write-Output ((' ' * $Indent)+$Work.Colors.ExtraSection+$Text+$Work.Colors.Default)
-                    $DisplayedLines++
-                }
-        }
-        if ($DisplayedLinesVar -ne '')
-        {
-            Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
-        }
-    }   # DisplayParagraph #
-        ####################
-
-    
-    #################################
-    # DisplayCollectionOfParagraphs #
-    #################################
-    function DisplayCollectionOfParagraphs
-    {
-        param (
-            [System.Int32] $IndentLevel,
-            [System.Object[]] $collection,
-            [System.String] $DisplayedLinesVar = '',
-            [System.Boolean] $WasColon = $false
-        )
-
-    
-        ########################
-        # ExtractParagraphText #
-        ########################
-        function ExtractParagraphText
-        {
-            param (
-                [System.Xml.XmlElement] $Para
-            )
-
-            ########################
-            # ExtractParagraphText #
-            $Text = ''
-            foreach ($Child in $Para.ChildNodes)
-            {
-                switch ($Child.GetType())
-                {
-                    'System.Xml.XmlText'
-                        {
-                            $Text += $Child.Value
-                        }
-                    'System.Xml.XmlElement'
-                        {
-                            $Text += ExtractParagraphText $Child
-                        }
-                }
-            }
-            return $Text
-        }   # ExtractParagraphText #
-            ########################
-
-
-        #################################
-        # DisplayCollectionOfParagraphs #
-        if (($collection.Count -eq 0) -or ($collection[0].Length -eq 0))
-        {
-            if ($DisplayedLinesVar -ne '')
-            {
-                Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value 0
-            }
-            return
-        }
-        #$WasColon = $false
-        $DisplayedLines = 0
-        foreach ($Para in $collection)
-        {
-            if ($Para.GetType().FullName -eq 'System.Xml.XmlElement')
-            {
-                # This is a temporary solution. In target version we will need reverse operation:
-                # gues the links even wen they are not fully tagged.
-                $Para = ExtractParagraphText $Para
-            }
-            if ($Para.Length -eq 0)
-            {
-                continue
-            }
-            if ($Para.IndexOf("`n") -ne -1)
-            {
-                # Instead of $WasColon there should be used info about colon in last paragraph
-                DisplayCollectionOfParagraphs $IndentLevel ($Para.Split("`n")) 'Displayed' $WasColon
-                $DisplayedLines += $Displayed
-            }
-            else
-            {
-                $Para = $Para.TrimEnd()
-                if (-not $WasColon)
-                {
-                    if ($Para.Substring($Para.Length-1, 1) -eq ':')
-                    {
-                        # List heading paragraph
-                        $WasColon = $true
-                        DisplayParagraph $IndentLevel comppara $Para 'Displayed'
-                        $DisplayedLines += $Displayed
-                    }
-                    else
-                    {
-                        # Regular paragraph
-                        DisplayParagraph $IndentLevel para $Para 'Displayed'
-                        $DisplayedLines += $Displayed
-                    }
-                }
-                else
-                {
-                    if ($Para.Substring(0, 2) -eq '- ')
-                    {
-                        # List item
-                        DisplayParagraph $IndentLevel listpara $Para 'Displayed'
-                        $DisplayedLines += $Displayed
-                    }
-                    elseif ($Para.Substring(0, 2) -eq '-- ')
-                    {
-                        # List item
-                        DisplayParagraph $IndentLevel listpara ('- '+$Para.Substring(3)) 'Displayed'
-                        $DisplayedLines += $Displayed
-                    }
-                    elseif ($Para.Substring(0, 2) -eq '--')
-                    {
-                        # List item
-                        DisplayParagraph $IndentLevel listpara ('- '+$Para.Substring(2)) 'Displayed'
-                        $DisplayedLines += $Displayed
-                    }
-                    else
-                    {
-                        # End of the list
-                        DisplayParagraph $IndentLevel empty
-                        $DisplayedLines += 1
-                        $WasColon = $false
-                        # Regular paragraph
-                        DisplayParagraph $IndentLevel para $Para 'Displayed'
-                        $DisplayedLines += $Displayed
-                    }
-                }
-            }
-        }
-        if ($WasColon)
-        {
-            DisplayParagraph $IndentLevel empty
-            $DisplayedLines += 1
-        }
-        if ($DisplayedLinesVar -ne '')
-        {
-            Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
-        }
-    }   # DisplayCollectionOfParagraphs #
-        #################################
-
-
-    #######################
-    # DisplaySingleSyntax #
-    #######################
-    function DisplaySingleSyntax
-    {
-        param (
-            [System.Xml.XmlElement] $syntaxItem,
-            [System.Boolean] $CommonParameters
-        )
-
-        #######################
-        # DisplaySingleSyntax #
-        $Para = $syntaxItem.name
-        foreach ($parameter in $syntaxItem.parameter)
-        {
-            $Required = $parameter.required -eq 'true'
-            $Position = $parameter.position -ne 'named'
-            $Para += ' '
-            if (-not $Required)
-            {
-                $Para += '['
-            }
-            if ($Position)
-            {
-                $Para += '['
-            }
-            $Para += '-'+$parameter.name
-            if ($Position)
-            {
-                $Para += ']'
-            }
-            $TypeName = ''
-            if ($parameter.parameterValueGroup -ne $null)
-            {
-                if ($parameter.parameterValueGroup.parameterValue.Count -gt 0)
-                {
-                    foreach ($Value in $parameter.parameterValueGroup.parameterValue)
-                    {
-                        if ($TypeName -eq '')
-                        {
-                            $TypeName = '{'+$Value.InnerText
-                        }
-                        else
-                        {
-                            $TypeName += ' | '+$Value.InnerText
-                        }
-                    }
-                    $TypeName += '}'
-                }
-            }
-            if (($TypeName -eq '') -and ($parameter.parameterValue.FirstChild.InnerText -ne $null))
-            {
-                $TypeName = '<'+$parameter.parameterValue.FirstChild.InnerText+'>'
-            }
-            if (($TypeName -eq '') -and ($parameter.type.name -ne $null))
-            {
-                $TypeName = '<'+$parameter.type.name+'>'
-            }
-            if (($TypeName -ne '<System.Management.Automation.SwitchParameter>') -and
-                ($TypeName -ne '<SwitchParameter>') -and
-                ($TypeName -ne '') -and ($TypeName -ne $null))
-            {
-                $Para += ' '+$TypeName
-            }
-            if (-not $Required)
-            {
-                $Para += ']'
-            }
-        }
-        if ($CommonParameters)
-        {
-            $Para += ' [<CommonParameters>]'
-        }
-        DisplayParagraph 1 hangpara $Para
-    }   # DisplaySingleSyntax #
-        #######################
-
-
-    ##########################
-    # DisplaySingleParameter #
-    function DisplaySingleParameter
-    {
-        param (
-            [System.Xml.XmlElement] $Parameter
-        )
-
-        ##########################
-        # DisplaySingleParameter #
-        $Required = $Parameter.required
-        $Position = $Parameter.position
-        $DefVal = $Parameter.defaultValue
-        $PipelineInput = $Parameter.pipelineInput
-        $Globbing = $Parameter.globbing
-        $Aliases = $Parameter.aliases
-        DisplayParagraph 1 comppara ('-'+$Parameter.name+' <'+$Parameter.type.name+'>')
-
-        DisplayCollectionOfParagraphs 2 $Parameter.Description.para
-
-        DisplayParagraph 2 code "Required?                    $Required"
-        DisplayParagraph 2 code "Position?                    $Position"
-        DisplayParagraph 2 code "Default value                $DefVal"
-        DisplayParagraph 2 code "Accept pipeline input?       $PipelineInput"
-        DisplayParagraph 2 code "Accept wildcard characters?  $Globbing"
-        if (($Aliases -ne '') -and ($Aliases -ne 'none'))
-        {
-            DisplayParagraph 2 code "Aliases                      $Aliases"
-        }
-        DisplayParagraph 0 empty
-    }   # DisplaySingleParameter #
-        ##########################
-
-
-    ########################
-    # DisplaySingleExample #
-    ########################
-    function DisplaySingleExample
-    {
-        param (
-            [System.Xml.XmlElement] $Example
-        )
-
-        ########################
-        # DisplaySingleExample #
-        DisplayParagraph 1 para $Example.title
-        DisplayParagraph 2 code $Example.code
-        DisplayParagraph 2 empty
-        DisplayCollectionOfParagraphs 2 $Example.remarks.para
-    }   # DisplaySingleExample #
-        ########################
-
-
-    ######################
-    # DisplayXmlHelpFile #
-    DisplayParagraph 0 empty
-
-    # ========================================
-    # Section NAME
-    DisplayParagraph 0 sect "NAME"
-    DisplayParagraph 1 para $command.details.name
-
-    # ========================================
-    # Section SYNOPSIS
-    DisplayParagraph 0 sect "SYNOPSIS"
-    DisplayParagraph 1 para $command.details.description.para
-
-    # ========================================
-    # Section SYNTAX
-    if (($command.syntax -ne $null) -and
-        ($command.syntax.syntaxItem -ne $null))
-    {
-        DisplayParagraph 0 sect "SYNTAX"
-
-        if ($command.syntax.syntaxItem.Count -ne 0)
-        {
-            foreach ($syntaxItem in $command.syntax.syntaxItem)
-            {
-                DisplaySingleSyntax $syntaxItem $Item.CommonParameters
-            }
-        }
-        else
-        {
-            DisplaySingleSyntax $command.syntax.syntaxItem $Item.CommonParameters
-        }
-    }
-
-    # ========================================
-    # Section DESCRIPTION
-    if ($command.description.para.Count -gt 0)
-    {
-        DisplayParagraph 0 sect "DESCRIPTION"
-        DisplayCollectionOfParagraphs 1 $command.description.para
-    }
-    if ($command.description.section -ne $null)
-    {
-        if ($command.description.section.Count -gt 1)
-        {
-            foreach ($Section in $command.description.section)
-            {
-                DisplayParagraph 0 'subsect' $Section.name
-                DisplayCollectionOfParagraphs 1 $Section.para
-            }
-        }
-        else
-        {
-            DisplayParagraph 0 'subsect' $command.description.section.name
-            DisplayCollectionOfParagraphs 1 $command.description.section.para
-        }
-    }
-    
-    # ========================================
-    # Section PARAMETERS
-    $HeaderDisplayed = $false
-    if (($command.parameters -ne $null) -and
-        ($command.parameters.parameter -ne $null))
-    {
-        DisplayParagraph 0 sect "PARAMETERS"
-        $HeaderDisplayed = $true
-        if ($command.parameters.parameter.Count -ne 0)
-        {
-            foreach ($Parameter in $command.parameters.parameter)
-            {
-                DisplaySingleParameter $Parameter
-            }
-        }
-        else
-        {
-            DisplaySingleParameter $command.parameters.parameter
-        }
-    }
-    if ($Item.CommonParameters)
-    {
-        if (-not $HeaderDisplayed)
-        {
-            DisplayParagraph 0 sect "PARAMETERS"
-        }
-        DisplayParagraph 1 comppara ('<CommonParameters>')
-
-        DisplayParagraph 2 para ('This cmdlet supports the common parameters: '+
-            'Verbose, Debug, ErrorAction, ErrorVariable, WarningAction, '+
-            'WarningVariable, OutBuffer, PipelineVariable, and OutVariable. '+
-            'For more information, see about_CommonParameters '+
-            '(https:/go.microsoft.com/fwlink/?LinkID=113216).')
-    }
-
-    # ========================================
-    # Section INPUTS
-    if (($command.InputTypes -ne $null) -and
-        ($command.InputTypes.InputType -ne $null))
-    {
-        if ($command.InputTypes.InputType.Count -ne $null)
-        {
-            DisplayParagraph 0 sect "INPUTS"
-            foreach ($InputType in $command.InputTypes.InputType)
-            {
-                DisplayParagraph 1 comppara $InputType.type.name
-                DisplayCollectionOfParagraphs 2 $InputType.description.para 'DisplayedLines'
-                if ($DisplayedLines -eq 0)
-                {
-                    DisplayParagraph 2 empty
-                }
-            }
-        }
-        else
-        {
-            if ((([String]$command.InputTypes.InputType.type.name) -ne '') -or
-                (([String]$command.InputTypes.InputType.description.para) -ne ''))
-            {
-                DisplayParagraph 0 sect "INPUTS"
-                DisplayParagraph 1 comppara $command.InputTypes.InputType.type.name
-                DisplayCollectionOfParagraphs 2 $command.InputTypes.InputType.description.para 'DisplayedLines'
-                if ($DisplayedLines -eq 0)
-                {
-                    DisplayParagraph 2 empty
-                }
-            }
-        }
-    }
-
-    # ========================================
-    # Section OUTPUTS
-    if (($command.returnValues -ne $null) -and
-        ($command.returnValues.returnValue -ne $null))
-    {
-        if ($command.returnValues.returnValue.Count -ne $null)
-        {
-            DisplayParagraph 0 sect "OUTPUTS"
-            foreach ($returnValue in $command.returnValues.returnValue)
-            {
-                DisplayParagraph 1 comppara $returnValue.type.name
-                DisplayCollectionOfParagraphs 2 $returnValue.description.para 'DisplayedLines'
-                if ($DisplayedLines -eq 0)
-                {
-                    DisplayParagraph 2 empty
-                }
-            }
-        }
-        else
-        {
-            if ((([String]$command.returnValues.returnValue.type.name) -ne '') -or
-                (([String]$command.returnValues.returnValue.description.para) -ne ''))
-            {
-                DisplayParagraph 0 sect "OUTPUTS"
-                DisplayParagraph 1 comppara $command.returnValues.returnValue.type.name
-                DisplayCollectionOfParagraphs 2 $command.returnValues.returnValue.description.para 'DisplayedLines'
-                if ($DisplayedLines -eq 0)
-                {
-                    DisplayParagraph 2 empty
-                }
-            }
-        }
-    }
-    
-    # ========================================
-    # Section NOTES
-    if (($command.alertSet -ne $null) -and
-        ($command.alertSet.alert -ne $null) -and
-        ($command.alertSet.alert.para.Count -ne 0) -and
-        ($command.alertSet.alert.para[0] -ne $null))
-    {
-        DisplayParagraph 0 sect "NOTES"
-        DisplayCollectionOfParagraphs 1 $command.alertSet.alert.para
-    }
-
-    # ========================================
-    # Section EXAMPLES
-    if (($command.examples -ne $null) -and
-        ($command.examples.example -ne $null))
-    {
-        DisplayParagraph 0 sect "EXAMPLES"
-        if ($command.examples.example.Count -ne 0)
-        {
-            foreach ($Example in $command.examples.example)
-            {
-                DisplaySingleExample $Example
-            }
-        }
-        else
-        {
-            DisplaySingleExample $command.examples.example
-        }
-    }
-
-    # ========================================
-    # Section RELATED LINKS
-    if (($command.relatedLinks -ne $null) -and
-        ($command.relatedLinks.navigationLink -ne $null))
-    {
-        DisplayParagraph 0 sect "RELATED LINKS"
-        $Links = @()
-        if (($command.relatedLinks.navigationLink -is [System.Object[]]) -and
-            ($command.relatedLinks.navigationLink.Count -gt 0))
-        {
-            foreach ($NavigationLink in $command.relatedLinks.navigationLink)
-            {
-                $LinkValue = BuildLinkValue $NavigationLink.linkText $NavigationLink.uri
-                $Links += @('* '+$LinkValue)
-            }
-        }
-        else
-        {
-            $LinkValue = BuildLinkValue $command.relatedLinks.navigationLink.linkText $command.relatedLinks.navigationLink.uri
-            $Links += @('* '+$LinkValue)
-        }
-        DisplayCollectionOfParagraphs 1 $Links
-    }
-
-    # ========================================
-    # Section REMARKS
-    if ($false)
-    {
-        DisplayParagraph 0 sect "REMARKS"
-        DisplayParagraph 1 para 'Remarks will be described later !!!'
-    }
-
-}   # DisplayXmlHelpFile #
-    ######################
-
-
 
 #----------------------------------------------------------
-#
+# Main function
 #----------------------------------------------------------
 
 ########
@@ -1746,7 +1052,7 @@ function Main
         ###################
         # CompareVersions #
         ###################
-        Function CompareVersions
+        function CompareVersions
         {
             param (
                 [System.String] $Version1,
@@ -1865,6 +1171,700 @@ function Main
         $Work.Functions = @{}
     }   # FindHelpFiles #
         #################
+
+        
+    #----------------------------------------------------------
+    # Displaying stuff
+    #----------------------------------------------------------
+
+    ######################
+    # DisplayXmlHelpFile #
+    ######################
+    function DisplayXmlHelpFile
+    {
+        param (
+            [System.Collections.Hashtable] $Item,
+            [System.Xml.XmlElement] $command
+        )
+
+
+        ##################
+        # BuildLinkValue #    
+        ##################
+        function BuildLinkValue
+        {
+            param (
+                [System.String] $LinkText,
+                [System.String] $URI
+            )
+
+            ##################
+            # BuildLinkValue #
+            if ($URI -ne '')
+            {
+                if (($URI.Substring(0,8) -ne 'https://') -and ($URI.Substring(0,7) -ne 'http://'))
+                {
+                    Write-Error "Unknown link for ${LinkText}: $URI"
+                }
+            }
+            else
+            {
+                $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
+                if ($HelpInfo.ItemIndex[$LinkText] -ne $null)
+                {
+                    $URI = $HelpInfo.ItemIndex[$LinkText]
+                }
+                elseif ($LinkText.IndexOf(' ') -eq -1)
+                {
+                    $URI = "https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/${LinkText}"#?view=powershell-$version"
+                }
+                else
+                {
+                    $Page = $LinkText.ToLower().Replace(' ', '-')
+                    $URI = "https://docs.microsoft.com/en-us/powershell/scripting/developer/help/${Page}"#?view=powershell-$version"
+                }
+            }
+            if ($URI -match '^[0-9]+$')
+            {
+                $LinkValue = '['+$LinkText+']'
+            }
+            else
+            {
+                if ($LinkText.Substring($LinkText.Length-1,1) -eq ':')
+                {
+                    $LinkText = $LinkText.Substring(0,$LinkText.Length-1)
+                }
+                $LinkValue = $LinkText+': '+$URI
+            }
+            return $LinkValue
+        }   # BuildLinkValue #
+            ##################
+
+
+        ####################
+        # DisplayParagraph #
+        ####################
+        function DisplayParagraph
+        {
+            param ( 
+                [System.Int32] $IndentLevel,
+                [System.String] $Format,
+                [System.String] $Text = '',
+                [System.String] $DisplayedLinesVar = ''
+            )
+
+            ####################
+            # DisplayParagraph #
+            $Indent = 4 * $IndentLevel
+            $TextWidth = $Work.OutputWidth-$Indent
+            if ($Text -eq '')
+            {
+                $Format = 'empty'
+            }
+            $DisplayedLines = 0
+            switch ($Format)
+            {
+                'empty'
+                    {
+                        Write-Output ''
+                        $DisplayedLines++
+                    }
+                {($_ -eq 'para') -or
+                 ($_ -eq 'hangpara') -or
+                 ($_ -eq 'comppara') -or
+                 ($_ -eq 'listpara')}
+                    {
+                        $Text = $Text.Trim()
+                        while ($Text.IndexOf('  ') -ne -1)
+                        {
+                            $Text = $Text.Replace('  ', ' ')
+                        }
+                        while ($Text.IndexOf(' .') -ne -1)
+                        {
+                            $Text = $Text.Replace(' .', '.')
+                        }
+                        $Lines = @()
+                        if ($Text.Length -gt 0)
+                        {
+                            while ($Text.Length -gt $TextWidth)
+                            {
+                                $Line = $Text.Substring(0, $TextWidth)
+                                $NextLine = ''
+                                if ($Line.IndexOf(' ') -ne -1)
+                                {
+                                    while (($Line.Length -gt 0) -and ($Line.Substring($Line.Length-1, 1) -ne ' '))
+                                    {
+                                        $NextLine = $NextLine.Insert(0, $Line.Substring($Line.Length-1, 1))
+                                        $Line = $Line.Substring(0, $Line.Length-1)
+                                    }
+                                }
+                                $Lines += @($Line.TrimEnd())
+                                $Text = $NextLine+$Text.Substring($TextWidth)
+                                if ((($_ -eq 'hangpara') -or ($_ -eq 'listpara')) -and ($Lines.Count -eq 1))
+                                {
+                                    if ($_ -eq 'listpara')
+                                    {
+                                        $TextWidth -= 2
+                                    }
+                                    else
+                                    {
+                                        $TextWidth -= 4
+                                    }
+                                }
+                            }
+                            $Lines += @($Text)
+                            $no = 0
+                            foreach ($Line in $Lines)
+                            {
+                                Write-Output ((' ' * $Indent)+$Line)
+                                $DisplayedLines++
+                                $no++
+                                if ((($_ -eq 'hangpara') -or ($_ -eq 'listpara')) -and ($no -eq 1))
+                                {
+                                    if ($_ -eq 'listpara')
+                                    {
+                                        $Indent += 2
+                                    }
+                                    else
+                                    {
+                                        $Indent += 4
+                                    }
+                                }
+                            }
+                        }
+                        if (($_ -ne 'comppara') -and ($_ -ne 'listpara'))
+                        {
+                            Write-Output ''
+                            $DisplayedLines++
+                        }
+                    }
+                'code'
+                    {
+                        $Lines = $Text.Split("`n")
+                        foreach ($Line in $Lines)
+                        {
+                            if ($Line.Length -gt $TextWidth)
+                            {
+                                $Line = $Line.Substring(0, $TextWidth-3)+'...'
+                            }
+                            Write-Output ((' ' * $Indent)+$Line)
+                            $DisplayedLines++
+                        }
+                    }
+                'sect'
+                    {
+                        Write-Output ((' ' * $Indent)+$Work.Colors.Section+$Text+$Work.Colors.Default)
+                        $DisplayedLines++
+                    }
+                'subsect'
+                    {
+                        Write-Output ((' ' * $Indent)+$Work.Colors.ExtraSection+$Text+$Work.Colors.Default)
+                        $DisplayedLines++
+                    }
+            }
+            if ($DisplayedLinesVar -ne '')
+            {
+                Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
+            }
+        }   # DisplayParagraph #
+            ####################
+
+    
+        #################################
+        # DisplayCollectionOfParagraphs #
+        #################################
+        function DisplayCollectionOfParagraphs
+        {
+            param (
+                [System.Int32] $IndentLevel,
+                [System.Object[]] $collection,
+                [System.String] $DisplayedLinesVar = '',
+                [System.Boolean] $WasColon = $false
+            )
+
+    
+            ########################
+            # ExtractParagraphText #
+            ########################
+            function ExtractParagraphText
+            {
+                param (
+                    [System.Xml.XmlElement] $Para
+                )
+
+                ########################
+                # ExtractParagraphText #
+                $Text = ''
+                foreach ($Child in $Para.ChildNodes)
+                {
+                    switch ($Child.GetType())
+                    {
+                        'System.Xml.XmlText'
+                            {
+                                $Text += $Child.Value
+                            }
+                        'System.Xml.XmlElement'
+                            {
+                                $Text += ExtractParagraphText $Child
+                            }
+                    }
+                }
+                return $Text
+            }   # ExtractParagraphText #
+                ########################
+
+
+            #################################
+            # DisplayCollectionOfParagraphs #
+            if (($collection.Count -eq 0) -or ($collection[0].Length -eq 0))
+            {
+                if ($DisplayedLinesVar -ne '')
+                {
+                    Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value 0
+                }
+                return
+            }
+            #$WasColon = $false
+            $DisplayedLines = 0
+            foreach ($Para in $collection)
+            {
+                if ($Para.GetType().FullName -eq 'System.Xml.XmlElement')
+                {
+                    # This is a temporary solution. In target version we will need reverse operation:
+                    # gues the links even wen they are not fully tagged.
+                    $Para = ExtractParagraphText $Para
+                }
+                if ($Para.Length -eq 0)
+                {
+                    continue
+                }
+                if ($Para.IndexOf("`n") -ne -1)
+                {
+                    # Instead of $WasColon there should be used info about colon in last paragraph
+                    DisplayCollectionOfParagraphs $IndentLevel ($Para.Split("`n")) 'Displayed' $WasColon
+                    $DisplayedLines += $Displayed
+                }
+                else
+                {
+                    $Para = $Para.TrimEnd()
+                    if (-not $WasColon)
+                    {
+                        if ($Para.Substring($Para.Length-1, 1) -eq ':')
+                        {
+                            # List heading paragraph
+                            $WasColon = $true
+                            DisplayParagraph $IndentLevel comppara $Para 'Displayed'
+                            $DisplayedLines += $Displayed
+                        }
+                        else
+                        {
+                            # Regular paragraph
+                            DisplayParagraph $IndentLevel para $Para 'Displayed'
+                            $DisplayedLines += $Displayed
+                        }
+                    }
+                    else
+                    {
+                        if ($Para.Substring(0, 2) -eq '- ')
+                        {
+                            # List item
+                            DisplayParagraph $IndentLevel listpara $Para 'Displayed'
+                            $DisplayedLines += $Displayed
+                        }
+                        elseif ($Para.Substring(0, 2) -eq '-- ')
+                        {
+                            # List item
+                            DisplayParagraph $IndentLevel listpara ('- '+$Para.Substring(3)) 'Displayed'
+                            $DisplayedLines += $Displayed
+                        }
+                        elseif ($Para.Substring(0, 2) -eq '--')
+                        {
+                            # List item
+                            DisplayParagraph $IndentLevel listpara ('- '+$Para.Substring(2)) 'Displayed'
+                            $DisplayedLines += $Displayed
+                        }
+                        else
+                        {
+                            # End of the list
+                            DisplayParagraph $IndentLevel empty
+                            $DisplayedLines += 1
+                            $WasColon = $false
+                            # Regular paragraph
+                            DisplayParagraph $IndentLevel para $Para 'Displayed'
+                            $DisplayedLines += $Displayed
+                        }
+                    }
+                }
+            }
+            if ($WasColon)
+            {
+                DisplayParagraph $IndentLevel empty
+                $DisplayedLines += 1
+            }
+            if ($DisplayedLinesVar -ne '')
+            {
+                Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
+            }
+        }   # DisplayCollectionOfParagraphs #
+            #################################
+
+
+        #######################
+        # DisplaySingleSyntax #
+        #######################
+        function DisplaySingleSyntax
+        {
+            param (
+                [System.Xml.XmlElement] $syntaxItem,
+                [System.Boolean] $CommonParameters
+            )
+
+            #######################
+            # DisplaySingleSyntax #
+            $Para = $syntaxItem.name
+            foreach ($parameter in $syntaxItem.parameter)
+            {
+                $Required = $parameter.required -eq 'true'
+                $Position = $parameter.position -ne 'named'
+                $Para += ' '
+                if (-not $Required)
+                {
+                    $Para += '['
+                }
+                if ($Position)
+                {
+                    $Para += '['
+                }
+                $Para += '-'+$parameter.name
+                if ($Position)
+                {
+                    $Para += ']'
+                }
+                $TypeName = ''
+                if ($parameter.parameterValueGroup -ne $null)
+                {
+                    if ($parameter.parameterValueGroup.parameterValue.Count -gt 0)
+                    {
+                        foreach ($Value in $parameter.parameterValueGroup.parameterValue)
+                        {
+                            if ($TypeName -eq '')
+                            {
+                                $TypeName = '{'+$Value.InnerText
+                            }
+                            else
+                            {
+                                $TypeName += ' | '+$Value.InnerText
+                            }
+                        }
+                        $TypeName += '}'
+                    }
+                }
+                if (($TypeName -eq '') -and ($parameter.parameterValue.FirstChild.InnerText -ne $null))
+                {
+                    $TypeName = '<'+$parameter.parameterValue.FirstChild.InnerText+'>'
+                }
+                if (($TypeName -eq '') -and ($parameter.type.name -ne $null))
+                {
+                    $TypeName = '<'+$parameter.type.name+'>'
+                }
+                if (($TypeName -ne '<System.Management.Automation.SwitchParameter>') -and
+                    ($TypeName -ne '<SwitchParameter>') -and
+                    ($TypeName -ne '') -and ($TypeName -ne $null))
+                {
+                    $Para += ' '+$TypeName
+                }
+                if (-not $Required)
+                {
+                    $Para += ']'
+                }
+            }
+            if ($CommonParameters)
+            {
+                $Para += ' [<CommonParameters>]'
+            }
+            DisplayParagraph 1 hangpara $Para
+        }   # DisplaySingleSyntax #
+            #######################
+
+
+        ##########################
+        # DisplaySingleParameter #
+        function DisplaySingleParameter
+        {
+            param (
+                [System.Xml.XmlElement] $Parameter
+            )
+
+            ##########################
+            # DisplaySingleParameter #
+            $Required = $Parameter.required
+            $Position = $Parameter.position
+            $DefVal = $Parameter.defaultValue
+            $PipelineInput = $Parameter.pipelineInput
+            $Globbing = $Parameter.globbing
+            $Aliases = $Parameter.aliases
+            DisplayParagraph 1 comppara ('-'+$Parameter.name+' <'+$Parameter.type.name+'>')
+
+            DisplayCollectionOfParagraphs 2 $Parameter.Description.para
+
+            DisplayParagraph 2 code "Required?                    $Required"
+            DisplayParagraph 2 code "Position?                    $Position"
+            DisplayParagraph 2 code "Default value                $DefVal"
+            DisplayParagraph 2 code "Accept pipeline input?       $PipelineInput"
+            DisplayParagraph 2 code "Accept wildcard characters?  $Globbing"
+            if (($Aliases -ne '') -and ($Aliases -ne 'none'))
+            {
+                DisplayParagraph 2 code "Aliases                      $Aliases"
+            }
+            DisplayParagraph 0 empty
+        }   # DisplaySingleParameter #
+            ##########################
+
+
+        ########################
+        # DisplaySingleExample #
+        ########################
+        function DisplaySingleExample
+        {
+            param (
+                [System.Xml.XmlElement] $Example
+            )
+
+            ########################
+            # DisplaySingleExample #
+            DisplayParagraph 1 para $Example.title
+            DisplayParagraph 2 code $Example.code
+            DisplayParagraph 2 empty
+            DisplayCollectionOfParagraphs 2 $Example.remarks.para
+        }   # DisplaySingleExample #
+            ########################
+
+
+        ######################
+        # DisplayXmlHelpFile #
+        DisplayParagraph 0 empty
+
+        # ========================================
+        # Section NAME
+        DisplayParagraph 0 sect "NAME"
+        DisplayParagraph 1 para $command.details.name
+
+        # ========================================
+        # Section SYNOPSIS
+        DisplayParagraph 0 sect "SYNOPSIS"
+        DisplayParagraph 1 para $command.details.description.para
+
+        # ========================================
+        # Section SYNTAX
+        if (($command.syntax -ne $null) -and
+            ($command.syntax.syntaxItem -ne $null))
+        {
+            DisplayParagraph 0 sect "SYNTAX"
+
+            if ($command.syntax.syntaxItem.Count -ne 0)
+            {
+                foreach ($syntaxItem in $command.syntax.syntaxItem)
+                {
+                    DisplaySingleSyntax $syntaxItem $Item.CommonParameters
+                }
+            }
+            else
+            {
+                DisplaySingleSyntax $command.syntax.syntaxItem $Item.CommonParameters
+            }
+        }
+
+        # ========================================
+        # Section DESCRIPTION
+        if ($command.description.para.Count -gt 0)
+        {
+            DisplayParagraph 0 sect "DESCRIPTION"
+            DisplayCollectionOfParagraphs 1 $command.description.para
+        }
+        if ($command.description.section -ne $null)
+        {
+            if ($command.description.section.Count -gt 1)
+            {
+                foreach ($Section in $command.description.section)
+                {
+                    DisplayParagraph 0 'subsect' $Section.name
+                    DisplayCollectionOfParagraphs 1 $Section.para
+                }
+            }
+            else
+            {
+                DisplayParagraph 0 'subsect' $command.description.section.name
+                DisplayCollectionOfParagraphs 1 $command.description.section.para
+            }
+        }
+    
+        # ========================================
+        # Section PARAMETERS
+        $HeaderDisplayed = $false
+        if (($command.parameters -ne $null) -and
+            ($command.parameters.parameter -ne $null))
+        {
+            DisplayParagraph 0 sect "PARAMETERS"
+            $HeaderDisplayed = $true
+            if ($command.parameters.parameter.Count -ne 0)
+            {
+                foreach ($Parameter in $command.parameters.parameter)
+                {
+                    DisplaySingleParameter $Parameter
+                }
+            }
+            else
+            {
+                DisplaySingleParameter $command.parameters.parameter
+            }
+        }
+        if ($Item.CommonParameters)
+        {
+            if (-not $HeaderDisplayed)
+            {
+                DisplayParagraph 0 sect "PARAMETERS"
+            }
+            DisplayParagraph 1 comppara ('<CommonParameters>')
+
+            DisplayParagraph 2 para ('This cmdlet supports the common parameters: '+
+                'Verbose, Debug, ErrorAction, ErrorVariable, WarningAction, '+
+                'WarningVariable, OutBuffer, PipelineVariable, and OutVariable. '+
+                'For more information, see about_CommonParameters '+
+                '(https:/go.microsoft.com/fwlink/?LinkID=113216).')
+        }
+
+        # ========================================
+        # Section INPUTS
+        if (($command.InputTypes -ne $null) -and
+            ($command.InputTypes.InputType -ne $null))
+        {
+            if ($command.InputTypes.InputType.Count -ne $null)
+            {
+                DisplayParagraph 0 sect "INPUTS"
+                foreach ($InputType in $command.InputTypes.InputType)
+                {
+                    DisplayParagraph 1 comppara $InputType.type.name
+                    DisplayCollectionOfParagraphs 2 $InputType.description.para 'DisplayedLines'
+                    if ($DisplayedLines -eq 0)
+                    {
+                        DisplayParagraph 2 empty
+                    }
+                }
+            }
+            else
+            {
+                if ((([String]$command.InputTypes.InputType.type.name) -ne '') -or
+                    (([String]$command.InputTypes.InputType.description.para) -ne ''))
+                {
+                    DisplayParagraph 0 sect "INPUTS"
+                    DisplayParagraph 1 comppara $command.InputTypes.InputType.type.name
+                    DisplayCollectionOfParagraphs 2 $command.InputTypes.InputType.description.para 'DisplayedLines'
+                    if ($DisplayedLines -eq 0)
+                    {
+                        DisplayParagraph 2 empty
+                    }
+                }
+            }
+        }
+
+        # ========================================
+        # Section OUTPUTS
+        if (($command.returnValues -ne $null) -and
+            ($command.returnValues.returnValue -ne $null))
+        {
+            if ($command.returnValues.returnValue.Count -ne $null)
+            {
+                DisplayParagraph 0 sect "OUTPUTS"
+                foreach ($returnValue in $command.returnValues.returnValue)
+                {
+                    DisplayParagraph 1 comppara $returnValue.type.name
+                    DisplayCollectionOfParagraphs 2 $returnValue.description.para 'DisplayedLines'
+                    if ($DisplayedLines -eq 0)
+                    {
+                        DisplayParagraph 2 empty
+                    }
+                }
+            }
+            else
+            {
+                if ((([String]$command.returnValues.returnValue.type.name) -ne '') -or
+                    (([String]$command.returnValues.returnValue.description.para) -ne ''))
+                {
+                    DisplayParagraph 0 sect "OUTPUTS"
+                    DisplayParagraph 1 comppara $command.returnValues.returnValue.type.name
+                    DisplayCollectionOfParagraphs 2 $command.returnValues.returnValue.description.para 'DisplayedLines'
+                    if ($DisplayedLines -eq 0)
+                    {
+                        DisplayParagraph 2 empty
+                    }
+                }
+            }
+        }
+    
+        # ========================================
+        # Section NOTES
+        if (($command.alertSet -ne $null) -and
+            ($command.alertSet.alert -ne $null) -and
+            ($command.alertSet.alert.para.Count -ne 0) -and
+            ($command.alertSet.alert.para[0] -ne $null))
+        {
+            DisplayParagraph 0 sect "NOTES"
+            DisplayCollectionOfParagraphs 1 $command.alertSet.alert.para
+        }
+
+        # ========================================
+        # Section EXAMPLES
+        if (($command.examples -ne $null) -and
+            ($command.examples.example -ne $null))
+        {
+            DisplayParagraph 0 sect "EXAMPLES"
+            if ($command.examples.example.Count -ne 0)
+            {
+                foreach ($Example in $command.examples.example)
+                {
+                    DisplaySingleExample $Example
+                }
+            }
+            else
+            {
+                DisplaySingleExample $command.examples.example
+            }
+        }
+
+        # ========================================
+        # Section RELATED LINKS
+        if (($command.relatedLinks -ne $null) -and
+            ($command.relatedLinks.navigationLink -ne $null))
+        {
+            DisplayParagraph 0 sect "RELATED LINKS"
+            $Links = @()
+            if (($command.relatedLinks.navigationLink -is [System.Object[]]) -and
+                ($command.relatedLinks.navigationLink.Count -gt 0))
+            {
+                foreach ($NavigationLink in $command.relatedLinks.navigationLink)
+                {
+                    $LinkValue = BuildLinkValue $NavigationLink.linkText $NavigationLink.uri
+                    $Links += @('* '+$LinkValue)
+                }
+            }
+            else
+            {
+                $LinkValue = BuildLinkValue $command.relatedLinks.navigationLink.linkText $command.relatedLinks.navigationLink.uri
+                $Links += @('* '+$LinkValue)
+            }
+            DisplayCollectionOfParagraphs 1 $Links
+        }
+
+        # ========================================
+        # Section REMARKS
+        if ($false)
+        {
+            DisplayParagraph 0 sect "REMARKS"
+            DisplayParagraph 1 para 'Remarks will be described later !!!'
+        }
+
+    }   # DisplayXmlHelpFile #
+        ######################
 
         
     ###################
