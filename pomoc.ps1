@@ -850,30 +850,6 @@ function DisplayXmlHelpFile
 #
 #----------------------------------------------------------
 
-##################
-# CleanParagraph #
-##################
-function CleanParagraph
-{
-    param (
-        [System.String] $Paragraph
-    )
-
-    ##################
-    # CleanParagraph #
-    # Replace all new lines with spaces
-    $Paragraph = $Paragraph.Replace("`n", ' ')
-
-    # Compress every spaces string into single space
-    while ($Paragraph.IndexOf('  ') -ne -1)
-    {
-        $Paragraph = $Paragraph.Replace('  ', ' ')
-    }
-    return $Paragraph.Trim()
-}   # CleanParagraph #
-    ##################
-
-
 ####################
 # ParseTxtHelpFile #
 ####################
@@ -883,6 +859,30 @@ function ParseTxtHelpFile
         [System.Collections.Hashtable] $Item
     )
     
+
+    ##################
+    # CleanParagraph #
+    ##################
+    function CleanParagraph
+    {
+        param (
+            [System.String] $Paragraph
+        )
+
+        ##################
+        # CleanParagraph #
+        # Replace all new lines with spaces
+        $Paragraph = $Paragraph.Replace("`n", ' ')
+
+        # Compress every spaces string into single space
+        while ($Paragraph.IndexOf('  ') -ne -1)
+        {
+            $Paragraph = $Paragraph.Replace('  ', ' ')
+        }
+        return $Paragraph.Trim()
+    }   # CleanParagraph #
+        ##################
+
 
     #####################
     # AddNavigationLink #
