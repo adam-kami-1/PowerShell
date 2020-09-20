@@ -846,533 +846,6 @@ function DisplayXmlHelpFile
     ######################
 
 
-#----------------------------------------------------------
-#
-#----------------------------------------------------------
-
-####################
-# ParseTxtHelpFile #
-####################
-function ParseTxtHelpFile
-{
-    param (
-        [System.Collections.Hashtable] $Item
-    )
-    
-
-    ##################
-    # CleanParagraph #
-    ##################
-    function CleanParagraph
-    {
-        param (
-            [System.String] $Paragraph
-        )
-
-        ##################
-        # CleanParagraph #
-        # Replace all new lines with spaces
-        $Paragraph = $Paragraph.Replace("`n", ' ')
-
-        # Compress every spaces string into single space
-        while ($Paragraph.IndexOf('  ') -ne -1)
-        {
-            $Paragraph = $Paragraph.Replace('  ', ' ')
-        }
-        return $Paragraph.Trim()
-    }   # CleanParagraph #
-        ##################
-
-
-    #####################
-    # AddNavigationLink #
-    #####################
-    function AddNavigationLink
-    {
-        param (
-            [System.Xml.XmlDocument] $XML, 
-            [System.Xml.XmlElement] $Parent,
-            [System.String] $Line
-        )
-
-        #####################
-        # AddNavigationLink #
-        $Line = $Line.Trim()
-        if ($Line.Length -lt 1)
-        {
-            return
-        }
-        if ($Line.Substring(0,1) -eq '-')
-        {
-            $Line = $Line.Substring(1).Trim()
-        }
-        if ($Line.Length -lt 1)
-        {
-            return
-        }
-        # Line could be in a form:
-        # Link Text (http://...)
-        # or
-        # "Link Text" (http://...)
-        # or
-        # Link Text (https://...)
-        # or
-        # "Link Text" (https://...)
-        # or
-        # Link Text
-        if ($Line -like '*(http*')
-        {
-            $Text = ($Line -replace '^ *(.*) *\((https?://.*)\)$', '$1').Trim('" ')
-            $Url = ($Line -replace '^ *(.*) *\((https?://.*)\)$', '$2').Trim()
-        }
-        elseif ($Line -like '*http*')
-        {
-            $Text = ($Line -replace '^ *(.*) *(https?://.*)$', '$1').Trim('" ')
-            $Url = ($Line -replace '^ *(.*) *(https?://.*)$', '$2').Trim()
-        }
-        else
-        {
-            $Text = $Line
-            $Url = ''
-        }
-        if (($Url -ne '') -and ($Text -eq '') -and ($Parent.LastChild -ne $null) -and ($Parent.LastChild.uri -eq ''))
-        {
-            # LinkText and uri are splitted into two lines, so add uri
-            # to the previous navigationLink
-            $Parent.LastChild.ChildNodes[1].Set_innerText($Url)
-        }
-        else
-        {
-            # Create navigationLink link elements with two children: linkText and uri.
-            # Set values of both children to $Text and $Url
-            $NavigationLink = $Parent.AppendChild($XML.CreateElement('navigationLink'))
-            $LinkText = $NavigationLink.AppendChild($XML.CreateElement('LinkText'))
-            $LinkText.Set_innerText($Text)
-            $Uri = $NavigationLink.AppendChild($XML.CreateElement('uri'))
-            $Uri.Set_innerText($Url)
-        }
-    }   # AddNavigationLink #
-        #####################
-
-
-    ##########################
-    # AddLinesToRelatedLinks #
-    ##########################
-    function AddLinesToRelatedLinks
-    {
-        param (
-            [System.Xml.XmlDocument] $XML,
-            [System.Int32] $SkipLines,
-            [System.String] $Paragraph
-        )
-
-        ##########################
-        # AddLinesToRelatedLinks #
-        # Ignore first $SkipLines lines from the $Paragraph
-        while (($SkipLines -gt 0) -and ($Paragraph.IndexOf("`n") -gt 0))
-        {
-            $Paragraph = $Paragraph.Substring($Paragraph.IndexOf("`n")+1)
-            $SkipLines--
-        }
-        $RelatedLinks = (Select-XML -Xml $XML -XPath '/helpItems/command/relatedLinks').Node
-        $Lines = $Paragraph.Split("`n")
-        foreach ($Line in $Lines)
-        {
-            AddNavigationLink $XML $RelatedLinks $Line
-        }
-    }   # AddLinesToRelatedLinks #
-        ##########################
-        
-
-    ######################
-    # AddLinesToNewChild #
-    ######################
-    function AddLinesToNewChild
-    {
-        param (
-            [System.Xml.XmlDocument] $XML, 
-            [System.Xml.XmlElement] $Parent, 
-            [System.String] $ChildName,
-            [System.Int32] $SkipLines,
-            [System.String] $Paragraph
-        )
-
-        ######################
-        # AddLinesToNewChild #
-        # Ignore first $SkipLines lines from the $Paragraph
-        while (($SkipLines -gt 0) -and ($Paragraph.IndexOf("`n") -gt 0))
-        {
-            $Paragraph = $Paragraph.Substring($Paragraph.IndexOf("`n")+1)
-            $SkipLines--
-        }
-        if ($Clean)
-        {
-            $Paragraph = CleanParagraph $Paragraph
-        }
-        else
-        {
-            $Paragraph = $Paragraph.Replace("`n", ' ')
-        }
-        $Child = $Parent.AppendChild($XML.CreateElement($ChildName))
-        $Child.Set_innerText($Paragraph)
-    }   # AddLinesToNewChild #
-        ######################
-
-
-    #########################
-    # ParseRegularParagraph #
-    #########################
-    function ParseRegularParagraph
-    {
-        param (
-            [System.Collections.Hashtable] $Item,
-            [System.Xml.XmlDocument] $XML,
-            [System.String] $Paragraph
-        )
-
-
-        ###########################    
-        # AddDescriptionParagraph #
-        ###########################    
-        function AddDescriptionParagraph
-        {
-            param (
-                [System.Xml.XmlDocument] $XML,
-                [System.String] $Paragraph
-            )
-
-            ###########################    
-            # AddDescriptionParagraph #
-            $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
-            if ($Description -eq $null)
-            {
-                # There was no LONG DESCRIPTION header in file
-                $Description = $Command.AppendChild($XML.CreateElement('description'))
-            }
-            AddLinesToNewChild $XML $Description 'para' 0 $Paragraph
-        }   # AddDescriptionParagraph #
-            ###########################    
-
-
-        #########################
-        # StoreRegularparagraph #
-        #########################
-        function StoreRegularparagraph
-        {
-            param (
-                [System.Collections.Hashtable] $Item,
-                [System.Xml.XmlDocument] $XML,
-                [System.String] $Paragraph
-            )
-
-            #########################
-            # StoreRegularparagraph #
-            if ($Item.CurrentSectionName -eq 'NOTES')
-            {
-                $Alert = (Select-XML -Xml $XML -XPath '/helpItems/command/alertSet/alert').Node
-                AddLinesToNewChild $XML $Alert 'para' 0 $Paragraph
-            }
-            elseif ($Item.CurrentExtraSectionNode -ne $null)
-            {
-                AddLinesToNewChild $XML $Item.CurrentExtraSectionNode 'para' 0 $Paragraph
-            }
-            else
-            {
-                AddDescriptionParagraph $XML $Paragraph
-            }
-        }   # StoreRegularparagraph #
-            #########################
-
-        
-        #######################
-        # ExtraSectionHeading #
-        #######################
-        function ExtraSectionHeading
-        {
-            param (
-                [System.String] $Paragraph
-            )
-
-            #######################
-            # ExtraSectionHeading #
-            if (($Paragraph.IndexOf("`n") -ne -1) -or
-                ($Paragraph.Trim().Length -eq 0)) 
-            {
-                return ''
-            }
-            $Paragraph = $Paragraph.TrimEnd()
-            if ($Paragraph.Substring(0,1) -in @(' ','-'))
-            {
-                return ''
-            }
-            $Paragraph = $Paragraph.TrimStart()
-            if ($Paragraph -in @('or', 'and'))
-            {
-                return ''
-            }
-            if ($Paragraph.Substring($Paragraph.Length-1,1) -in @('.', ':'))
-            {
-                return ''
-            }
-            if (-not ($Paragraph -match '^[-:, a-z0-9]+$'))
-            {
-                return ''
-            }
-            return $Paragraph
-        }   # ExtraSectionHeading #
-            #######################
-        
-
-        #########################
-        # ParseRegularParagraph #
-        #Write-Host $Paragraph
-        switch ($Item.CurrentSectionName)
-        {
-            {($_ -eq 'NAME') -or
-             ($_ -eq 'SYNOPSIS')}
-                {
-                    $Details = (Select-XML -Xml $XML -XPath '/helpItems/command/details').Node
-                    if ($Details -eq $null)
-                    {
-                        # There was no TOPIC nor item name. Put name into XML.
-                        $Details = $Command.AppendChild($XML.CreateElement('details'))
-                        $Name = $Details.AppendChild($XML.CreateElement('name'))
-                        $Name.Set_innerText($Item.DisplayName)
-                    }
-                    if ($XML.helpItems.command.details.description -eq $null)
-                    {
-                        # The synopsis was separated with empty line from SHORT DESCRIPTION.
-                        $Description = $Details.AppendChild($XML.CreateElement('description'))
-                        $Para = $Description.AppendChild($XML.CreateElement('para'))
-                        $Paragraph = CleanParagraph $Paragraph
-                        $Para.Set_innerText($Paragraph)
-                    }
-                    else
-                    {
-                        AddDescriptionParagraph $XML $Paragraph
-                        $Item.CurrentSectionName = 'DESCRIPTION'
-                    }
-                }
-            'RELATED LINKS'
-                {
-                    $RelatedLinks = (Select-XML -Xml $XML -XPath '/helpItems/command/relatedLinks').Node
-                    if ($Paragraph.IndexOf("`n") -eq -1)
-                    {
-                        AddNavigationLink $XML $RelatedLinks $Paragraph
-                    }
-                    else
-                    {
-                        AddLinesToRelatedLinks $XML 0 $Paragraph
-                    }
-                }
-            {($_ -eq 'DESCRIPTION') -or
-             ($_ -eq 'NOTES')}
-                {
-                    $ExtraSection = ExtraSectionHeading $Paragraph
-                    if ($Item.Name -eq 'about_Comment_Based_Help')
-                    {
-                        if (($ExtraSection -eq 'Name') -or
-                            ($ExtraSection -eq 'Syntax') -or
-                            ($ExtraSection -eq 'Description') -or
-                            ($ExtraSection -eq 'Parameters') -or
-                            ($ExtraSection -eq 'Parameter List') -or
-                            ($ExtraSection -eq 'Common Parameters') -or
-                            ($ExtraSection -eq 'Parameter Attribute Table') -or
-                            ($ExtraSection -eq 'Inputs') -or
-                            ($ExtraSection -eq 'Outputs') -or
-                            ($ExtraSection -eq 'Remarks') -or
-                            ($ExtraSection -eq 'Related Links'))
-                        {
-                            $ExtraSection = ''
-                        }
-                    }
-                    switch -Regex ($ExtraSection)
-                    {
-                        '^$'
-                            {
-                                # Really regular paragraph, add to appropriate section
-                                StoreRegularparagraph $Item $XML $Paragraph
-                            }
-                        '^(NOTES|REMARKS)$'
-                            {
-                                $Command = (Select-XML -Xml $XML -XPath '/helpItems/command').Node
-                                $AlertSet = $Command.AppendChild($XML.CreateElement('alertSet'))
-                                $Alert = $AlertSet.AppendChild($XML.CreateElement('alert'))
-                                $Item.CurrentSectionName = 'NOTES'
-                                $Item.CurrentExtraSectionNode = $null
-                            }
-                        default
-                            {
-                                $Item.CurrentExtraSectionName = $ExtraSection.ToUpper()
-                                #Write-Host "ExtraSection: " $Item.CurrentExtraSectionName
-                                $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
-                                $Item.CurrentExtraSectionNode = $Description.AppendChild($XML.CreateElement('section'))
-                                $Name = $Item.CurrentExtraSectionNode.AppendChild($XML.CreateElement('name'))
-                                $Name.Set_innerText($Item.CurrentExtraSectionName)
-                                $Item.CurrentSectionName = 'DESCRIPTION'
-                            }
-                    }
-                }
-        }
-    }   # ParseRegularParagraph #
-        #########################
-
-
-    ####################
-    # ParseTxtHelpFile #
-    # Convert contents of the HelpFile into array of paragraphs
-    $File = Get-Content $Item.File
-    $Paragraphs = @()
-    $Paragraph = ''
-    foreach ($Line in $File)
-    {
-        if ($Line.Trim() -ne '')
-        {
-            if ($Paragraph -eq '')
-            {
-                $Paragraph = $Line
-            }
-            else
-            {
-                $Paragraph += "`n"+$Line
-            }
-        }
-        elseif ($Paragraph -ne '')
-        {
-            $Paragraphs += $Paragraph
-            $Paragraph = ''
-        }
-    }
-    if ($Paragraph -ne '')
-    {
-        $Paragraphs += $Paragraph
-    }
-    Clear-Variable File
-    if (($Item.Name -eq 'about_PowerShell_exe'))
-    {
-        #Write-Host "Breakpoint"
-    }
-
-    # Convert file name into help item name
-    $Item.DisplayName = $Item.Name.Replace('_', ' ')
-    $Item.DisplayName = ToCamelCase $Item.DisplayName
-    
-
-    # parse paragraphs converting them into MAML like XML object
-    ############################################################
-    $XML = [System.Xml.XmlDocument]'<?xml version="1.0" encoding="utf-8"?><helpItems />'
-    $Command = $XML.ChildNodes[1].AppendChild($XML.CreateElement('command'))
-    $Item.CurrentSectionName = ''
-    foreach ($Paragraph in $Paragraphs)
-    {
-        if ($Paragraph.IndexOf("`n") -ne -1)
-        {
-            $FirstLine = $Paragraph.Substring(0,$Paragraph.IndexOf("`n")).Trim()
-        }
-        else
-        {
-            $FirstLine = $Paragraph.Trim()
-        }
-        switch -Regex ($FirstLine)
-        {
-            ('^(TOPIC|'+$Item.DisplayName+')$')
-                {
-                    if ($Item.CurrentSectionName -eq '')
-                    {
-                        # Found TOPIC or item name. Put it into XML ignoring value in file.
-                        $Details = $Command.AppendChild($XML.CreateElement('details'))
-                        $Name = $Details.AppendChild($XML.CreateElement('name'))
-                        $Name.Set_innerText($Item.DisplayName)
-                        $Item.CurrentSectionName = 'NAME'
-                    }
-                    else
-                    {
-                        # Found item name in a firt line of a paragraph.
-                        # Treat this a regular paragraph, probably extra section name.
-                        ParseRegularParagraph $Item $XML $Paragraph
-                    }
-                }
-            # In about_Type_Accelerators.help.txt there is typo: 'SHORT DESRIPTION'
-            '^(SHORT DES(C)?RIPTION|SYNOPSIS)$'
-                {
-                    if ($Item.CurrentSectionName -eq 'DESCRIPTION')
-                    {
-                        ParseRegularParagraph $Item $XML $Paragraph
-                        break
-                    }
-                    if ($XML.helpItems.command.details -eq $null)
-                    {
-                        # There was no TOPIC nor item name. Put name into XML.
-                        $Details = $Command.AppendChild($XML.CreateElement('details'))
-                        $Name = $Details.AppendChild($XML.CreateElement('name'))
-                        $Name.Set_innerText($Item.DisplayName)
-                    }
-                    if ($Paragraph.IndexOf("`n") -ne -1)
-                    {
-                        # SHORT DESCRIPTION and synopsis are in one paragraph, but in two lines.
-                        # Extract synopsis and put it into XML.
-                        $Description = $Details.AppendChild($XML.CreateElement('description'))
-                        # !!! Need trim and remove duplicate spaces
-                        AddLinesToNewChild $XML $Description 'para' 1 $Paragraph
-                    }
-                    $Item.CurrentSectionName = 'SYNOPSIS'
-                }
-            '^((LONG|DETAILED) )?DESCRIPTION$'
-                {
-                    if ($Item.CurrentSectionName -eq 'DESCRIPTION')
-                    {
-                        $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
-                        if ($Description.para.Count -eq 1)
-                        {
-                            # There was only one extra paragraph before section header,
-                            # So we can move it to Synopsis
-                            $Text = $XML.helpItems.command.details.description.para + ' ' +
-                                    $XML.helpItems.command.description.para
-                            $Synopsis = (Select-XML -Xml $XML -XPath '/helpItems/command/details/description/para').Node
-                            $Synopsis.Set_innerText($Text)
-                            $Para = (Select-XML -Xml $XML -XPath '/helpItems/command/description/para').Node
-                            $Description.RemoveChild($Para) | Out-Null
-                        }
-                        else
-                        {
-                            ParseRegularParagraph $Item $XML $Paragraph
-                            break
-                        }
-                    }
-                    else
-                    {
-                        $Description = $Command.AppendChild($XML.CreateElement('description'))
-                    }
-                    if ($Paragraph.IndexOf("`n") -ne -1)
-                    {
-                        AddLinesToNewChild $XML $Description 'para' 1 $Paragraph
-                    }
-                    $Item.CurrentSectionName = 'DESCRIPTION'
-                    $Item.CurrentExtraSectionNode = $null
-                }
-            '^SEE ALSO$'
-                {
-                    $RelatedLinks = $Command.AppendChild($XML.CreateElement('relatedLinks'))
-                    if ($Item.OnlineURI -ne '')
-                    {
-                        AddNavigationLink $XML $RelatedLinks ('Online Version: '+$Item.OnlineURI)
-                    }
-                    if ($Paragraph.IndexOf("`n") -gt 0)
-                    {
-                        AddLinesToRelatedLinks $XML 1 $Paragraph
-                    }
-                    $Item.CurrentSectionName = 'RELATED LINKS'
-                }
-            default
-                {
-                    ParseRegularParagraph $Item $XML $Paragraph
-                }
-        }
-    }
-    return $XML
-}   # ParseTxtHelpFile #
-    ####################
-
 
 #----------------------------------------------------------
 #
@@ -1384,6 +857,534 @@ function ParseTxtHelpFile
 function Main
 {
     param ()
+
+
+    #----------------------------------------------------------
+    # Parsing about*.txt HelpFile
+    #----------------------------------------------------------
+
+    ####################
+    # ParseTxtHelpFile #
+    ####################
+    function ParseTxtHelpFile
+    {
+        param (
+            [System.Collections.Hashtable] $Item
+        )
+    
+
+        ##################
+        # CleanParagraph #
+        ##################
+        function CleanParagraph
+        {
+            param (
+                [System.String] $Paragraph
+            )
+
+            ##################
+            # CleanParagraph #
+            # Replace all new lines with spaces
+            $Paragraph = $Paragraph.Replace("`n", ' ')
+
+            # Compress every spaces string into single space
+            while ($Paragraph.IndexOf('  ') -ne -1)
+            {
+                $Paragraph = $Paragraph.Replace('  ', ' ')
+            }
+            return $Paragraph.Trim()
+        }   # CleanParagraph #
+            ##################
+
+
+        #####################
+        # AddNavigationLink #
+        #####################
+        function AddNavigationLink
+        {
+            param (
+                [System.Xml.XmlDocument] $XML, 
+                [System.Xml.XmlElement] $Parent,
+                [System.String] $Line
+            )
+
+            #####################
+            # AddNavigationLink #
+            $Line = $Line.Trim()
+            if ($Line.Length -lt 1)
+            {
+                return
+            }
+            if ($Line.Substring(0,1) -eq '-')
+            {
+                $Line = $Line.Substring(1).Trim()
+            }
+            if ($Line.Length -lt 1)
+            {
+                return
+            }
+            # Line could be in a form:
+            # Link Text (http://...)
+            # or
+            # "Link Text" (http://...)
+            # or
+            # Link Text (https://...)
+            # or
+            # "Link Text" (https://...)
+            # or
+            # Link Text
+            if ($Line -like '*(http*')
+            {
+                $Text = ($Line -replace '^ *(.*) *\((https?://.*)\)$', '$1').Trim('" ')
+                $Url = ($Line -replace '^ *(.*) *\((https?://.*)\)$', '$2').Trim()
+            }
+            elseif ($Line -like '*http*')
+            {
+                $Text = ($Line -replace '^ *(.*) *(https?://.*)$', '$1').Trim('" ')
+                $Url = ($Line -replace '^ *(.*) *(https?://.*)$', '$2').Trim()
+            }
+            else
+            {
+                $Text = $Line
+                $Url = ''
+            }
+            if (($Url -ne '') -and ($Text -eq '') -and ($Parent.LastChild -ne $null) -and ($Parent.LastChild.uri -eq ''))
+            {
+                # LinkText and uri are splitted into two lines, so add uri
+                # to the previous navigationLink
+                $Parent.LastChild.ChildNodes[1].Set_innerText($Url)
+            }
+            else
+            {
+                # Create navigationLink link elements with two children: linkText and uri.
+                # Set values of both children to $Text and $Url
+                $NavigationLink = $Parent.AppendChild($XML.CreateElement('navigationLink'))
+                $LinkText = $NavigationLink.AppendChild($XML.CreateElement('LinkText'))
+                $LinkText.Set_innerText($Text)
+                $Uri = $NavigationLink.AppendChild($XML.CreateElement('uri'))
+                $Uri.Set_innerText($Url)
+            }
+        }   # AddNavigationLink #
+            #####################
+
+
+        ##########################
+        # AddLinesToRelatedLinks #
+        ##########################
+        function AddLinesToRelatedLinks
+        {
+            param (
+                [System.Xml.XmlDocument] $XML,
+                [System.Int32] $SkipLines,
+                [System.String] $Paragraph
+            )
+
+            ##########################
+            # AddLinesToRelatedLinks #
+            # Ignore first $SkipLines lines from the $Paragraph
+            while (($SkipLines -gt 0) -and ($Paragraph.IndexOf("`n") -gt 0))
+            {
+                $Paragraph = $Paragraph.Substring($Paragraph.IndexOf("`n")+1)
+                $SkipLines--
+            }
+            $RelatedLinks = (Select-XML -Xml $XML -XPath '/helpItems/command/relatedLinks').Node
+            $Lines = $Paragraph.Split("`n")
+            foreach ($Line in $Lines)
+            {
+                AddNavigationLink $XML $RelatedLinks $Line
+            }
+        }   # AddLinesToRelatedLinks #
+            ##########################
+        
+
+        ######################
+        # AddLinesToNewChild #
+        ######################
+        function AddLinesToNewChild
+        {
+            param (
+                [System.Xml.XmlDocument] $XML, 
+                [System.Xml.XmlElement] $Parent, 
+                [System.String] $ChildName,
+                [System.Int32] $SkipLines,
+                [System.String] $Paragraph
+            )
+
+            ######################
+            # AddLinesToNewChild #
+            # Ignore first $SkipLines lines from the $Paragraph
+            while (($SkipLines -gt 0) -and ($Paragraph.IndexOf("`n") -gt 0))
+            {
+                $Paragraph = $Paragraph.Substring($Paragraph.IndexOf("`n")+1)
+                $SkipLines--
+            }
+            if ($Clean)
+            {
+                $Paragraph = CleanParagraph $Paragraph
+            }
+            else
+            {
+                $Paragraph = $Paragraph.Replace("`n", ' ')
+            }
+            $Child = $Parent.AppendChild($XML.CreateElement($ChildName))
+            $Child.Set_innerText($Paragraph)
+        }   # AddLinesToNewChild #
+            ######################
+
+
+        #########################
+        # ParseRegularParagraph #
+        #########################
+        function ParseRegularParagraph
+        {
+            param (
+                [System.Collections.Hashtable] $Item,
+                [System.Xml.XmlDocument] $XML,
+                [System.String] $Paragraph
+            )
+
+
+            ###########################    
+            # AddDescriptionParagraph #
+            ###########################    
+            function AddDescriptionParagraph
+            {
+                param (
+                    [System.Xml.XmlDocument] $XML,
+                    [System.String] $Paragraph
+                )
+
+                ###########################    
+                # AddDescriptionParagraph #
+                $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
+                if ($Description -eq $null)
+                {
+                    # There was no LONG DESCRIPTION header in file
+                    $Description = $Command.AppendChild($XML.CreateElement('description'))
+                }
+                AddLinesToNewChild $XML $Description 'para' 0 $Paragraph
+            }   # AddDescriptionParagraph #
+                ###########################    
+
+
+            #########################
+            # StoreRegularparagraph #
+            #########################
+            function StoreRegularparagraph
+            {
+                param (
+                    [System.Collections.Hashtable] $Item,
+                    [System.Xml.XmlDocument] $XML,
+                    [System.String] $Paragraph
+                )
+
+                #########################
+                # StoreRegularparagraph #
+                if ($Item.CurrentSectionName -eq 'NOTES')
+                {
+                    $Alert = (Select-XML -Xml $XML -XPath '/helpItems/command/alertSet/alert').Node
+                    AddLinesToNewChild $XML $Alert 'para' 0 $Paragraph
+                }
+                elseif ($Item.CurrentExtraSectionNode -ne $null)
+                {
+                    AddLinesToNewChild $XML $Item.CurrentExtraSectionNode 'para' 0 $Paragraph
+                }
+                else
+                {
+                    AddDescriptionParagraph $XML $Paragraph
+                }
+            }   # StoreRegularparagraph #
+                #########################
+
+        
+            #######################
+            # ExtraSectionHeading #
+            #######################
+            function ExtraSectionHeading
+            {
+                param (
+                    [System.String] $Paragraph
+                )
+
+                #######################
+                # ExtraSectionHeading #
+                if (($Paragraph.IndexOf("`n") -ne -1) -or
+                    ($Paragraph.Trim().Length -eq 0)) 
+                {
+                    return ''
+                }
+                $Paragraph = $Paragraph.TrimEnd()
+                if ($Paragraph.Substring(0,1) -in @(' ','-'))
+                {
+                    return ''
+                }
+                $Paragraph = $Paragraph.TrimStart()
+                if ($Paragraph -in @('or', 'and'))
+                {
+                    return ''
+                }
+                if ($Paragraph.Substring($Paragraph.Length-1,1) -in @('.', ':'))
+                {
+                    return ''
+                }
+                if (-not ($Paragraph -match '^[-:, a-z0-9]+$'))
+                {
+                    return ''
+                }
+                return $Paragraph
+            }   # ExtraSectionHeading #
+                #######################
+        
+
+            #########################
+            # ParseRegularParagraph #
+            #Write-Host $Paragraph
+            switch ($Item.CurrentSectionName)
+            {
+                {($_ -eq 'NAME') -or
+                 ($_ -eq 'SYNOPSIS')}
+                    {
+                        $Details = (Select-XML -Xml $XML -XPath '/helpItems/command/details').Node
+                        if ($Details -eq $null)
+                        {
+                            # There was no TOPIC nor item name. Put name into XML.
+                            $Details = $Command.AppendChild($XML.CreateElement('details'))
+                            $Name = $Details.AppendChild($XML.CreateElement('name'))
+                            $Name.Set_innerText($Item.DisplayName)
+                        }
+                        if ($XML.helpItems.command.details.description -eq $null)
+                        {
+                            # The synopsis was separated with empty line from SHORT DESCRIPTION.
+                            $Description = $Details.AppendChild($XML.CreateElement('description'))
+                            $Para = $Description.AppendChild($XML.CreateElement('para'))
+                            $Paragraph = CleanParagraph $Paragraph
+                            $Para.Set_innerText($Paragraph)
+                        }
+                        else
+                        {
+                            AddDescriptionParagraph $XML $Paragraph
+                            $Item.CurrentSectionName = 'DESCRIPTION'
+                        }
+                    }
+                'RELATED LINKS'
+                    {
+                        $RelatedLinks = (Select-XML -Xml $XML -XPath '/helpItems/command/relatedLinks').Node
+                        if ($Paragraph.IndexOf("`n") -eq -1)
+                        {
+                            AddNavigationLink $XML $RelatedLinks $Paragraph
+                        }
+                        else
+                        {
+                            AddLinesToRelatedLinks $XML 0 $Paragraph
+                        }
+                    }
+                {($_ -eq 'DESCRIPTION') -or
+                 ($_ -eq 'NOTES')}
+                    {
+                        $ExtraSection = ExtraSectionHeading $Paragraph
+                        if ($Item.Name -eq 'about_Comment_Based_Help')
+                        {
+                            if (($ExtraSection -eq 'Name') -or
+                                ($ExtraSection -eq 'Syntax') -or
+                                ($ExtraSection -eq 'Description') -or
+                                ($ExtraSection -eq 'Parameters') -or
+                                ($ExtraSection -eq 'Parameter List') -or
+                                ($ExtraSection -eq 'Common Parameters') -or
+                                ($ExtraSection -eq 'Parameter Attribute Table') -or
+                                ($ExtraSection -eq 'Inputs') -or
+                                ($ExtraSection -eq 'Outputs') -or
+                                ($ExtraSection -eq 'Remarks') -or
+                                ($ExtraSection -eq 'Related Links'))
+                            {
+                                $ExtraSection = ''
+                            }
+                        }
+                        switch -Regex ($ExtraSection)
+                        {
+                            '^$'
+                                {
+                                    # Really regular paragraph, add to appropriate section
+                                    StoreRegularparagraph $Item $XML $Paragraph
+                                }
+                            '^(NOTES|REMARKS)$'
+                                {
+                                    $Command = (Select-XML -Xml $XML -XPath '/helpItems/command').Node
+                                    $AlertSet = $Command.AppendChild($XML.CreateElement('alertSet'))
+                                    $Alert = $AlertSet.AppendChild($XML.CreateElement('alert'))
+                                    $Item.CurrentSectionName = 'NOTES'
+                                    $Item.CurrentExtraSectionNode = $null
+                                }
+                            default
+                                {
+                                    $Item.CurrentExtraSectionName = $ExtraSection.ToUpper()
+                                    #Write-Host "ExtraSection: " $Item.CurrentExtraSectionName
+                                    $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
+                                    $Item.CurrentExtraSectionNode = $Description.AppendChild($XML.CreateElement('section'))
+                                    $Name = $Item.CurrentExtraSectionNode.AppendChild($XML.CreateElement('name'))
+                                    $Name.Set_innerText($Item.CurrentExtraSectionName)
+                                    $Item.CurrentSectionName = 'DESCRIPTION'
+                                }
+                        }
+                    }
+            }
+        }   # ParseRegularParagraph #
+            #########################
+
+
+        ####################
+        # ParseTxtHelpFile #
+        # Convert contents of the HelpFile into array of paragraphs
+        $File = Get-Content $Item.File
+        $Paragraphs = @()
+        $Paragraph = ''
+        foreach ($Line in $File)
+        {
+            if ($Line.Trim() -ne '')
+            {
+                if ($Paragraph -eq '')
+                {
+                    $Paragraph = $Line
+                }
+                else
+                {
+                    $Paragraph += "`n"+$Line
+                }
+            }
+            elseif ($Paragraph -ne '')
+            {
+                $Paragraphs += $Paragraph
+                $Paragraph = ''
+            }
+        }
+        if ($Paragraph -ne '')
+        {
+            $Paragraphs += $Paragraph
+        }
+        Clear-Variable File
+        if (($Item.Name -eq 'about_PowerShell_exe'))
+        {
+            #Write-Host "Breakpoint"
+        }
+
+        # Convert file name into help item name
+        $Item.DisplayName = $Item.Name.Replace('_', ' ')
+        $Item.DisplayName = ToCamelCase $Item.DisplayName
+    
+
+        # parse paragraphs converting them into MAML like XML object
+        ############################################################
+        $XML = [System.Xml.XmlDocument]'<?xml version="1.0" encoding="utf-8"?><helpItems />'
+        $Command = $XML.ChildNodes[1].AppendChild($XML.CreateElement('command'))
+        $Item.CurrentSectionName = ''
+        foreach ($Paragraph in $Paragraphs)
+        {
+            if ($Paragraph.IndexOf("`n") -ne -1)
+            {
+                $FirstLine = $Paragraph.Substring(0,$Paragraph.IndexOf("`n")).Trim()
+            }
+            else
+            {
+                $FirstLine = $Paragraph.Trim()
+            }
+            switch -Regex ($FirstLine)
+            {
+                ('^(TOPIC|'+$Item.DisplayName+')$')
+                    {
+                        if ($Item.CurrentSectionName -eq '')
+                        {
+                            # Found TOPIC or item name. Put it into XML ignoring value in file.
+                            $Details = $Command.AppendChild($XML.CreateElement('details'))
+                            $Name = $Details.AppendChild($XML.CreateElement('name'))
+                            $Name.Set_innerText($Item.DisplayName)
+                            $Item.CurrentSectionName = 'NAME'
+                        }
+                        else
+                        {
+                            # Found item name in a firt line of a paragraph.
+                            # Treat this a regular paragraph, probably extra section name.
+                            ParseRegularParagraph $Item $XML $Paragraph
+                        }
+                    }
+                # In about_Type_Accelerators.help.txt there is typo: 'SHORT DESRIPTION'
+                '^(SHORT DES(C)?RIPTION|SYNOPSIS)$'
+                    {
+                        if ($Item.CurrentSectionName -eq 'DESCRIPTION')
+                        {
+                            ParseRegularParagraph $Item $XML $Paragraph
+                            break
+                        }
+                        if ($XML.helpItems.command.details -eq $null)
+                        {
+                            # There was no TOPIC nor item name. Put name into XML.
+                            $Details = $Command.AppendChild($XML.CreateElement('details'))
+                            $Name = $Details.AppendChild($XML.CreateElement('name'))
+                            $Name.Set_innerText($Item.DisplayName)
+                        }
+                        if ($Paragraph.IndexOf("`n") -ne -1)
+                        {
+                            # SHORT DESCRIPTION and synopsis are in one paragraph, but in two lines.
+                            # Extract synopsis and put it into XML.
+                            $Description = $Details.AppendChild($XML.CreateElement('description'))
+                            # !!! Need trim and remove duplicate spaces
+                            AddLinesToNewChild $XML $Description 'para' 1 $Paragraph
+                        }
+                        $Item.CurrentSectionName = 'SYNOPSIS'
+                    }
+                '^((LONG|DETAILED) )?DESCRIPTION$'
+                    {
+                        if ($Item.CurrentSectionName -eq 'DESCRIPTION')
+                        {
+                            $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
+                            if ($Description.para.Count -eq 1)
+                            {
+                                # There was only one extra paragraph before section header,
+                                # So we can move it to Synopsis
+                                $Text = $XML.helpItems.command.details.description.para + ' ' +
+                                        $XML.helpItems.command.description.para
+                                $Synopsis = (Select-XML -Xml $XML -XPath '/helpItems/command/details/description/para').Node
+                                $Synopsis.Set_innerText($Text)
+                                $Para = (Select-XML -Xml $XML -XPath '/helpItems/command/description/para').Node
+                                $Description.RemoveChild($Para) | Out-Null
+                            }
+                            else
+                            {
+                                ParseRegularParagraph $Item $XML $Paragraph
+                                break
+                            }
+                        }
+                        else
+                        {
+                            $Description = $Command.AppendChild($XML.CreateElement('description'))
+                        }
+                        if ($Paragraph.IndexOf("`n") -ne -1)
+                        {
+                            AddLinesToNewChild $XML $Description 'para' 1 $Paragraph
+                        }
+                        $Item.CurrentSectionName = 'DESCRIPTION'
+                        $Item.CurrentExtraSectionNode = $null
+                    }
+                '^SEE ALSO$'
+                    {
+                        $RelatedLinks = $Command.AppendChild($XML.CreateElement('relatedLinks'))
+                        if ($Item.OnlineURI -ne '')
+                        {
+                            AddNavigationLink $XML $RelatedLinks ('Online Version: '+$Item.OnlineURI)
+                        }
+                        if ($Paragraph.IndexOf("`n") -gt 0)
+                        {
+                            AddLinesToRelatedLinks $XML 1 $Paragraph
+                        }
+                        $Item.CurrentSectionName = 'RELATED LINKS'
+                    }
+                default
+                    {
+                        ParseRegularParagraph $Item $XML $Paragraph
+                    }
+            }
+        }
+        return $XML
+    }   # ParseTxtHelpFile #
+        ####################
 
 
     #----------------------------------------------------------
