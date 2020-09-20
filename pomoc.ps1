@@ -1143,7 +1143,7 @@ function Main
         }
 
         #----------------------------------------------------------
-        # Add help items for aliases for which we have already regular items
+        # Add help items for aliases
         # What about other?
 
         Get-ChildItem alias: | 
@@ -1153,6 +1153,7 @@ function Main
                 #
                 if ($HelpInfo.ItemIndex[$_.Definition] -ne $null)
                 {
+                    # Aliases for which we have already regular items
                     $Item = $HelpInfo.Items[$HelpInfo.ItemIndex[$_.Definition]]
                     AddItem $true @{Name = $_.Name;
                                     ModuleName = $Item.ModuleName;
@@ -1166,6 +1167,22 @@ function Main
                                     Role = $Item.Role;
                                     Synopsis = $_.Definition;
                                     CommonParameters = $_.CommonParameters}
+                }
+                else
+                {
+                    # Other aliases
+                    AddItem $true @{Name = $_.Name;
+                                    ModuleName = '';
+                                    File = '';
+                                    OnlineURI = '';
+                                    Format = '';
+                                    Index = -1;
+                                    Category = 'Alias';
+                                    Component = '';
+                                    Functionality = '';
+                                    Role = '';
+                                    Synopsis = $_.Definition;
+                                    CommonParameters = $false}
                 }
             }
 
@@ -1936,6 +1953,10 @@ function Main
                     Write-Verbose ("Displaying file: "+$Item.File+" Item no: "+$Item.Index)
                     $XML = [System.Xml.XmlDocument](Get-Content $Item.File)
                     DisplayXmlHelpFile $Item ($XML.helpItems.command)[$Item.Index]
+                }
+            default
+                {
+                    Write-Error ("Unable to find "+$Item.Name)
                 }
         }
     }   # function DisplayHelpItem #
