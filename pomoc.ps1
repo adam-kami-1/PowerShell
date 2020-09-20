@@ -153,7 +153,7 @@ function ToCamelCase
 
 
 #----------------------------------------------------------
-# Displying stuff
+# Displaying stuff
 #----------------------------------------------------------
 
 ######################
@@ -1378,47 +1378,17 @@ function ParseTxtHelpFile
 #
 #----------------------------------------------------------
 
-###################
-# DisplayHelpItem #
-###################
-function DisplayHelpItem
-{
-    param (
-        [System.Collections.Hashtable] $Item
-    )
-
-    ###################
-    # DisplayHelpItem #
-    switch ($Item.Format)
-    {
-        "txt"
-            {
-                $XML = ParseTxtHelpFile $Item
-                show-XML.ps1 $XML -Tree ascii -Width ([System.Console]::WindowWidth-5)| Out-String | Write-Verbose
-                DisplayXmlHelpFile $Item $XML.ChildNodes[1].ChildNodes[0]
-            }
-        "xml"
-            {
-                # Write-Host ("Displaying file: "+$Item.File+" Item no: "+$Item.Index)
-                $XML = [System.Xml.XmlDocument](Get-Content $Item.File)
-                DisplayXmlHelpFile $Item ($XML.helpItems.command)[$Item.Index]
-            }
-    }
-}   # DisplayHelpItem #
-    ###################
-
-
-#----------------------------------------------------------
-# File searching stuff
-#----------------------------------------------------------
-
-
 ########
 # Main #
 ########
 function Main
 {
     param ()
+
+
+    #----------------------------------------------------------
+    # File searching stuff
+    #----------------------------------------------------------
 
 
     ###########
@@ -1772,7 +1742,6 @@ function Main
             ###############
 
 
-
         ###################
         # CompareVersions #
         ###################
@@ -1895,6 +1864,36 @@ function Main
         $Work.Functions = @{}
     }   # FindHelpFiles #
         #################
+
+        
+    ###################
+    # DisplayHelpItem #
+    ###################
+    function DisplayHelpItem
+    {
+        param (
+            [System.Collections.Hashtable] $Item
+        )
+
+        ###################
+        # DisplayHelpItem #
+        switch ($Item.Format)
+        {
+            "txt"
+                {
+                    $XML = ParseTxtHelpFile $Item
+                    show-XML.ps1 $XML -Tree ascii -Width ([System.Console]::WindowWidth-5)| Out-String | Write-Verbose
+                    DisplayXmlHelpFile $Item $XML.ChildNodes[1].ChildNodes[0]
+                }
+            "xml"
+                {
+                    # Write-Host ("Displaying file: "+$Item.File+" Item no: "+$Item.Index)
+                    $XML = [System.Xml.XmlDocument](Get-Content $Item.File)
+                    DisplayXmlHelpFile $Item ($XML.helpItems.command)[$Item.Index]
+                }
+        }
+    }   # DisplayHelpItem #
+        ###################
 
 
     ########
