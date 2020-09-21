@@ -1956,7 +1956,14 @@ function Main
                 }
             default
                 {
-                    Write-Error ("Unable to find "+$Item.Name)
+                    #Write-Error ("Unable to find "+$Item.Name)
+                    Microsoft.PowerShell.Core\Get-Help `
+                        -Name $Item.Name -Full #`
+                        #-Category $Category `
+                        #-Component $Component `
+                        #-Full `
+                        #-Functionality $Functionality `
+                        #-Role $Role
                 }
         }
     }   # function DisplayHelpItem #
@@ -2048,7 +2055,14 @@ function Main
     {
         0
             {
-                Write-Error "Unable to find $Name"
+                #Write-Error "Unable to find $Name"
+                Microsoft.PowerShell.Core\Get-Help `
+                    -Name $Name -Full # `
+                    #-Category $Category `
+                    #-Component $Component `
+                    #-Full `
+                    #-Functionality $Functionality `
+                    #-Role $Role
             }
         1
             {
