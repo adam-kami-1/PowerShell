@@ -142,7 +142,6 @@ function Main
                 $Work.Functions[$_.Name] = 'Function'
             }
         }
-    Write-Output $Work.Functions
 
     #==========================================================
     # Universal utility functions
@@ -1947,14 +1946,7 @@ function Main
                 }
             default
                 {
-                    #Write-Error ("Unable to find "+$Item.Name)
-                    Microsoft.PowerShell.Core\Get-Help `
-                        -Name $Item.Name -Full #`
-                        #-Category $Category `
-                        #-Component $Component `
-                        #-Full `
-                        #-Functionality $Functionality `
-                        #-Role $Role
+                    Microsoft.PowerShell.Core\Get-Help -Name $Item.Name -Full
                 }
         }
     }   # function DisplayHelpItem #
@@ -2046,14 +2038,24 @@ function Main
     {
         0
             {
-                #Write-Error "Unable to find $Name"
-                Microsoft.PowerShell.Core\Get-Help `
-                    -Name $Name -Full # `
-                    #-Category $Category `
-                    #-Component $Component `
-                    #-Full `
-                    #-Functionality $Functionality `
-                    #-Role $Role
+                $params = @{Name=$Name;Full=$true}
+                if ($Category -ne $null)
+                {
+                    $params.Category = $Category
+                }
+                if ($Component -ne $null)
+                {
+                    $params.Component = $Component
+                }
+                if ($Functionality -ne $null)
+                {
+                    $params.Functionality = $Functionality
+                }
+                if ($Role -ne $null)
+                {
+                    $params.Role = $Role
+                }
+                Microsoft.PowerShell.Core\Get-Help @params
             }
         1
             {
