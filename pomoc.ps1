@@ -748,276 +748,6 @@ function Main
         param ()
 
 
-        ##############################
-        # function CheckTxtHelpFiles #
-        ##############################
-        function CheckTxtHelpFiles
-        {
-            param (
-                [System.String] $ModuleName,
-                [System.String] $Path
-            )
-
-            
-            ##################################
-            # function GetModuleAndOnlineURI #
-            ##################################
-            function GetModuleAndOnlineURI
-            {
-                param (
-                    [System.String] $Name,
-                    [System.String] $ModuleName
-                )
-                
-                $TxtHelpFileModule = @{
-                    'about_ActivityCommonParameters'       = 'PSWorkflow';
-                    'about_Certificate_Provider'           = 'Microsoft.PowerShell.Security';
-                    'about_Checkpoint-Workflow'            = 'PSWorkflow';
-                    'about_Classes_and_DSC'                = 'PSDesiredStateConfiguration';
-                    'about_Escape_Characters'              = 'drop it !!!'; # there is about_Special_Characters
-                    'about_ForEach-Parallel'               = 'PSWorkflow';
-                    'about_InlineScript'                   = 'PSWorkflow';
-                    'about_PSReadline'                     = 'PSReadLine';
-                    'about_Parallel'                       = 'PSWorkflow';
-                    'about_Parsing_LocTest'                = 'drop it !!!'; # there is about_Parsing
-                    'about_PowerShell.exe'                 = 'drop it !!!'; # there is newer about_PowerShell_exe
-                    'about_PowerShell_Ise.exe'             = 'drop it !!!'; # there is newer about_PowerShell_Ise_exe
-                    'about_Scheduled_Jobs'                 = 'PSScheduledJob';
-                    'about_Scheduled_Jobs_Advanced'        = 'PSScheduledJob';
-                    'about_Scheduled_Jobs_Basics'          = 'PSScheduledJob';
-                    'about_Scheduled_Jobs_Troubleshooting' = 'PSScheduledJob';
-                    'about_Sequence'                       = 'PSWorkflow';
-                    'about_Suspend-Workflow'               = 'PSWorkflow';
-                    'about_WS-Management_Cmdlets'          = 'Microsoft.WSMan.Management';
-                    'about_WSMan_Provider'                 = 'Microsoft.WSMan.Management';
-                    'about_Windows_PowerShell_5.0'         = 'drop it !!!'; # This is old
-                    'about_WorkflowCommonParameters'       = 'PSWorkflow';
-                    'about_Workflows'                      = 'PSWorkflow';
-                    'default'                              = '';
-                    'WSManAbout'                           = 'drop it !!!'; # This is not a help file
-                    }
-
-                ##################################
-                # function GetModuleAndOnlineURI #
-                    
-                $URI = ''
-                if ($ModuleName -eq '')
-                {
-                    $ModuleName = $TxtHelpFileModule[$Name]
-                    if ($ModuleName -ne 'drop it !!!')
-                    {
-                        if ($ModuleName -eq '')
-                        {
-                            $ModuleName = 'Microsoft.PowerShell.Core'
-                        }
-                        $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
-
-                        #$a0 = $ModuleName.Value
-                        #$a1 = $a0.ToLower()
-                        #$a2 = ($ModuleName.Value).ToLower()
-                        #$a3 = $Name.ToLower()
-
-                        if ($Name -ne 'default')
-                        {
-                            $URI = 'https://docs.microsoft.com/en-us/powershell/module/'+$ModuleName.ToLower()+
-                                   '/about/'+$Name.ToLower()+'?view=powershell-'+$version
-                        }
-                        return @{'Module'=$ModuleName;
-                                 'URI'=$URI}
-                    }
-                }
-                return $URI = @{'Module'=$ModuleName;
-                                'URI'=$URI}
-            }   # function GetModuleAndOnlineURI #
-                ##################################
-
-
-            ##############################
-            # function CheckTxtHelpFiles #
-
-            if ( -not (Test-Path -Path $Path -PathType Container))
-            {
-                return
-            }
-            $Files = (Get-ChildItem $Path\*.help.txt).Name
-            if ($Files.Count -gt 0)
-            {
-                foreach ($File in $Files)
-                {
-                    $Name = $File -replace '.help.txt',''
-                    $URI = GetModuleAndOnlineURI $Name $ModuleName
-                    if ($URI.Module -eq 'drop it !!!')
-                    {
-                        continue
-                    }
-                    $Item = @{Name = $Name;
-                              ModuleName = $URI.Module;
-                              File = "$Path\$File";
-                              OnlineURI = $URI.URI;
-                              Format = 'txt';
-                              Index = -1;
-                              Category = 'HelpFile';
-                              Synopsis = '';
-                              CommonParameters = $false}
-                    $XML = ParseTxtHelpFile $Item
-                    $Item.Synopsis = CleanParagraph $XML.helpItems.command.details.description.para
-                    AddItem $true $Item
-                }
-            }
-            return
-        }   # function CheckTxtHelpFiles #
-            ##############################
-
-
-        ##############################
-        # function CheckXmlHelpFiles #
-        ##############################
-        function CheckXmlHelpFiles
-        {
-            param (
-                [System.String[]] $LocalFunctions,
-                [System.String] $ModuleName,
-                [System.String] $Path,
-                [System.String] $Pattern
-            )
-
-
-
-            #########################
-            # function CheckXMLFile #
-            #########################
-            function CheckXMLFile
-            {
-                param (
-                    [System.Collections.Hashtable] $LocalFuncs,
-                    [System.String] $ModuleName,
-                    [System.String] $Path,
-                    [System.String] $File
-                )
-
-                #########################
-                # function CheckXMLFile #
-
-                $XML = [System.Xml.XmlDocument](Get-Content "$Path\$File")
-                if ($XML.helpItems -ne $null)
-                {
-                    if ($XML.helpItems.command -ne $null)
-                    {
-                        if (($XML.helpItems.command).GetType().Name -eq "Object[]")
-                        {
-                            for ($Index = 0; $Index -lt ($XML.helpItems.command).Count; $Index++)
-                            {
-                                $command = ($XML.helpItems.command)[$Index]
-                                $Category = 'Cmdlet'
-                                if ($LocalFuncs[$command.details.name] -ne $null)
-                                {
-                                    $Category = 'Function'
-                                    $LocalFuncs[$command.details.name] = $null
-                                }
-                                $CmdInfo = Get-Command -Name $command.details.name -ErrorAction SilentlyContinue
-                                if ($CmdInfo -ne $null)
-                                {
-                                    $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
-                                }
-                                else
-                                {
-                                    $CommonParameters = $false
-                                }
-                                AddItem $true @{Name = $command.details.name;
-                                                ModuleName = $ModuleName;
-                                                File = "$Path\$File";
-                                                OnlineURI = '';
-                                                Format = 'xml';
-                                                Index = $Index;
-                                                Category = $Category;
-                                                Component = '';
-                                                Functionality = '';
-                                                Role = '';
-                                                Synopsis = $command.details.description.para;
-                                                CommonParameters = $CommonParameters}
-                            }
-                        }
-                    }
-                }
-                foreach ($Function in $LocalFuncs.keys)
-                {
-                    if ($LocalFuncs[$Function] -ne $null)
-                    {
-                        $CmdInfo = Get-Command -Name $Function -ErrorAction SilentlyContinue
-                        if ($CmdInfo -ne $null)
-                        {
-                            $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
-                        }
-                        else
-                        {
-                            $CommonParameters = $false
-                        }
-                        AddItem $false @{Name = $Function;
-                                         ModuleName = $ModuleName;
-                                         File = '';
-                                         OnlineURI = '';
-                                         Format = '';
-                                         Index = -1;
-                                         Category = 'Function';
-                                         Component = '';
-                                         Functionality = '';
-                                         Role = '';
-                                         Synopsis = '...';
-                                         CommonParameters = $CommonParameters}
-                    }
-                }
-            }   # function CheckXMLFile #
-                #########################
-
-
-            ##############################
-            # function CheckXmlHelpFiles #
-
-            if ( -not (Test-Path -Path $Path -PathType Container))
-            {
-                return
-            }
-            $LocalFuncs = @{}
-            if ($LocalFunctions -ne $null)
-            {
-                for ($i = 0; $i -lt $LocalFunctions.Count; $i++)
-                {
-                    $LocalFuncs[$LocalFunctions[$i]] = 'Function'
-                }
-            }
-            $Files = (Get-ChildItem $Path\*$Pattern).Name
-            if ($Files.Count -gt 0)
-            {
-                foreach ($File in $Files)
-                {
-                    if ($ModuleName -eq '')
-                    {
-                        $MN = $File.Remove($File.Length - $Pattern.Length)
-                        $MN = $MN -replace '.dll',''
-                        $MN = $MN -replace 'Microsoft.PowerShell.Commands.','Microsoft.PowerShell.'
-                        switch ($MN)
-                        {
-                            'System.Management.Automation'
-                                {
-                                    $MN = 'Microsoft.PowerShell.Core'
-                                }
-                            'Microsoft.PowerShell.Consolehost'
-                                {
-                                    $MN = 'Microsoft.PowerShell.Host'
-                                }
-                        }
-                        CheckXMLFile $LocalFuncs $MN $Path $File
-                    }
-                    else
-                    {
-                        CheckXMLFile $LocalFuncs $ModuleName $Path $File
-                    }
-                }
-            }
-        }   # function CheckXmlHelpFiles #
-            ##############################
-
-            
         ########################
         # function CheckModule #
         ########################
@@ -1029,6 +759,277 @@ function Main
                 [System.String] $Version = ''
             )
 
+
+            ##############################
+            # function CheckTxtHelpFiles #
+            ##############################
+            function CheckTxtHelpFiles
+            {
+                param (
+                    [System.String] $ModuleName,
+                    [System.String] $Path
+                )
+
+            
+                ##################################
+                # function GetModuleAndOnlineURI #
+                ##################################
+                function GetModuleAndOnlineURI
+                {
+                    param (
+                        [System.String] $Name,
+                        [System.String] $ModuleName
+                    )
+                
+                    $TxtHelpFileModule = @{
+                        'about_ActivityCommonParameters'       = 'PSWorkflow';
+                        'about_Certificate_Provider'           = 'Microsoft.PowerShell.Security';
+                        'about_Checkpoint-Workflow'            = 'PSWorkflow';
+                        'about_Classes_and_DSC'                = 'PSDesiredStateConfiguration';
+                        'about_Escape_Characters'              = 'drop it !!!'; # there is about_Special_Characters
+                        'about_ForEach-Parallel'               = 'PSWorkflow';
+                        'about_InlineScript'                   = 'PSWorkflow';
+                        'about_PSReadline'                     = 'PSReadLine';
+                        'about_Parallel'                       = 'PSWorkflow';
+                        'about_Parsing_LocTest'                = 'drop it !!!'; # there is about_Parsing
+                        'about_PowerShell.exe'                 = 'drop it !!!'; # there is newer about_PowerShell_exe
+                        'about_PowerShell_Ise.exe'             = 'drop it !!!'; # there is newer about_PowerShell_Ise_exe
+                        'about_Scheduled_Jobs'                 = 'PSScheduledJob';
+                        'about_Scheduled_Jobs_Advanced'        = 'PSScheduledJob';
+                        'about_Scheduled_Jobs_Basics'          = 'PSScheduledJob';
+                        'about_Scheduled_Jobs_Troubleshooting' = 'PSScheduledJob';
+                        'about_Sequence'                       = 'PSWorkflow';
+                        'about_Suspend-Workflow'               = 'PSWorkflow';
+                        'about_WS-Management_Cmdlets'          = 'Microsoft.WSMan.Management';
+                        'about_WSMan_Provider'                 = 'Microsoft.WSMan.Management';
+                        'about_Windows_PowerShell_5.0'         = 'drop it !!!'; # This is old
+                        'about_WorkflowCommonParameters'       = 'PSWorkflow';
+                        'about_Workflows'                      = 'PSWorkflow';
+                        'default'                              = '';
+                        'WSManAbout'                           = 'drop it !!!'; # This is not a help file
+                        }
+
+                    ##################################
+                    # function GetModuleAndOnlineURI #
+                    
+                    $URI = ''
+                    if ($ModuleName -eq '')
+                    {
+                        $ModuleName = $TxtHelpFileModule[$Name]
+                        if ($ModuleName -ne 'drop it !!!')
+                        {
+                            if ($ModuleName -eq '')
+                            {
+                                $ModuleName = 'Microsoft.PowerShell.Core'
+                            }
+                            $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
+
+                            #$a0 = $ModuleName.Value
+                            #$a1 = $a0.ToLower()
+                            #$a2 = ($ModuleName.Value).ToLower()
+                            #$a3 = $Name.ToLower()
+
+                            if ($Name -ne 'default')
+                            {
+                                $URI = 'https://docs.microsoft.com/en-us/powershell/module/'+$ModuleName.ToLower()+
+                                       '/about/'+$Name.ToLower()+'?view=powershell-'+$version
+                            }
+                            return @{'Module'=$ModuleName;
+                                     'URI'=$URI}
+                        }
+                    }
+                    return $URI = @{'Module'=$ModuleName;
+                                    'URI'=$URI}
+                }   # function GetModuleAndOnlineURI #
+                    ##################################
+
+
+                ##############################
+                # function CheckTxtHelpFiles #
+
+                if ( -not (Test-Path -Path $Path -PathType Container))
+                {
+                    return
+                }
+                $Files = (Get-ChildItem $Path\*.help.txt).Name
+                if ($Files.Count -gt 0)
+                {
+                    foreach ($File in $Files)
+                    {
+                        $Name = $File -replace '.help.txt',''
+                        $URI = GetModuleAndOnlineURI $Name $ModuleName
+                        if ($URI.Module -eq 'drop it !!!')
+                        {
+                            continue
+                        }
+                        $Item = @{Name = $Name;
+                                  ModuleName = $URI.Module;
+                                  File = "$Path\$File";
+                                  OnlineURI = $URI.URI;
+                                  Format = 'txt';
+                                  Index = -1;
+                                  Category = 'HelpFile';
+                                  Synopsis = '';
+                                  CommonParameters = $false}
+                        $XML = ParseTxtHelpFile $Item
+                        $Item.Synopsis = CleanParagraph $XML.helpItems.command.details.description.para
+                        AddItem $true $Item
+                    }
+                }
+                return
+            }   # function CheckTxtHelpFiles #
+                ##############################
+
+
+            ##############################
+            # function CheckXmlHelpFiles #
+            ##############################
+            function CheckXmlHelpFiles
+            {
+                param (
+                    [System.String[]] $LocalFunctions,
+                    [System.String] $ModuleName,
+                    [System.String] $Path,
+                    [System.String] $Pattern
+                )
+
+
+
+                #########################
+                # function CheckXMLFile #
+                #########################
+                function CheckXMLFile
+                {
+                    param (
+                        [System.Collections.Hashtable] $LocalFuncs,
+                        [System.String] $ModuleName,
+                        [System.String] $Path,
+                        [System.String] $File
+                    )
+
+                    #########################
+                    # function CheckXMLFile #
+
+                    $XML = [System.Xml.XmlDocument](Get-Content "$Path\$File")
+                    if ($XML.helpItems -ne $null)
+                    {
+                        if ($XML.helpItems.command -ne $null)
+                        {
+                            if (($XML.helpItems.command).GetType().Name -eq "Object[]")
+                            {
+                                for ($Index = 0; $Index -lt ($XML.helpItems.command).Count; $Index++)
+                                {
+                                    $command = ($XML.helpItems.command)[$Index]
+                                    $Category = 'Cmdlet'
+                                    if ($LocalFuncs[$command.details.name] -ne $null)
+                                    {
+                                        $Category = 'Function'
+                                        $LocalFuncs[$command.details.name] = $null
+                                    }
+                                    $CmdInfo = Get-Command -Name $command.details.name -ErrorAction SilentlyContinue
+                                    if ($CmdInfo -ne $null)
+                                    {
+                                        $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
+                                    }
+                                    else
+                                    {
+                                        $CommonParameters = $false
+                                    }
+                                    AddItem $true @{Name = $command.details.name;
+                                                    ModuleName = $ModuleName;
+                                                    File = "$Path\$File";
+                                                    OnlineURI = '';
+                                                    Format = 'xml';
+                                                    Index = $Index;
+                                                    Category = $Category;
+                                                    Component = '';
+                                                    Functionality = '';
+                                                    Role = '';
+                                                    Synopsis = $command.details.description.para;
+                                                    CommonParameters = $CommonParameters}
+                                }
+                            }
+                        }
+                    }
+                    foreach ($Function in $LocalFuncs.keys)
+                    {
+                        if ($LocalFuncs[$Function] -ne $null)
+                        {
+                            $CmdInfo = Get-Command -Name $Function -ErrorAction SilentlyContinue
+                            if ($CmdInfo -ne $null)
+                            {
+                                $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
+                            }
+                            else
+                            {
+                                $CommonParameters = $false
+                            }
+                            AddItem $false @{Name = $Function;
+                                             ModuleName = $ModuleName;
+                                             File = '';
+                                             OnlineURI = '';
+                                             Format = '';
+                                             Index = -1;
+                                             Category = 'Function';
+                                             Component = '';
+                                             Functionality = '';
+                                             Role = '';
+                                             Synopsis = '...';
+                                             CommonParameters = $CommonParameters}
+                        }
+                    }
+                }   # function CheckXMLFile #
+                    #########################
+
+
+                ##############################
+                # function CheckXmlHelpFiles #
+
+                if ( -not (Test-Path -Path $Path -PathType Container))
+                {
+                    return
+                }
+                $LocalFuncs = @{}
+                if ($LocalFunctions -ne $null)
+                {
+                    for ($i = 0; $i -lt $LocalFunctions.Count; $i++)
+                    {
+                        $LocalFuncs[$LocalFunctions[$i]] = 'Function'
+                    }
+                }
+                $Files = (Get-ChildItem $Path\*$Pattern).Name
+                if ($Files.Count -gt 0)
+                {
+                    foreach ($File in $Files)
+                    {
+                        if ($ModuleName -eq '')
+                        {
+                            $MN = $File.Remove($File.Length - $Pattern.Length)
+                            $MN = $MN -replace '.dll',''
+                            $MN = $MN -replace 'Microsoft.PowerShell.Commands.','Microsoft.PowerShell.'
+                            switch ($MN)
+                            {
+                                'System.Management.Automation'
+                                    {
+                                        $MN = 'Microsoft.PowerShell.Core'
+                                    }
+                                'Microsoft.PowerShell.Consolehost'
+                                    {
+                                        $MN = 'Microsoft.PowerShell.Host'
+                                    }
+                            }
+                            CheckXMLFile $LocalFuncs $MN $Path $File
+                        }
+                        else
+                        {
+                            CheckXMLFile $LocalFuncs $ModuleName $Path $File
+                        }
+                    }
+                }
+            }   # function CheckXmlHelpFiles #
+                ##############################
+
+            
             ########################
             # function CheckModule #
 
@@ -1086,7 +1087,8 @@ function Main
         # function FindHelpFiles #
 
         # Extract list of all global functions into $Work.Functions
-        Get-ChildItem -Path function: | ForEach-Object -Process { $Work.Functions[$_.Name] = 'Function' }
+        Get-ChildItem -Path function: |
+            ForEach-Object -Process { $Work.Functions[$_.Name] = 'Function' }
 
         #----------------------------------------------------------
         # Search for help files in PowerShell Home directory
@@ -2069,3 +2071,4 @@ function Main
 
 
 Main
+
