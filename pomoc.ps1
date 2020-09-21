@@ -993,6 +993,8 @@ function Main
                     if ($ModuleName -eq '')
                     {
                         $MN = $File.Remove($File.Length - $Pattern.Length)
+                        $MN = $MN -replace '.dll',''
+                        $MN = $MN -replace 'Microsoft.PowerShell.Commands.','Microsoft.PowerShell.'
                         switch ($MN)
                         {
                             'System.Management.Automation'
@@ -1002,18 +1004,6 @@ function Main
                             'Microsoft.PowerShell.Consolehost'
                                 {
                                     $MN = 'Microsoft.PowerShell.Host'
-                                }
-                            'Microsoft.PowerShell.Commands.Diagnostics'
-                                {
-                                    $MN = 'Microsoft.PowerShell.Diagnostics'
-                                }
-                            'Microsoft.PowerShell.Commands.Management'
-                                {
-                                    $MN = 'Microsoft.PowerShell.Management'
-                                }
-                            'Microsoft.PowerShell.Commands.Utility'
-                                {
-                                    $MN = 'Microsoft.PowerShell.Utility'
                                 }
                         }
                         CheckXMLFile $LocalFuncs $MN $Path $File
@@ -1035,20 +1025,20 @@ function Main
         {
             param (
                 [System.String] $Path,
-                [System.String] $ModuleName,
-                [System.String] $Version
+                [System.String] $ModuleName = '',
+                [System.String] $Version = ''
             )
 
             ########################
             # function CheckModule #
 
-            if ($Version -eq '')
+            if ($ModuleName -ne '')
             {
                 $Path = "$Path\$ModuleName"
             }
-            else
+            if ($Version -ne '')
             {
-                $Path = "$Path\$ModuleName\$Version"
+                $Path = "$Path\$Version"
             }
             $LocalFuncs = @()
             if (Test-Path -Path "$Path\$ModuleName.psd1")
@@ -1056,10 +1046,6 @@ function Main
                 $LocalFuncs = (Import-PowerShellDataFile -Path "$Path\$ModuleName.psd1" -ErrorAction SilentlyContinue).FunctionsToExport
             }
             CheckTxtHelpFiles $ModuleName "$Path\$PSUICulture"
-            #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.dll-help.xml'
-            #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.cdxml-help.xml'
-            #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.psd1-help.xml'
-            #CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '.psm1-help.xml'
             CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '-help.xml'
         }   # function CheckModule #
             ########################
@@ -1099,19 +1085,14 @@ function Main
         ##########################
         # function FindHelpFiles #
 
-        #----------------------------------------------------------
-        # Search for help files in PowerShell Home directory
-
         # Extract list of all global functions into $Work.Functions
         Get-ChildItem -Path function: | ForEach-Object -Process { $Work.Functions[$_.Name] = 'Function' }
 
-        # Find all *.help.txt in PowerShell home directory
-        CheckTxtHelpFiles '' $PSHOME\$PSUICulture
+        #----------------------------------------------------------
+        # Search for help files in PowerShell Home directory
 
-        $LocalFuncs = @()
-        CheckXmlHelpFiles $LocalFuncs '' $PSHOME\$PSUICulture '.dll-help.xml'
-        CheckXmlHelpFiles $LocalFuncs '' $PSHOME\$PSUICulture '-help.xml'
-
+        CheckModule $PSHOME
+        
         #----------------------------------------------------------
         # Search for help files in module directories
 
@@ -1124,7 +1105,7 @@ function Main
                 {
                     if ($SubDir -eq $PSUICulture)
                     {
-                        CheckModule $ModulePath $Module ''
+                        CheckModule $ModulePath $Module
                     }
                     elseif ($SubDir -match '^([0-9]\.)+[0-9]+$')
                     {
