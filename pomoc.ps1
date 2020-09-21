@@ -101,58 +101,6 @@ param (
 #!/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
 
 
-#==========================================================
-# Script global variables
-#==========================================================
-
-$HelpInfo = @{
-    Items = @();
-    ItemIndex = @{};
-    }
-
-$Work = @{
-    # Used only during building $HelpInfo
-    Functions = @{};
-
-    # Used only during displaying results
-    OutputWidth = $Width
-    Colors = @{};
-    }
-
-#==========================================================
-# Universal utility functions
-#==========================================================
-
-########################
-# function ToCamelCase #
-########################
-function ToCamelCase
-{
-    param (
-        [System.String] $Str
-    )
-
-    ########################
-    # function ToCamelCase #
-
-    $ChArr = $Str.ToCharArray()
-    $Str = ''
-    for ($i = 0; $i -lt $ChArr.Length; $i++)
-    {
-        if (($i -eq 0) -or ('.-_ '.Contains($ChArr[$i-1])))
-        {
-            $Str += (($ChArr[$i]).ToString()).ToUpper()
-        }
-        else
-        {
-            $Str += $ChArr[$i]
-        }
-    }
-    return $Str
-}   # function ToCamelCase #
-    ########################
-
-
 
 #==========================================================
 # Main function
@@ -164,6 +112,70 @@ function ToCamelCase
 function Main
 {
     param ()
+
+
+    #==========================================================
+    # Script global variables
+    #==========================================================
+
+    $HelpInfo = @{
+        Items = @();
+        ItemIndex = @{};
+        }
+
+    $Work = @{
+        # Used only during building $HelpInfo
+        Functions = @{};
+
+        # Used only during displaying results
+        OutputWidth = $Width
+        Colors = @{};
+        }
+
+
+    # Extract list of all global functions into $Work.Functions
+    Get-ChildItem -Path function: |
+        ForEach-Object -Process `
+        {
+            if ($_.Name -ne 'Main')
+            {
+                $Work.Functions[$_.Name] = 'Function'
+            }
+        }
+    Write-Output $Work.Functions
+
+    #==========================================================
+    # Universal utility functions
+    #==========================================================
+
+    ########################
+    # function ToCamelCase #
+    ########################
+    function ToCamelCase
+    {
+        param (
+            [System.String] $Str
+        )
+
+        ########################
+        # function ToCamelCase #
+
+        $ChArr = $Str.ToCharArray()
+        $Str = ''
+        for ($i = 0; $i -lt $ChArr.Length; $i++)
+        {
+            if (($i -eq 0) -or ('.-_ '.Contains($ChArr[$i-1])))
+            {
+                $Str += (($ChArr[$i]).ToString()).ToUpper()
+            }
+            else
+            {
+                $Str += $ChArr[$i]
+            }
+        }
+        return $Str
+    }   # function ToCamelCase #
+        ########################
 
 
     #==========================================================
@@ -1085,10 +1097,6 @@ function Main
 
         ##########################
         # function FindHelpFiles #
-
-        # Extract list of all global functions into $Work.Functions
-        Get-ChildItem -Path function: |
-            ForEach-Object -Process { $Work.Functions[$_.Name] = 'Function' }
 
         #----------------------------------------------------------
         # Search for help files in PowerShell Home directory
