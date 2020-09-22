@@ -98,10 +98,6 @@ param (
 )
 
 
-#!/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
-
-
-
 #==========================================================
 # Main function
 #==========================================================
@@ -124,6 +120,8 @@ function Main
         }
 
     $Work = @{
+        ItemsFile = "$($env:USERPROFILE)\.PS-pomoc.xml"
+
         # Used only during building $HelpInfo
         Functions = @{};
 
@@ -131,6 +129,7 @@ function Main
         OutputWidth = $Width
         Colors = @{};
         }
+
 
 
     # Extract list of all global functions into $Work.Functions
@@ -732,7 +731,6 @@ function Main
         ####################
         # function AddItem #
 
-        # $Item = [pscustomobject]$I
         Write-Verbose ("Adding Item "+$Item.Name)
         if ($HelpInfo.ItemIndex[$Item.Name] -eq $null)
         {
@@ -881,6 +879,7 @@ function Main
                                   Index = -1;
                                   Category = 'HelpFile';
                                   Synopsis = '';
+                                  Aliases = @();
                                   CommonParameters = $false}
                         $XML = ParseTxtHelpFile $Item
                         $Item.Synopsis = CleanParagraph $XML.helpItems.command.details.description.para
@@ -957,6 +956,7 @@ function Main
                                                     Functionality = '';
                                                     Role = '';
                                                     Synopsis = $command.details.description.para;
+                                                    Aliases = @();
                                                     CommonParameters = $CommonParameters}
                                 }
                             }
@@ -986,6 +986,7 @@ function Main
                                              Functionality = '';
                                              Role = '';
                                              Synopsis = '...';
+                                             Aliases = @();
                                              CommonParameters = $CommonParameters}
                         }
                     }
@@ -1134,8 +1135,7 @@ function Main
 
         #----------------------------------------------------------
         # Add help items for aliases
-        # What about other?
-
+        
         Get-ChildItem alias: | 
             ForEach-Object `
             {
@@ -1145,6 +1145,7 @@ function Main
                 {
                     # Aliases for which we have already regular items
                     $Item = $HelpInfo.Items[$HelpInfo.ItemIndex[$_.Definition]]
+                    $Item.Aliases += $_.Name;
                     AddItem $true @{Name = $_.Name;
                                     ModuleName = $Item.ModuleName;
                                     File = $Item.File;
@@ -1156,7 +1157,8 @@ function Main
                                     Functionality = $Item.Functionality;
                                     Role = $Item.Role;
                                     Synopsis = $_.Definition;
-                                    CommonParameters = $_.CommonParameters}
+                                    Aliases = $Item.Aliases;
+                                    CommonParameters = $Item.CommonParameters}
                 }
                 else
                 {
@@ -1172,6 +1174,7 @@ function Main
                                     Functionality = '';
                                     Role = '';
                                     Synopsis = $_.Definition;
+                                    Aliases = @();
                                     CommonParameters = $false}
                 }
             }
@@ -1203,6 +1206,7 @@ function Main
                                  Functionality = '';
                                  Role = '';
                                  Synopsis = '...';
+                                 Aliases = @();
                                  CommonParameters = $CommonParameters}
             }
         }
@@ -1726,6 +1730,26 @@ function Main
         }
 
         #----------------------------------------------------------
+        # Section ALIASES
+        if (($Item.Aliases -ne $null) -and ($Item.Aliases.Count -gt 0))
+        {
+            DisplayParagraph 0 sect "ALIASES"
+            $Paragraph = ''
+            foreach ($Alias in $Item.Aliases)
+            {
+                if ($Paragraph -eq '')
+                {
+                    $Paragraph = $Alias
+                }
+                else
+                {
+                    $Paragraph += ", $Alias"
+                }
+            }
+            DisplayParagraph 1 para $Paragraph
+        }
+
+        #----------------------------------------------------------
         # Section DESCRIPTION
         if ($command.description.para.Count -gt 0)
         {
@@ -1935,7 +1959,7 @@ function Main
             "txt"
                 {
                     $XML = ParseTxtHelpFile $Item
-                    show-XML.ps1 $XML -Tree ascii -Width ([System.Console]::WindowWidth-5)| Out-String | Write-Verbose
+                    Write-Verbose (show-XML.ps1 $XML -Tree ascii -Width ([System.Console]::WindowWidth-5)| Out-String)
                     DisplayXmlHelpFile $Item $XML.ChildNodes[1].ChildNodes[0]
                 }
             "xml"
@@ -1957,11 +1981,11 @@ function Main
     # function Main #
 
     #----------------------------------------------------------
-    if ((Test-Path -Path $env:USERPROFILE\.PS-pomoc.xml) -and -not $Rescan)
+    if ((Test-Path -Path $Work.ItemsFile) -and -not $Rescan)
     {
         # Import description of all previously found help items
-        Write-Verbose ('Importing stored info about help files to '+$env:USERPROFILE+'\.PS-pomoc.xml')
-        $HelpInfo = Import-Clixml -Path $env:USERPROFILE\.PS-pomoc.xml
+        Write-Verbose ("Importing stored info about help files from $($Work.ItemsFile)")
+        $HelpInfo = Import-Clixml -Path $Work.ItemsFile
     }
     else
     {
@@ -1969,8 +1993,8 @@ function Main
         Write-Verbose "Find all *.help.txt and  *.dll-help.xml files HelpFiles"
         FindHelpFiles
         # Export description of all found help items
-        Write-Verbose ('Storing info about help files from '+$env:USERPROFILE+'\.PS-pomoc.xml')
-        Export-Clixml -Path $env:USERPROFILE\.PS-pomoc.xml -Encoding UTF8 -InputObject $HelpInfo
+        Write-Verbose ("Storing info about help files to $($Work.ItemsFile)")
+        Export-Clixml -Path $Work.ItemsFile -Encoding UTF8 -InputObject $HelpInfo
     }
 
     #----------------------------------------------------------

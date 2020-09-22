@@ -74,7 +74,7 @@ Version still under construction. Replacement for cmdlet Get-Help
 
 - [X] When text is longer than the available screen width, then in console version text is broken even inside word.
 - [X] When text is longer than the available screen width, then in window (-ShowWindow) version text is broken on word boundaries but indentation is lost. IMHO next lines should be indented like the first one, or in some cases hanging paragraph should be used.
-- [ ] Aliases for cmdlets are not shown in cmdlet help.
+- [X] Aliases for cmdlets are not shown in cmdlet help.
 - [X] Aliases for parameter names should be displayed, when their definition is present in MAML file.
 - [X] In section Outputs, there is missing indentation of return value description in window version. In console version works better.
 - [X] Missing section header for Examples in console version. Example titles and example contents are not indented.
