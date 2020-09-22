@@ -213,6 +213,37 @@ function Main
     Begin
     {
         #==========================================================
+        # Main function global variables
+        #==========================================================
+
+        $HelpInfo = @{
+            Items = @();
+            ItemIndex = @{};
+            }
+
+        $Work = @{
+            ItemsFile = "$($env:USERPROFILE)\.PS-pomoc.xml"
+
+            # Used only during building $HelpInfo
+            Functions = @{};
+
+            # Used only during displaying results
+            OutputWidth = $Width
+            Colors = @{};
+            }
+
+        # Extract list of all global functions into $Work.Functions
+        Get-ChildItem -Path function: |
+            ForEach-Object -Process `
+            {
+                if ($_.Name -ne 'Main')
+                {
+                    $Work.Functions[$_.Name] = 'Function'
+                }
+            }
+
+
+        #==========================================================
         # Universal utility functions
         #==========================================================
 
@@ -1133,13 +1164,13 @@ function Main
 
                 if ($ModuleName -ne '')
                 {
-                    Write-Verbose "Checking module $ModuleName"
                     $Path = "$Path\$ModuleName"
                 }
                 if ($Version -ne '')
                 {
                     $Path = "$Path\$Version"
                 }
+                Write-Verbose "Checking module $Path"
                 $LocalFuncs = @()
                 if (Test-Path -Path "$Path\$ModuleName.psd1")
                 {
@@ -1197,14 +1228,11 @@ function Main
             {
                 foreach ($Module in ((Get-Childitem $ModulePath -Directory).Name))
                 {
+                    CheckModule $ModulePath $Module
                     $Version = ''
                     foreach ($SubDir in ((Get-Childitem $ModulePath\$Module -Directory).Name))
                     {
-                        if ($SubDir -eq $PSUICulture)
-                        {
-                            CheckModule $ModulePath $Module
-                        }
-                        elseif ($SubDir -match '^([0-9]\.)+[0-9]+$')
+                        if ($SubDir -match '^([0-9]\.)+[0-9]+$')
                         {
                             if ((CompareVersions $Version $SubDir) -le 0)
                             {
@@ -2069,35 +2097,6 @@ function Main
             ############################
 
 
-        #==========================================================
-        # Script global variables
-        #==========================================================
-
-        $HelpInfo = @{
-            Items = @();
-            ItemIndex = @{};
-            }
-
-        $Work = @{
-            ItemsFile = "$($env:USERPROFILE)\.PS-pomoc.xml"
-
-            # Used only during building $HelpInfo
-            Functions = @{};
-
-            # Used only during displaying results
-            OutputWidth = $Width
-            Colors = @{};
-            }
-
-        # Extract list of all global functions into $Work.Functions
-        Get-ChildItem -Path function: |
-            ForEach-Object -Process `
-            {
-                if ($_.Name -ne 'Main')
-                {
-                    $Work.Functions[$_.Name] = 'Function'
-                }
-            }
         #----------------------------------------------------------
         if ((Test-Path -Path $Work.ItemsFile) -and -not $Rescan)
         {
