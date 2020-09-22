@@ -6,7 +6,8 @@ This is planed as a replacement of Get-Help cmdlet.
 .EXAMPLE
 pomoc -Name Get_Command
 #>
-[CmdletBinding(DefaultParameterSetName='AllUsersView', HelpUri='https://go.microsoft.com/fwlink/?LinkID=113316')]
+
+[CmdletBinding(DefaultParameterSetName='AllUsersView')]
 param (
 
     # Gets help about the specified command or concept. Enter the name of a cmdlet, function, provider, script, or workflow, such as `Get-Member`, a conceptual article name, such as `about_Objects`, or an alias, such as `ls`. Wildcard characters are permitted in cmdlet and provider names, but you can't use wildcard characters to find the names of function help and script help articles.
@@ -30,22 +31,22 @@ param (
     # To see the custom cmdlet help for a provider path, go to the provider path location and enter a `Get-Help` command or, from any path location, use the Path parameter of `Get-Help` to specify the provider path. You can also find custom cmdlet help online in the provider help section of the help articles.
     #
     # For more information about PowerShell providers, see about_Providers (./About/about_Providers.md).
-    [System.String] ${Path},
+    [System.String] $Path,
 
     # Displays help only for items in the specified category and their aliases. Conceptual articles are in the HelpFile category.
     [ValidateSet('Alias','Cmdlet','Provider','General','FAQ','Glossary','HelpFile','ScriptCommand','Function','Filter','ExternalScript','All','DefaultHelp','Workflow','DscResource','Class','Configuration')]
-    [System.String[]] ${Category},
+    [System.String[]] $Category,
 
     # Displays commands with the specified component value, such as Exchange . Enter a component name. Wildcard characters are per mitted. This parameter has no effect on displays of conceptual ( About_ ) help.
-    [System.String[]] ${Component},
+    [System.String[]] $Component,
 
     # Displays help for items with the specified functionality. Enter the functionality. Wildcard characters are permitted. This parameter has no effect on displays of conceptual ( About_ ) help.
-    [System.String[]] ${Functionality},
+    [System.String[]] $Functionality,
 
     # Displays help customized for the specified user role. Enter a role. Wildcard characters are permitted.
     #
     # Enter the role that the user plays in an organization. Some cmdlets display different text in their help files based on the value of this parameter. This parameter has no effect on help for the core cmdlets.
-    [System.String[]] ${Role},
+    [System.String[]] $Role,
 
     # Adds parameter descriptions and examples to the basic help display. This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
     #
@@ -59,7 +60,7 @@ param (
     #
     # In fact in script pomoc.ps1 this parameter is ignored. Always full info is displayed.
     [Parameter(ParameterSetName='AllUsersView')]
-    [System.Management.Automation.SwitchParameter] ${Full},
+    [System.Management.Automation.SwitchParameter] $Full,
 
     # Displays only the name, synopsis, and examples. To display only the examples, type `(Get-Help <cmdlet-name>).Examples`.
     #
@@ -67,17 +68,17 @@ param (
     #
     # In fact in script pomoc.ps1 this parameter is ignored. Always full info is displayed.
     [Parameter(ParameterSetName='Examples', Mandatory=$true)]
-    [System.Management.Automation.SwitchParameter] ${Examples},
+    [System.Management.Automation.SwitchParameter] $Examples,
 
     # Displays only the detailed descriptions of the specified parameters. Wildcards are permitted. This parameter has no effect on displays of conceptual ( About_ ) help.
     [Parameter(ParameterSetName='Parameters', Mandatory=$true)]
-    [System.String] ${Parameter},
+    [System.String] $Parameter,
 
     # Displays the online version of a help article in the default browser. This parameter is valid only for cmdlet, function, workflow, and script help articles. You can't use the Online parameter with `Get-Help` in a remote session.
     #
     # For information about supporting this feature in help articles that you write, see about_Comment_Based_Help (./About/about_Comment_Based_Help.md), and Supporting Online Help (/powershell/scripting/developer/module/supporting-online-help), and Writing Help for PowerShell Cmdlets (/powershell/scripting/developer/help/writing-help-for-windows-powershell-cmdlets).
     [Parameter(ParameterSetName='Online', Mandatory=$true)]
-    [System.Management.Automation.SwitchParameter] ${Online},
+    [System.Management.Automation.SwitchParameter] $Online,
 
     # Displays the help topic in a window for easier reading. The window includes a Find search feature and a Settings box that lets you set options for the display, including options to display only selected sections of a help topic.
     #
@@ -85,7 +86,7 @@ param (
     #
     # This parameter was introduced in PowerShell 3.0.
     [Parameter(ParameterSetName='ShowWindow', Mandatory=$true)]
-    [System.Management.Automation.SwitchParameter] ${ShowWindow},
+    [System.Management.Automation.SwitchParameter] $ShowWindow,
 
     # Specifies the number of characters in each line of output. If this parameter is not used, the width is determined by the characteristics of the host. The default for the PowerShell console is 80 characters.
     #
@@ -98,16 +99,110 @@ param (
 )
 
 
-#==========================================================
-# Main function
-#==========================================================
 
+<#
+.SYNOPSIS
+pomoc displays full help on the selected item.
+.DESCRIPTION
+This is planed as a replacement of Get-Help cmdlet.
+.EXAMPLE
+pomoc -Name Get_Command
+#>
 #################
 # function Main #
 #################
 function Main
 {
-    param ()
+    [CmdletBinding(DefaultParameterSetName='AllUsersView', HelpUri='https://go.microsoft.com/fwlink/?LinkID=113316')]
+    param (
+
+        # Gets help about the specified command or concept. Enter the name of a cmdlet, function, provider, script, or workflow, such as `Get-Member`, a conceptual article name, such as `about_Objects`, or an alias, such as `ls`. Wildcard characters are permitted in cmdlet and provider names, but you can't use wildcard characters to find the names of function help and script help articles.
+        #
+        # To get help for a script that isn't located in a path that's listed in the `$env:Path` environment variable, type the script's path and file name.
+        #
+        # If you enter the exact name of a help article, `Get-Help` displays the article contents.
+        #
+        # If you enter a word or word pattern that appears in several help article titles, `Get-Help` displays a list of the matching titles.
+        #
+        # If you enter a word that doesn't match any help article titles, `Get-Help` displays a list of articles that include that word in their contents.
+        #
+        # The names of conceptual articles, such as `about_Objects`, must be entered in English, even in non-English versions of PowerShell.
+        [Parameter(Position=0, ValueFromPipelineByPropertyName=$true)]
+        [System.String] $Name = 'default',
+
+        # Gets help that explains how the cmdlet works in the specified provider path. Enter a PowerShell provider path.
+        #
+        # This parameter gets a customized version of a cmdlet help article that explains how the cmdlet works in the specified PowerShell provider path. This parameter is effective only for help about a provider cmdlet and only when the provider includes a custom version of the provider cmdlet help article in its help file. To use this parameter, install the help file for the module that includes the provider.
+        #
+        # To see the custom cmdlet help for a provider path, go to the provider path location and enter a `Get-Help` command or, from any path location, use the Path parameter of `Get-Help` to specify the provider path. You can also find custom cmdlet help online in the provider help section of the help articles.
+        #
+        # For more information about PowerShell providers, see about_Providers (./About/about_Providers.md).
+        [System.String] $Path,
+
+        # Displays help only for items in the specified category and their aliases. Conceptual articles are in the HelpFile category.
+        [ValidateSet('Alias','Cmdlet','Provider','General','FAQ','Glossary','HelpFile','ScriptCommand','Function','Filter','ExternalScript','All','DefaultHelp','Workflow','DscResource','Class','Configuration')]
+        [System.String[]] $Category,
+
+        # Displays commands with the specified component value, such as Exchange . Enter a component name. Wildcard characters are per mitted. This parameter has no effect on displays of conceptual ( About_ ) help.
+        [System.String[]] $Component,
+
+        # Displays help for items with the specified functionality. Enter the functionality. Wildcard characters are permitted. This parameter has no effect on displays of conceptual ( About_ ) help.
+        [System.String[]] $Functionality,
+
+        # Displays help customized for the specified user role. Enter a role. Wildcard characters are permitted.
+        #
+        # Enter the role that the user plays in an organization. Some cmdlets display different text in their help files based on the value of this parameter. This parameter has no effect on help for the core cmdlets.
+        [System.String[]] $Role,
+
+        # Adds parameter descriptions and examples to the basic help display. This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
+        #
+        # In fact in script pomoc.ps1 this parameter is ignored. Always full info is displayed.
+        [Parameter(ParameterSetName='DetailedView', Mandatory=$true)]
+        [System.Management.Automation.SwitchParameter] ${Detailed},
+
+        # Displays the entire help article for a cmdlet. Full includes parameter descriptions and attributes, examples, input and output object types, and additional notes.
+        #
+        # This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
+        #
+        # In fact in script pomoc.ps1 this parameter is ignored. Always full info is displayed.
+        [Parameter(ParameterSetName='AllUsersView')]
+        [System.Management.Automation.SwitchParameter] $Full,
+
+        # Displays only the name, synopsis, and examples. To display only the examples, type `(Get-Help <cmdlet-name>).Examples`.
+        #
+        # This parameter is effective only when the help files are installed on the computer. It has no effect on displays of conceptual ( About_ ) help.
+        #
+        # In fact in script pomoc.ps1 this parameter is ignored. Always full info is displayed.
+        [Parameter(ParameterSetName='Examples', Mandatory=$true)]
+        [System.Management.Automation.SwitchParameter] $Examples,
+
+        # Displays only the detailed descriptions of the specified parameters. Wildcards are permitted. This parameter has no effect on displays of conceptual ( About_ ) help.
+        [Parameter(ParameterSetName='Parameters', Mandatory=$true)]
+        [System.String] $Parameter,
+
+        # Displays the online version of a help article in the default browser. This parameter is valid only for cmdlet, function, workflow, and script help articles. You can't use the Online parameter with `Get-Help` in a remote session.
+        #
+        # For information about supporting this feature in help articles that you write, see about_Comment_Based_Help (./About/about_Comment_Based_Help.md), and Supporting Online Help (/powershell/scripting/developer/module/supporting-online-help), and Writing Help for PowerShell Cmdlets (/powershell/scripting/developer/help/writing-help-for-windows-powershell-cmdlets).
+        [Parameter(ParameterSetName='Online', Mandatory=$true)]
+        [System.Management.Automation.SwitchParameter] $Online,
+
+        # Displays the help topic in a window for easier reading. The window includes a Find search feature and a Settings box that lets you set options for the display, including options to display only selected sections of a help topic.
+        #
+        # The ShowWindow parameter supports help topics for commands (cmdlets, functions, CIM commands, workflows, scripts) and conceptual About articles. It does not support provider help.
+        #
+        # This parameter was introduced in PowerShell 3.0.
+        [Parameter(ParameterSetName='ShowWindow', Mandatory=$true)]
+        [System.Management.Automation.SwitchParameter] $ShowWindow,
+
+        # Specifies the number of characters in each line of output. If this parameter is not used, the width is determined by the characteristics of the host. The default for the PowerShell console is 80 characters.
+        #
+        [Parameter(Mandatory=$false)]
+        [System.Int32] $Width,
+
+        # Rescan help files. This is required when there are added new or newer help files
+        [Parameter(Mandatory=$false)]
+        [System.Management.Automation.SwitchParameter] $Rescan
+    )
 
 
     #==========================================================
@@ -179,7 +274,7 @@ function Main
     #==========================================================
     # Parsing about*.txt HelpFile
     #==========================================================
-    
+
     ###########################
     # function CleanParagraph #
     ###########################
@@ -213,7 +308,7 @@ function Main
         param (
             [System.Collections.Hashtable] $Item
         )
-    
+
 
         ##############################
         # function AddNavigationLink #
@@ -221,8 +316,8 @@ function Main
         function AddNavigationLink
         {
             param (
-                [System.Xml.XmlDocument] $XML, 
-                [System.Xml.XmlElement] $Parent,
+                [System.Xml.XmlDocument] $XML,
+                [System.Xml.XmlElement] $ParentNode,
                 [System.String] $Line
             )
 
@@ -267,17 +362,17 @@ function Main
                 $Text = $Line
                 $Url = ''
             }
-            if (($Url -ne '') -and ($Text -eq '') -and ($Parent.LastChild -ne $null) -and ($Parent.LastChild.uri -eq ''))
+            if (($Url -ne '') -and ($Text -eq '') -and ($null -ne $ParentNode.LastChild) -and ($ParentNode.LastChild.uri -eq ''))
             {
                 # LinkText and uri are splitted into two lines, so add uri
                 # to the previous navigationLink
-                $Parent.LastChild.ChildNodes[1].Set_innerText($Url)
+                $ParentNode.LastChild.ChildNodes[1].Set_innerText($Url)
             }
             else
             {
                 # Create navigationLink link elements with two children: linkText and uri.
                 # Set values of both children to $Text and $Url
-                $NavigationLink = $Parent.AppendChild($XML.CreateElement('navigationLink'))
+                $NavigationLink = $ParentNode.AppendChild($XML.CreateElement('navigationLink'))
                 $LinkText = $NavigationLink.AppendChild($XML.CreateElement('LinkText'))
                 $LinkText.Set_innerText($Text)
                 $Uri = $NavigationLink.AppendChild($XML.CreateElement('uri'))
@@ -315,7 +410,7 @@ function Main
             }
         }   # function AddLinesToRelatedLinks #
             ###################################
-        
+
 
         ###############################
         # function AddLinesToNewChild #
@@ -323,8 +418,8 @@ function Main
         function AddLinesToNewChild
         {
             param (
-                [System.Xml.XmlDocument] $XML, 
-                [System.Xml.XmlElement] $Parent, 
+                [System.Xml.XmlDocument] $XML,
+                [System.Xml.XmlElement] $ParentNode,
                 [System.String] $ChildName,
                 [System.Int32] $SkipLines,
                 [System.String] $Paragraph
@@ -347,7 +442,7 @@ function Main
             {
                 $Paragraph = $Paragraph.Replace("`n", ' ')
             }
-            $Child = $Parent.AppendChild($XML.CreateElement($ChildName))
+            $Child = $ParentNode.AppendChild($XML.CreateElement($ChildName))
             $Child.Set_innerText($Paragraph)
         }   # function AddLinesToNewChild #
             ###############################
@@ -375,18 +470,18 @@ function Main
                     [System.String] $Paragraph
                 )
 
-                ####################################    
+                ####################################
                 # function AddDescriptionParagraph #
 
                 $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
-                if ($Description -eq $null)
+                if ($null -eq $Description)
                 {
                     # There was no LONG DESCRIPTION header in file
                     $Description = $Command.AppendChild($XML.CreateElement('description'))
                 }
                 AddLinesToNewChild $XML $Description 'para' 0 $Paragraph
             }   # function AddDescriptionParagraph #
-                ####################################    
+                ####################################
 
 
             ##################################
@@ -408,7 +503,7 @@ function Main
                     $Alert = (Select-XML -Xml $XML -XPath '/helpItems/command/alertSet/alert').Node
                     AddLinesToNewChild $XML $Alert 'para' 0 $Paragraph
                 }
-                elseif ($Item.CurrentExtraSectionNode -ne $null)
+                elseif ($null -ne $Item.CurrentExtraSectionNode)
                 {
                     AddLinesToNewChild $XML $Item.CurrentExtraSectionNode 'para' 0 $Paragraph
                 }
@@ -419,7 +514,7 @@ function Main
             }   # function StoreRegularparagraph #
                 ##################################
 
-        
+
             ################################
             # function ExtraSectionHeading #
             ################################
@@ -433,7 +528,7 @@ function Main
                 # function ExtraSectionHeading #
 
                 if (($Paragraph.IndexOf("`n") -ne -1) -or
-                    ($Paragraph.Trim().Length -eq 0)) 
+                    ($Paragraph.Trim().Length -eq 0))
                 {
                     return ''
                 }
@@ -458,7 +553,7 @@ function Main
                 return $Paragraph
             }   # function ExtraSectionHeading #
                 ################################
-        
+
 
             ##################################
             # function ParseRegularParagraph #
@@ -470,14 +565,14 @@ function Main
                  ($_ -eq 'SYNOPSIS')}
                     {
                         $Details = (Select-XML -Xml $XML -XPath '/helpItems/command/details').Node
-                        if ($Details -eq $null)
+                        if ($null -eq $Details)
                         {
                             # There was no TOPIC nor item name. Put name into XML.
                             $Details = $Command.AppendChild($XML.CreateElement('details'))
                             $Name = $Details.AppendChild($XML.CreateElement('name'))
                             $Name.Set_innerText($Item.DisplayName)
                         }
-                        if ($XML.helpItems.command.details.description -eq $null)
+                        if ($null -eq $XML.helpItems.command.details.description)
                         {
                             # The synopsis was separated with empty line from SHORT DESCRIPTION.
                             $Description = $Details.AppendChild($XML.CreateElement('description'))
@@ -595,7 +690,7 @@ function Main
         # Convert file name into help item name
         $Item.DisplayName = $Item.Name.Replace('_', ' ')
         $Item.DisplayName = ToCamelCase $Item.DisplayName
-    
+
 
         # parse paragraphs converting them into MAML like XML object
         #----------------------------------------------------------=
@@ -639,7 +734,7 @@ function Main
                             ParseRegularParagraph $Item $XML $Paragraph
                             break
                         }
-                        if ($XML.helpItems.command.details -eq $null)
+                        if ($null -eq $XML.helpItems.command.details)
                         {
                             # There was no TOPIC nor item name. Put name into XML.
                             $Details = $Command.AppendChild($XML.CreateElement('details'))
@@ -732,9 +827,9 @@ function Main
         # function AddItem #
 
         Write-Verbose ("Adding Item "+$Item.Name)
-        if ($HelpInfo.ItemIndex[$Item.Name] -eq $null)
+        if ($null -eq $HelpInfo.ItemIndex[$Item.Name])
         {
-            if ($Work.Functions[$Item.Name] -ne $null)
+            if ($null -ne $Work.Functions[$Item.Name])
             {
                 $Item.Category = 'Function'
                 if ($MarkFunc)
@@ -748,7 +843,7 @@ function Main
     }   # function AddItem #
         ####################
 
-    
+
     ##########################
     # function FindHelpFiles #
     ##########################
@@ -779,7 +874,7 @@ function Main
                     [System.String] $Path
                 )
 
-            
+
                 ##################################
                 # function GetModuleAndOnlineURI #
                 ##################################
@@ -789,7 +884,7 @@ function Main
                         [System.String] $Name,
                         [System.String] $ModuleName
                     )
-                
+
                     $TxtHelpFileModule = @{
                         'about_ActivityCommonParameters'       = 'PSWorkflow';
                         'about_Certificate_Provider'           = 'Microsoft.PowerShell.Security';
@@ -820,7 +915,7 @@ function Main
 
                     ##################################
                     # function GetModuleAndOnlineURI #
-                    
+
                     $URI = ''
                     if ($ModuleName -eq '')
                     {
@@ -863,6 +958,14 @@ function Main
                 $Files = (Get-ChildItem $Path\*.help.txt).Name
                 if ($Files.Count -gt 0)
                 {
+                    if ($ModuleName -eq '')
+                    {
+                        Write-Verbose "Checking txt HelpFiles in PSHOME"
+                    }
+                    else
+                    {
+                        Write-Verbose "Checking txt HelpFiles in module $ModuleName"
+                    }
                     foreach ($File in $Files)
                     {
                         $Name = $File -replace '.help.txt',''
@@ -921,9 +1024,9 @@ function Main
                     # function CheckXMLFile #
 
                     $XML = [System.Xml.XmlDocument](Get-Content "$Path\$File")
-                    if ($XML.helpItems -ne $null)
+                    if ($null -ne $XML.helpItems)
                     {
-                        if ($XML.helpItems.command -ne $null)
+                        if ($null -ne $XML.helpItems.command)
                         {
                             if (($XML.helpItems.command).GetType().Name -eq "Object[]")
                             {
@@ -931,13 +1034,13 @@ function Main
                                 {
                                     $command = ($XML.helpItems.command)[$Index]
                                     $Category = 'Cmdlet'
-                                    if ($LocalFuncs[$command.details.name] -ne $null)
+                                    if ($null -ne $LocalFuncs[$command.details.name])
                                     {
                                         $Category = 'Function'
                                         $LocalFuncs[$command.details.name] = $null
                                     }
                                     $CmdInfo = Get-Command -Name $command.details.name -ErrorAction SilentlyContinue
-                                    if ($CmdInfo -ne $null)
+                                    if ($null -ne $CmdInfo)
                                     {
                                         $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
                                     }
@@ -964,10 +1067,10 @@ function Main
                     }
                     foreach ($Function in $LocalFuncs.keys)
                     {
-                        if ($LocalFuncs[$Function] -ne $null)
+                        if ($null -ne $LocalFuncs[$Function])
                         {
                             $CmdInfo = Get-Command -Name $Function -ErrorAction SilentlyContinue
-                            if ($CmdInfo -ne $null)
+                            if ($null -ne $CmdInfo)
                             {
                                 $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
                             }
@@ -1001,8 +1104,16 @@ function Main
                 {
                     return
                 }
+                if ($ModuleName -eq '')
+                {
+                    Write-Verbose "Checking xml HelpFiles in PSHOME"
+                }
+                else
+                {
+                    Write-Verbose "Checking xml HelpFiles in module $ModuleName"
+                }
                 $LocalFuncs = @{}
-                if ($LocalFunctions -ne $null)
+                if ($null -ne $LocalFunctions)
                 {
                     for ($i = 0; $i -lt $LocalFunctions.Count; $i++)
                     {
@@ -1041,12 +1152,13 @@ function Main
             }   # function CheckXmlHelpFiles #
                 ##############################
 
-            
+
             ########################
             # function CheckModule #
 
             if ($ModuleName -ne '')
             {
+                Write-Verbose "Checking module $ModuleName"
                 $Path = "$Path\$ModuleName"
             }
             if ($Version -ne '')
@@ -1102,7 +1214,7 @@ function Main
         # Search for help files in PowerShell Home directory
 
         CheckModule $PSHOME
-        
+
         #----------------------------------------------------------
         # Search for help files in module directories
 
@@ -1135,13 +1247,13 @@ function Main
 
         #----------------------------------------------------------
         # Add help items for aliases
-        
-        Get-ChildItem alias: | 
+
+        Get-ChildItem alias: |
             ForEach-Object `
             {
                 # Alias  $_.Name  ->  $_.Definition
                 #
-                if ($HelpInfo.ItemIndex[$_.Definition] -ne $null)
+                if ($null -ne $HelpInfo.ItemIndex[$_.Definition])
                 {
                     # Aliases for which we have already regular items
                     $Item = $HelpInfo.Items[$HelpInfo.ItemIndex[$_.Definition]]
@@ -1184,10 +1296,10 @@ function Main
 
         foreach ($Function in $Work.Functions.keys)
         {
-            if ($Work.Functions[$Function] -ne $null)
+            if ($null -ne $Work.Functions[$Function])
             {
                 $CmdInfo = Get-Command -Name $Function -ErrorAction SilentlyContinue
-                if ($CmdInfo -ne $null)
+                if ($null -ne $CmdInfo)
                 {
                     $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
                 }
@@ -1214,7 +1326,7 @@ function Main
     }   # function FindHelpFiles #
         ##########################
 
-        
+
     #==========================================================
     # Displaying stuff
     #==========================================================
@@ -1226,12 +1338,12 @@ function Main
     {
         param (
             [System.Collections.Hashtable] $Item,
-            [System.Xml.XmlElement] $command
+            [System.Xml.XmlElement] $CommandNode
         )
 
 
         ###########################
-        # function BuildLinkValue #    
+        # function BuildLinkValue #
         ###########################
         function BuildLinkValue
         {
@@ -1253,7 +1365,7 @@ function Main
             else
             {
                 $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
-                if ($HelpInfo.ItemIndex[$LinkText] -ne $null)
+                if ($null -ne $HelpInfo.ItemIndex[$LinkText])
                 {
                     $URI = $HelpInfo.ItemIndex[$LinkText]
                 }
@@ -1289,7 +1401,7 @@ function Main
         #############################
         function DisplayParagraph
         {
-            param ( 
+            param (
                 [System.Int32] $IndentLevel,
                 [System.String] $Format,
                 [System.String] $Text = '',
@@ -1413,7 +1525,7 @@ function Main
         }   # function DisplayParagraph #
             #############################
 
-    
+
         ##########################################
         # function DisplayCollectionOfParagraphs #
         ##########################################
@@ -1426,21 +1538,21 @@ function Main
                 [System.Boolean] $WasColon = $false
             )
 
-    
+
             #################################
             # function ExtractParagraphText #
             #################################
             function ExtractParagraphText
             {
                 param (
-                    [System.Xml.XmlElement] $Para
+                    [System.Xml.XmlElement] $ParaNode
                 )
 
                 #################################
                 # function ExtractParagraphText #
 
                 $Text = ''
-                foreach ($Child in $Para.ChildNodes)
+                foreach ($Child in $ParaNode.ChildNodes)
                 {
                     switch ($Child.GetType())
                     {
@@ -1472,61 +1584,65 @@ function Main
             }
             #$WasColon = $false
             $DisplayedLines = 0
-            foreach ($Para in $collection)
+            foreach ($ParaNode in $collection)
             {
-                if ($Para.GetType().FullName -eq 'System.Xml.XmlElement')
+                if ($ParaNode.GetType().FullName -eq 'System.Xml.XmlElement')
                 {
                     # This is a temporary solution. In target version we will need reverse operation:
                     # gues the links even wen they are not fully tagged.
-                    $Para = ExtractParagraphText $Para
+                    $Paragraph = ExtractParagraphText $ParaNode
                 }
-                if ($Para.Length -eq 0)
+                else
+                {
+                    $Paragraph = $ParaNode
+                }
+                if ($Paragraph.Length -eq 0)
                 {
                     continue
                 }
-                if ($Para.IndexOf("`n") -ne -1)
+                if ($Paragraph.IndexOf("`n") -ne -1)
                 {
                     # Instead of $WasColon there should be used info about colon in last paragraph
-                    DisplayCollectionOfParagraphs $IndentLevel ($Para.Split("`n")) 'Displayed' $WasColon
+                    DisplayCollectionOfParagraphs $IndentLevel ($Paragraph.Split("`n")) 'Displayed' $WasColon
                     $DisplayedLines += $Displayed
                 }
                 else
                 {
-                    $Para = $Para.TrimEnd()
+                    $Paragraph = $Paragraph.TrimEnd()
                     if (-not $WasColon)
                     {
-                        if ($Para.Substring($Para.Length-1, 1) -eq ':')
+                        if ($Paragraph.Substring($Paragraph.Length-1, 1) -eq ':')
                         {
                             # List heading paragraph
                             $WasColon = $true
-                            DisplayParagraph $IndentLevel comppara $Para 'Displayed'
+                            DisplayParagraph $IndentLevel comppara $Paragraph 'Displayed'
                             $DisplayedLines += $Displayed
                         }
                         else
                         {
                             # Regular paragraph
-                            DisplayParagraph $IndentLevel para $Para 'Displayed'
+                            DisplayParagraph $IndentLevel para $Paragraph 'Displayed'
                             $DisplayedLines += $Displayed
                         }
                     }
                     else
                     {
-                        if ($Para.Substring(0, 2) -eq '- ')
+                        if ($Paragraph.Substring(0, 2) -eq '- ')
                         {
                             # List item
-                            DisplayParagraph $IndentLevel listpara $Para 'Displayed'
+                            DisplayParagraph $IndentLevel listpara $Paragraph 'Displayed'
                             $DisplayedLines += $Displayed
                         }
-                        elseif ($Para.Substring(0, 2) -eq '-- ')
+                        elseif ($Paragraph.Substring(0, 2) -eq '-- ')
                         {
                             # List item
-                            DisplayParagraph $IndentLevel listpara ('- '+$Para.Substring(3)) 'Displayed'
+                            DisplayParagraph $IndentLevel listpara ('- '+$Paragraph.Substring(3)) 'Displayed'
                             $DisplayedLines += $Displayed
                         }
-                        elseif ($Para.Substring(0, 2) -eq '--')
+                        elseif ($Paragraph.Substring(0, 2) -eq '--')
                         {
                             # List item
-                            DisplayParagraph $IndentLevel listpara ('- '+$Para.Substring(2)) 'Displayed'
+                            DisplayParagraph $IndentLevel listpara ('- '+$Paragraph.Substring(2)) 'Displayed'
                             $DisplayedLines += $Displayed
                         }
                         else
@@ -1536,7 +1652,7 @@ function Main
                             $DisplayedLines += 1
                             $WasColon = $false
                             # Regular paragraph
-                            DisplayParagraph $IndentLevel para $Para 'Displayed'
+                            DisplayParagraph $IndentLevel para $Paragraph 'Displayed'
                             $DisplayedLines += $Displayed
                         }
                     }
@@ -1568,33 +1684,33 @@ function Main
             ################################
             # function DisplaySingleSyntax #
 
-            $Para = $syntaxItem.name
+            $Paragraph = $syntaxItem.name
             #----------------------------------------------------------
             # Regular parameters
-            foreach ($parameter in $syntaxItem.parameter)
+            foreach ($ParamNode in $syntaxItem.parameter)
             {
-                $Required = $parameter.required -eq 'true'
-                $Position = $parameter.position -ne 'named'
-                $Para += ' '
+                $Required = $ParamNode.required -eq 'true'
+                $Position = $ParamNode.position -ne 'named'
+                $Paragraph += ' '
                 if (-not $Required)
                 {
-                    $Para += '['
+                    $Paragraph += '['
                 }
                 if ($Position)
                 {
-                    $Para += '['
+                    $Paragraph += '['
                 }
-                $Para += '-'+$parameter.name
+                $Paragraph += '-'+$ParamNode.name
                 if ($Position)
                 {
-                    $Para += ']'
+                    $Paragraph += ']'
                 }
                 $TypeName = ''
-                if ($parameter.parameterValueGroup -ne $null)
+                if ($null -ne $ParamNode.parameterValueGroup)
                 {
-                    if ($parameter.parameterValueGroup.parameterValue.Count -gt 0)
+                    if ($ParamNode.parameterValueGroup.parameterValue.Count -gt 0)
                     {
-                        foreach ($Value in $parameter.parameterValueGroup.parameterValue)
+                        foreach ($Value in $ParamNode.parameterValueGroup.parameterValue)
                         {
                             if ($TypeName -eq '')
                             {
@@ -1608,32 +1724,32 @@ function Main
                         $TypeName += '}'
                     }
                 }
-                if (($TypeName -eq '') -and ($parameter.parameterValue.FirstChild.InnerText -ne $null))
+                if (($TypeName -eq '') -and ($null -ne $ParamNode.parameterValue.FirstChild.InnerText))
                 {
-                    $TypeName = '<'+$parameter.parameterValue.FirstChild.InnerText+'>'
+                    $TypeName = '<'+$ParamNode.parameterValue.FirstChild.InnerText+'>'
                 }
-                if (($TypeName -eq '') -and ($parameter.type.name -ne $null))
+                if (($TypeName -eq '') -and ($null -ne $ParamNode.type.name))
                 {
-                    $TypeName = '<'+$parameter.type.name+'>'
+                    $TypeName = '<'+$ParamNode.type.name+'>'
                 }
                 if (($TypeName -ne '<System.Management.Automation.SwitchParameter>') -and
                     ($TypeName -ne '<SwitchParameter>') -and
-                    ($TypeName -ne '') -and ($TypeName -ne $null))
+                    ($TypeName -ne '') -and ($null -ne $TypeName))
                 {
-                    $Para += ' '+$TypeName
+                    $Paragraph += ' '+$TypeName
                 }
                 if (-not $Required)
                 {
-                    $Para += ']'
+                    $Paragraph += ']'
                 }
             }
             #----------------------------------------------------------
             # Common parameters
             if ($CommonParameters)
             {
-                $Para += ' [<CommonParameters>]'
+                $Paragraph += ' [<CommonParameters>]'
             }
-            DisplayParagraph 1 hangpara $Para
+            DisplayParagraph 1 hangpara $Paragraph
         }   # function DisplaySingleSyntax #
             ################################
 
@@ -1643,22 +1759,22 @@ function Main
         function DisplaySingleParameter
         {
             param (
-                [System.Xml.XmlElement] $Parameter
+                [System.Xml.XmlElement] $ParamNode
             )
 
             ###################################
             # function DisplaySingleParameter #
 
-            $Required = $Parameter.required
-            $Position = $Parameter.position
-            $DefVal = $Parameter.defaultValue
-            $PipelineInput = $Parameter.pipelineInput
-            $Globbing = $Parameter.globbing
-            $Aliases = $Parameter.aliases
+            $Required = $ParamNode.required
+            $Position = $ParamNode.position
+            $DefVal = $ParamNode.defaultValue
+            $PipelineInput = $ParamNode.pipelineInput
+            $Globbing = $ParamNode.globbing
+            $Aliases = $ParamNode.aliases
 
-            DisplayParagraph 1 comppara ('-'+$Parameter.name+' <'+$Parameter.type.name+'>')
+            DisplayParagraph 1 comppara ('-'+$ParamNode.name+' <'+$ParamNode.type.name+'>')
 
-            DisplayCollectionOfParagraphs 2 $Parameter.Description.para
+            DisplayCollectionOfParagraphs 2 $ParamNode.Description.para
 
             DisplayParagraph 2 code "Required?                    $Required"
             DisplayParagraph 2 code "Position?                    $Position"
@@ -1702,36 +1818,36 @@ function Main
         #----------------------------------------------------------
         # Section NAME
         DisplayParagraph 0 sect "NAME"
-        DisplayParagraph 1 para $command.details.name
+        DisplayParagraph 1 para $CommandNode.details.name
 
         #----------------------------------------------------------
         # Section SYNOPSIS
         DisplayParagraph 0 sect "SYNOPSIS"
-        DisplayParagraph 1 para $command.details.description.para
+        DisplayParagraph 1 para $CommandNode.details.description.para
 
         #----------------------------------------------------------
         # Section SYNTAX
-        if (($command.syntax -ne $null) -and
-            ($command.syntax.syntaxItem -ne $null))
+        if (($null -ne $CommandNode.syntax) -and
+            ($null -ne $CommandNode.syntax.syntaxItem))
         {
             DisplayParagraph 0 sect "SYNTAX"
 
-            if ($command.syntax.syntaxItem.Count -ne 0)
+            if ($CommandNode.syntax.syntaxItem.Count -ne 0)
             {
-                foreach ($syntaxItem in $command.syntax.syntaxItem)
+                foreach ($syntaxItem in $CommandNode.syntax.syntaxItem)
                 {
                     DisplaySingleSyntax $syntaxItem $Item.CommonParameters
                 }
             }
             else
             {
-                DisplaySingleSyntax $command.syntax.syntaxItem $Item.CommonParameters
+                DisplaySingleSyntax $CommandNode.syntax.syntaxItem $Item.CommonParameters
             }
         }
 
         #----------------------------------------------------------
         # Section ALIASES
-        if (($Item.Aliases -ne $null) -and ($Item.Aliases.Count -gt 0))
+        if (($null -ne $Item.Aliases) -and ($Item.Aliases.Count -gt 0))
         {
             DisplayParagraph 0 sect "ALIASES"
             $Paragraph = ''
@@ -1751,16 +1867,16 @@ function Main
 
         #----------------------------------------------------------
         # Section DESCRIPTION
-        if ($command.description.para.Count -gt 0)
+        if ($CommandNode.description.para.Count -gt 0)
         {
             DisplayParagraph 0 sect "DESCRIPTION"
-            DisplayCollectionOfParagraphs 1 $command.description.para
+            DisplayCollectionOfParagraphs 1 $CommandNode.description.para
         }
-        if ($command.description.section -ne $null)
+        if ($null -ne $CommandNode.description.section)
         {
-            if ($command.description.section.Count -gt 1)
+            if ($CommandNode.description.section.Count -gt 1)
             {
-                foreach ($Section in $command.description.section)
+                foreach ($Section in $CommandNode.description.section)
                 {
                     DisplayParagraph 0 'subsect' $Section.name
                     DisplayCollectionOfParagraphs 1 $Section.para
@@ -1768,29 +1884,29 @@ function Main
             }
             else
             {
-                DisplayParagraph 0 'subsect' $command.description.section.name
-                DisplayCollectionOfParagraphs 1 $command.description.section.para
+                DisplayParagraph 0 'subsect' $CommandNode.description.section.name
+                DisplayCollectionOfParagraphs 1 $CommandNode.description.section.para
             }
         }
-    
+
         #----------------------------------------------------------
         # Section PARAMETERS
         $HeaderDisplayed = $false
-        if (($command.parameters -ne $null) -and
-            ($command.parameters.parameter -ne $null))
+        if (($null -ne $CommandNode.parameters) -and
+            ($null -ne $CommandNode.parameters.parameter))
         {
             DisplayParagraph 0 sect "PARAMETERS"
             $HeaderDisplayed = $true
-            if ($command.parameters.parameter.Count -ne 0)
+            if ($CommandNode.parameters.parameter.Count -ne 0)
             {
-                foreach ($Parameter in $command.parameters.parameter)
+                foreach ($ParamNode in $CommandNode.parameters.parameter)
                 {
-                    DisplaySingleParameter $Parameter
+                    DisplaySingleParameter $ParamNode
                 }
             }
             else
             {
-                DisplaySingleParameter $command.parameters.parameter
+                DisplaySingleParameter $CommandNode.parameters.parameter
             }
         }
         if ($Item.CommonParameters)
@@ -1810,13 +1926,13 @@ function Main
 
         #----------------------------------------------------------
         # Section INPUTS
-        if (($command.InputTypes -ne $null) -and
-            ($command.InputTypes.InputType -ne $null))
+        if (($null -ne $CommandNode.InputTypes) -and
+            ($null -ne $CommandNode.InputTypes.InputType))
         {
-            if ($command.InputTypes.InputType.Count -ne $null)
+            if ($null -ne $CommandNode.InputTypes.InputType.Count)
             {
                 DisplayParagraph 0 sect "INPUTS"
-                foreach ($InputType in $command.InputTypes.InputType)
+                foreach ($InputType in $CommandNode.InputTypes.InputType)
                 {
                     DisplayParagraph 1 comppara $InputType.type.name
                     DisplayCollectionOfParagraphs 2 $InputType.description.para 'DisplayedLines'
@@ -1828,12 +1944,12 @@ function Main
             }
             else
             {
-                if ((([String]$command.InputTypes.InputType.type.name) -ne '') -or
-                    (([String]$command.InputTypes.InputType.description.para) -ne ''))
+                if ((([String]$CommandNode.InputTypes.InputType.type.name) -ne '') -or
+                    (([String]$CommandNode.InputTypes.InputType.description.para) -ne ''))
                 {
                     DisplayParagraph 0 sect "INPUTS"
-                    DisplayParagraph 1 comppara $command.InputTypes.InputType.type.name
-                    DisplayCollectionOfParagraphs 2 $command.InputTypes.InputType.description.para 'DisplayedLines'
+                    DisplayParagraph 1 comppara $CommandNode.InputTypes.InputType.type.name
+                    DisplayCollectionOfParagraphs 2 $CommandNode.InputTypes.InputType.description.para 'DisplayedLines'
                     if ($DisplayedLines -eq 0)
                     {
                         DisplayParagraph 2 empty
@@ -1844,13 +1960,13 @@ function Main
 
         #----------------------------------------------------------
         # Section OUTPUTS
-        if (($command.returnValues -ne $null) -and
-            ($command.returnValues.returnValue -ne $null))
+        if (($null -ne $CommandNode.returnValues) -and
+            ($null -ne $CommandNode.returnValues.returnValue))
         {
-            if ($command.returnValues.returnValue.Count -ne $null)
+            if ($null -ne $CommandNode.returnValues.returnValue.Count)
             {
                 DisplayParagraph 0 sect "OUTPUTS"
-                foreach ($returnValue in $command.returnValues.returnValue)
+                foreach ($returnValue in $CommandNode.returnValues.returnValue)
                 {
                     DisplayParagraph 1 comppara $returnValue.type.name
                     DisplayCollectionOfParagraphs 2 $returnValue.description.para 'DisplayedLines'
@@ -1862,12 +1978,12 @@ function Main
             }
             else
             {
-                if ((([String]$command.returnValues.returnValue.type.name) -ne '') -or
-                    (([String]$command.returnValues.returnValue.description.para) -ne ''))
+                if ((([String]$CommandNode.returnValues.returnValue.type.name) -ne '') -or
+                    (([String]$CommandNode.returnValues.returnValue.description.para) -ne ''))
                 {
                     DisplayParagraph 0 sect "OUTPUTS"
-                    DisplayParagraph 1 comppara $command.returnValues.returnValue.type.name
-                    DisplayCollectionOfParagraphs 2 $command.returnValues.returnValue.description.para 'DisplayedLines'
+                    DisplayParagraph 1 comppara $CommandNode.returnValues.returnValue.type.name
+                    DisplayCollectionOfParagraphs 2 $CommandNode.returnValues.returnValue.description.para 'DisplayedLines'
                     if ($DisplayedLines -eq 0)
                     {
                         DisplayParagraph 2 empty
@@ -1875,48 +1991,48 @@ function Main
                 }
             }
         }
-    
+
         #----------------------------------------------------------
         # Section NOTES
-        if (($command.alertSet -ne $null) -and
-            ($command.alertSet.alert -ne $null) -and
-            ($command.alertSet.alert.para.Count -ne 0) -and
-            ($command.alertSet.alert.para[0] -ne $null))
+        if (($null -ne $CommandNode.alertSet) -and
+            ($null -ne $CommandNode.alertSet.alert) -and
+            ($CommandNode.alertSet.alert.para.Count -ne 0) -and
+            ($null -ne $CommandNode.alertSet.alert.para[0]))
         {
             DisplayParagraph 0 sect "NOTES"
-            DisplayCollectionOfParagraphs 1 $command.alertSet.alert.para
+            DisplayCollectionOfParagraphs 1 $CommandNode.alertSet.alert.para
         }
 
         #----------------------------------------------------------
         # Section EXAMPLES
-        if (($command.examples -ne $null) -and
-            ($command.examples.example -ne $null))
+        if (($null -ne $CommandNode.examples) -and
+            ($null -ne $CommandNode.examples.example))
         {
             DisplayParagraph 0 sect "EXAMPLES"
-            if ($command.examples.example.Count -ne 0)
+            if ($CommandNode.examples.example.Count -ne 0)
             {
-                foreach ($Example in $command.examples.example)
+                foreach ($Example in $CommandNode.examples.example)
                 {
                     DisplaySingleExample $Example
                 }
             }
             else
             {
-                DisplaySingleExample $command.examples.example
+                DisplaySingleExample $CommandNode.examples.example
             }
         }
 
         #----------------------------------------------------------
         # Section RELATED LINKS
-        if (($command.relatedLinks -ne $null) -and
-            ($command.relatedLinks.navigationLink -ne $null))
+        if (($null -ne $CommandNode.relatedLinks) -and
+            ($null -ne $CommandNode.relatedLinks.navigationLink))
         {
             DisplayParagraph 0 sect "RELATED LINKS"
             $Links = @()
-            if (($command.relatedLinks.navigationLink -is [System.Object[]]) -and
-                ($command.relatedLinks.navigationLink.Count -gt 0))
+            if (($CommandNode.relatedLinks.navigationLink -is [System.Object[]]) -and
+                ($CommandNode.relatedLinks.navigationLink.Count -gt 0))
             {
-                foreach ($NavigationLink in $command.relatedLinks.navigationLink)
+                foreach ($NavigationLink in $CommandNode.relatedLinks.navigationLink)
                 {
                     $LinkValue = BuildLinkValue $NavigationLink.linkText $NavigationLink.uri
                     $Links += @('* '+$LinkValue)
@@ -1924,7 +2040,7 @@ function Main
             }
             else
             {
-                $LinkValue = BuildLinkValue $command.relatedLinks.navigationLink.linkText $command.relatedLinks.navigationLink.uri
+                $LinkValue = BuildLinkValue $CommandNode.relatedLinks.navigationLink.linkText $CommandNode.relatedLinks.navigationLink.uri
                 $Links += @('* '+$LinkValue)
             }
             DisplayCollectionOfParagraphs 1 $Links
@@ -1941,7 +2057,7 @@ function Main
     }   # function DisplayXmlHelpFile #
         ###############################
 
-        
+
     ############################
     # function DisplayHelpItem #
     ############################
@@ -2005,7 +2121,7 @@ function Main
     }
     #----------------------------------------------------------
     # Configuring output colors
-    if ($psISE -eq $null)
+    if ($null -eq $psISE)
     {
         $Esc=[char]0x1B;
         $F_Default = "${Esc}[39m";
@@ -2063,19 +2179,19 @@ function Main
         0
             {
                 $params = @{Name=$Name;Full=$true}
-                if ($Category -ne $null)
+                if ($null -ne $Category)
                 {
                     $params.Category = $Category
                 }
-                if ($Component -ne $null)
+                if ($null -ne $Component)
                 {
                     $params.Component = $Component
                 }
-                if ($Functionality -ne $null)
+                if ($null -ne $Functionality)
                 {
                     $params.Functionality = $Functionality
                 }
-                if ($Role -ne $null)
+                if ($null -ne $Role)
                 {
                     $params.Role = $Role
                 }
@@ -2104,5 +2220,5 @@ function Main
     #################
 
 
-Main
+Main @PSBoundParameters
 
