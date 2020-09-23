@@ -1006,7 +1006,7 @@ function Main
                 function CheckXmlHelpFiles
                 {
                     param (
-                        [System.String[]] $LocalFunctions,
+                        [System.Collections.Hashtable] $LocalCommands,
                         [System.String] $ModuleName,
                         [System.String] $Path,
                         [System.String] $Pattern
@@ -1020,7 +1020,7 @@ function Main
                     function CheckXMLFile
                     {
                         param (
-                            [System.Collections.Hashtable] $LocalFuncs,
+                            [System.Collections.Hashtable] $LocalCommands,
                             [System.String] $ModuleName,
                             [System.String] $Path,
                             [System.String] $File
@@ -1040,10 +1040,10 @@ function Main
                                     {
                                         $command = ($XML.helpItems.command)[$Index]
                                         $Category = 'Cmdlet'
-                                        if ($null -ne $LocalFuncs[$command.details.name])
+                                        if ($null -ne $LocalCommands[$command.details.name])
                                         {
-                                            $Category = 'Function'
-                                            $LocalFuncs[$command.details.name] = $null
+                                            $Category = $LocalCommands[$command.details.name]
+                                            $LocalCommands[$command.details.name] = $null
                                         }
                                         $CmdInfo = Get-Command -Name $command.details.name -ErrorAction SilentlyContinue
                                         if ($null -ne $CmdInfo)
@@ -1071,11 +1071,11 @@ function Main
                                 }
                             }
                         }
-                        foreach ($Function in $LocalFuncs.keys)
+                        foreach ($CommandName in $LocalCommands.keys)
                         {
-                            if ($null -ne $LocalFuncs[$Function])
+                            if ($null -ne $LocalCommands[$CommandName])
                             {
-                                $CmdInfo = Get-Command -Name $Function -ErrorAction SilentlyContinue
+                                $CmdInfo = Get-Command -Name $CommandName -ErrorAction SilentlyContinue
                                 if ($null -ne $CmdInfo)
                                 {
                                     $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
@@ -1084,13 +1084,13 @@ function Main
                                 {
                                     $CommonParameters = $false
                                 }
-                                AddItem $false @{Name = $Function;
+                                AddItem $false @{Name = $CommandName;
                                                  ModuleName = $ModuleName;
                                                  File = '';
                                                  OnlineURI = '';
                                                  Format = '';
                                                  Index = -1;
-                                                 Category = 'Function';
+                                                 Category = $LocalCommands[$CommandName];
                                                  Component = '';
                                                  Functionality = '';
                                                  Role = '';
@@ -1118,14 +1118,6 @@ function Main
                     {
                         Write-Verbose "Checking xml HelpFiles in module $ModuleName"
                     }
-                    $LocalFuncs = @{}
-                    if ($null -ne $LocalFunctions)
-                    {
-                        for ($i = 0; $i -lt $LocalFunctions.Count; $i++)
-                        {
-                            $LocalFuncs[$LocalFunctions[$i]] = 'Function'
-                        }
-                    }
                     $Files = (Get-ChildItem $Path\*$Pattern).Name
                     if ($Files.Count -gt 0)
                     {
@@ -1147,11 +1139,11 @@ function Main
                                             $MN = 'Microsoft.PowerShell.Host'
                                         }
                                 }
-                                CheckXMLFile $LocalFuncs $MN $Path $File
+                                CheckXMLFile $LocalCommands $MN $Path $File
                             }
                             else
                             {
-                                CheckXMLFile $LocalFuncs $ModuleName $Path $File
+                                CheckXMLFile $LocalCommands $ModuleName $Path $File
                             }
                         }
                     }
@@ -1171,13 +1163,37 @@ function Main
                     $Path = "$Path\$Version"
                 }
                 Write-Verbose "Checking module $Path"
-                $LocalFuncs = @()
+                $LocalCommands = @{}
                 if (Test-Path -Path "$Path\$ModuleName.psd1")
                 {
-                    $LocalFuncs = (Import-PowerShellDataFile -Path "$Path\$ModuleName.psd1" -ErrorAction SilentlyContinue).FunctionsToExport
+                    $Info = Import-PowerShellDataFile -Path "$Path\$ModuleName.psd1" -ErrorAction SilentlyContinue
+                    $LocalFunctions = $Info.FunctionsToExport
+                    if ($null -ne $LocalFunctions)
+                    {
+                        foreach ($Function in $LocalFunctions)
+                        {
+                            if (($null -ne $Function) -and ('' -ne $Function))
+                            {
+                                $LocalCommands[$Function] = 'Function'
+                            }
+                        }
+                    }
+                    $LocalCmdlets = $Info.CmdletsToExport
+                    if ($null -ne $LocalCmdlets)
+                    {
+                        foreach ($Cmdlet in $LocalCmdlets)
+                        {
+                            if (($null -ne $Cmdlet) -and ('' -ne $Cmdlet))
+                            {
+                                $LocalCommands[$Cmdlet] = 'Cmdlet'
+                            }
+                        }
+                    }
                 }
+
+
                 CheckTxtHelpFiles $ModuleName "$Path\$PSUICulture"
-                CheckXmlHelpFiles $LocalFuncs $ModuleName "$Path\$PSUICulture" '-help.xml'
+                CheckXmlHelpFiles $LocalCommands $ModuleName "$Path\$PSUICulture" '-help.xml'
             }   # function CheckModule #
                 ########################
 
