@@ -229,6 +229,7 @@ function Main
 
             # Used only during displaying results
             OutputWidth = $Width
+            IndentSize = 4
             Colors = @{};
             }
 
@@ -1425,11 +1426,13 @@ function Main
 
                     # All regular paragraphs displays empty line after it.
                     # All compact paragraphs do not displays empty line after it.
-
-                    # Allowed values for $Format:
+                    #
+                    # Allowed values for $ParagraphType:
                     # 'empty' - empty line
+                    #
                     # 'regular' - regular paragraph
                     # 'hanging' - regular paragraph with all except first line indented one more level
+                    #
                     # 'compact' - compact paragraph, like regular but without empty line after it
                     # 'bulletedlist' - compact paragraph being element of bulleted list, if wrapped then 
                     #                  next lines indented 2 characters
@@ -1438,7 +1441,7 @@ function Main
                     # 'section' - compact paragraph coloured with $Work.Colors.Section
                     # 'subsection' - compact paragraph coloured with $Work.Colors.SubSection
                     # 'extrasection' - compact paragraph coloured with $Work.Colors.ExtraSection
-                    [System.String] $Format,
+                    [System.String] $ParagraphType,
                     [System.String] $Text = '',
                     [System.String] $DisplayedLinesVar = ''
                 )
@@ -1446,19 +1449,34 @@ function Main
                 #############################
                 # function DisplayParagraph #
 
-                $Indent = 4 * $IndentLevel
+                $Indent = $Work.IndentSize * $IndentLevel
                 $TextWidth = $Work.OutputWidth-$Indent
                 if ($Text -eq '')
                 {
-                    $Format = 'empty'
+                    $ParagraphType = 'empty'
+                }
+                if (($ParagraphType -ne 'empty') -and
+                    ($ParagraphType -ne 'regular') -and
+                    ($ParagraphType -ne 'hanging') -and
+                    ($ParagraphType -ne 'compact') -and
+                    ($ParagraphType -ne 'bulletedlist') -and
+                    ($ParagraphType -ne 'table') -and
+                    ($ParagraphType -ne 'code') -and
+                    ($ParagraphType -ne 'section') -and
+                    ($ParagraphType -ne 'subsection') -and
+                    ($ParagraphType -ne 'extrasection'))
+                {
+                    Write-Error "Unknown paragraph type: $_, fallback into regular"
+                    $ParagraphType = 'regular'
                 }
                 $DisplayedLines = 0
-                switch ($Format)
+                switch -wildcard ($ParagraphType)
                 {
                     'empty'
                         {
                             Write-Output ''
                             $DisplayedLines++
+                            break
                         }
                     'code'
                         {
@@ -1474,6 +1492,7 @@ function Main
                             }
                             Write-Output ''
                             $DisplayedLines++
+                            break
                         }
                     'table'
                         {
@@ -1487,26 +1506,57 @@ function Main
                                 Write-Output ((' ' * $Indent)+$Line)
                                 $DisplayedLines++
                             }
+                            break
+                        }
+                    'regular'
+                        {
+                            $Compact = $false
+                            $StartColor = ''
+                            $EndColor = ''
+                        }
+                    'hanging'
+                        {
+                            $Compact = $false
+                            $StartColor = ''
+                            $EndColor = ''
+                        }
+                    'compact'
+                        {
+                            $Compact = $true
+                            $StartColor = ''
+                            $EndColor = ''
+                        }
+                    'bulletedlist'
+                        {
+                            $Compact = $true
+                            $StartColor = ''
+                            $EndColor = ''
                         }
                     'section'
                         {
-                            Write-Output ((' ' * $Indent)+$Work.Colors.Section+$Text+$Work.Colors.Default)
-                            $DisplayedLines++
+                            $Compact = $true
+                            $StartColor = $Work.Colors.Section
+                            $EndColor = $Work.Colors.Default
+                            #Write-Output ((' ' * $Indent)+$Work.Colors.Section+$Text+$Work.Colors.Default)
+                            #$DisplayedLines++
                         }
                     'subsection'
                         {
-                            Write-Output ((' ' * $Indent)+$Work.Colors.SubSection+$Text+$Work.Colors.Default)
-                            $DisplayedLines++
+                            $Compact = $true
+                            $StartColor = $Work.Colors.SubSection
+                            $EndColor = $Work.Colors.Default
+                            #Write-Output ((' ' * $Indent)+$Work.Colors.SubSection+$Text+$Work.Colors.Default)
+                            #$DisplayedLines++
                         }
                     'extrasection'
                         {
-                            Write-Output ((' ' * $Indent)+$Work.Colors.ExtraSection+$Text+$Work.Colors.Default)
-                            $DisplayedLines++
+                            $Compact = $true
+                            $StartColor = $Work.Colors.ExtraSection
+                            $EndColor = $Work.Colors.Default
+                            #Write-Output ((' ' * $Indent)+$Work.Colors.ExtraSection+$Text+$Work.Colors.Default)
+                            #$DisplayedLines++
                         }
-                    {($_ -eq 'regular') -or
-                     ($_ -eq 'hanging') -or
-                     ($_ -eq 'compact') -or
-                     ($_ -eq 'bulletedlist')}
+                    "*"
                         {
                             $Text = $Text.Trim()
                             while ($Text.IndexOf('  ') -ne -1)
@@ -1542,7 +1592,7 @@ function Main
                                         }
                                         else
                                         {
-                                            $TextWidth -= 4
+                                            $TextWidth -= $Work.IndentSize
                                         }
                                     }
                                 }
@@ -1550,7 +1600,7 @@ function Main
                                 $no = 0
                                 foreach ($Line in $Lines)
                                 {
-                                    Write-Output ((' ' * $Indent)+$Line)
+                                    Write-Output ((' ' * $Indent)+$StartColor+$Line+$EndColor)
                                     $DisplayedLines++
                                     $no++
                                     if ((($_ -eq 'hanging') -or ($_ -eq 'bulletedlist')) -and ($no -eq 1))
@@ -1561,20 +1611,16 @@ function Main
                                         }
                                         else
                                         {
-                                            $Indent += 4
+                                            $Indent += $Work.IndentSize
                                         }
                                     }
                                 }
                             }
-                            if (($_ -ne 'compact') -and ($_ -ne 'bulletedlist'))
+                            if (-not $Compact)
                             {
                                 Write-Output ''
                                 $DisplayedLines++
                             }
-                        }
-                    default
-                        {
-                            Write-Error "Unknown paragraph format: $_"
                         }
                 }
                 if ($DisplayedLinesVar -ne '')
