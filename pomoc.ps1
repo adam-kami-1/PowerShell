@@ -1439,6 +1439,7 @@ function Main
                     # 'compact' - compact paragraph, like regular but without empty line after it
                     # 'bulletedlist' - compact paragraph being element of bulleted list, if wrapped then 
                     #                  next lines indented 2 characters
+                    # 'numberedlist'
                     # 'formatted' - multiline compact paragraph containing already formatted text
                     # 'section' - compact paragraph coloured with $Work.Colors.Section
                     # 'subsection' - compact paragraph coloured with $Work.Colors.SubSection
@@ -1461,6 +1462,7 @@ function Main
                     ($ParagraphType -ne 'empty') -and
                     ($ParagraphType -ne 'compact') -and
                     ($ParagraphType -ne 'bulletedlist') -and
+                    ($ParagraphType -ne 'numberedlist') -and
                     ($ParagraphType -ne 'formatted') -and
                     ($ParagraphType -ne 'section') -and
                     ($ParagraphType -ne 'subsection') -and
@@ -1558,6 +1560,13 @@ function Main
                         {
                             $Compact = $true
                             $HangSize = 2
+                            $StartColor = ''
+                            $EndColor = ''
+                        }
+                    'numberedlist'
+                        {
+                            $Compact = $true
+                            $HangSize = $Work.IndentSize
                             $StartColor = ''
                             $EndColor = ''
                         }
@@ -1751,21 +1760,27 @@ function Main
                         }
                         else
                         {
-                            if ($Paragraph.Substring(0, 2) -eq '- ')
+                            if ($Paragraph -match '^[0-9]+ =')
                             {
-                                # List item
+                                # Numbered list item
+                                DisplayParagraph $IndentLevel 'numberedlist' $Paragraph 'Displayed'
+                                $DisplayedLines += $Displayed
+                            }
+                            elseif ($Paragraph.Substring(0, 2) -eq '- ')
+                            {
+                                # Bulleted list item
                                 DisplayParagraph $IndentLevel 'bulletedlist' $Paragraph 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
                             elseif ($Paragraph.Substring(0, 2) -eq '-- ')
                             {
-                                # List item
+                                # Bulleted list item
                                 DisplayParagraph $IndentLevel 'bulletedlist' ('- '+$Paragraph.Substring(3)) 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
                             elseif ($Paragraph.Substring(0, 2) -eq '--')
                             {
-                                # List item
+                                # Bulleted list item
                                 DisplayParagraph $IndentLevel 'bulletedlist' ('- '+$Paragraph.Substring(2)) 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
