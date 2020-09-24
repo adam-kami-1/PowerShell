@@ -1423,18 +1423,21 @@ function Main
                 param (
                     [System.Int32] $IndentLevel,
 
+                    # All regular paragraphs displays empty line after it.
+                    # All compact paragraphs do not displays empty line after it.
+
                     # Allowed values for $Format:
                     # 'empty' - empty line
-                    # 'regular' - regular paragraph with empty line after it
+                    # 'regular' - regular paragraph
                     # 'hanging' - regular paragraph with all except first line indented one more level
                     # 'compact' - compact paragraph, like regular but without empty line after it
                     # 'bulletedlist' - compact paragraph being element of bulleted list, if wrapped then 
                     #                  next lines indented 2 characters
-                    # 'table' - multiline paragraph containing already formatted text
-                    # 'code' - multiline paragraph containing code (formatting supressed) except $Work.Colors.Code
-                    # 'section' - regular paragraph coloured with $Work.Colors.Section
-                    # 'subsection' - regular paragraph coloured with $Work.Colors.SubSection
-                    # 'extrasection' - regular paragraph coloured with $Work.Colors.ExtraSection
+                    # 'table' - multiline compact paragraph containing already formatted text
+                    # 'code' - multiline paragraph containing code (formatting supressed) except $Work.Colors.Code, with empty line after it
+                    # 'section' - compact paragraph coloured with $Work.Colors.Section
+                    # 'subsection' - compact paragraph coloured with $Work.Colors.SubSection
+                    # 'extrasection' - compact paragraph coloured with $Work.Colors.ExtraSection
                     [System.String] $Format,
                     [System.String] $Text = '',
                     [System.String] $DisplayedLinesVar = ''
@@ -1455,6 +1458,49 @@ function Main
                     'empty'
                         {
                             Write-Output ''
+                            $DisplayedLines++
+                        }
+                    'code'
+                        {
+                            $Lines = $Text.Split("`n")
+                            foreach ($Line in $Lines)
+                            {
+                                if ($Line.Length -gt $TextWidth)
+                                {
+                                    $Line = $Line.Substring(0, $TextWidth-3)+'...'
+                                }
+                                Write-Output ((' ' * $Indent)+$Work.Colors.Code+$Line+$Work.Colors.Default)
+                                $DisplayedLines++
+                            }
+                            Write-Output ''
+                            $DisplayedLines++
+                        }
+                    'table'
+                        {
+                            $Lines = $Text.Split("`n")
+                            foreach ($Line in $Lines)
+                            {
+                                if ($Line.Length -gt $TextWidth)
+                                {
+                                    $Line = $Line.Substring(0, $TextWidth-3)+'...'
+                                }
+                                Write-Output ((' ' * $Indent)+$Line)
+                                $DisplayedLines++
+                            }
+                        }
+                    'section'
+                        {
+                            Write-Output ((' ' * $Indent)+$Work.Colors.Section+$Text+$Work.Colors.Default)
+                            $DisplayedLines++
+                        }
+                    'subsection'
+                        {
+                            Write-Output ((' ' * $Indent)+$Work.Colors.SubSection+$Text+$Work.Colors.Default)
+                            $DisplayedLines++
+                        }
+                    'extrasection'
+                        {
+                            Write-Output ((' ' * $Indent)+$Work.Colors.ExtraSection+$Text+$Work.Colors.Default)
                             $DisplayedLines++
                         }
                     {($_ -eq 'regular') -or
@@ -1525,47 +1571,6 @@ function Main
                                 Write-Output ''
                                 $DisplayedLines++
                             }
-                        }
-                    'table'
-                        {
-                            $Lines = $Text.Split("`n")
-                            foreach ($Line in $Lines)
-                            {
-                                if ($Line.Length -gt $TextWidth)
-                                {
-                                    $Line = $Line.Substring(0, $TextWidth-3)+'...'
-                                }
-                                Write-Output ((' ' * $Indent)+$Line)
-                                $DisplayedLines++
-                            }
-                        }
-                    'code'
-                        {
-                            $Lines = $Text.Split("`n")
-                            foreach ($Line in $Lines)
-                            {
-                                if ($Line.Length -gt $TextWidth)
-                                {
-                                    $Line = $Line.Substring(0, $TextWidth-3)+'...'
-                                }
-                                Write-Output ((' ' * $Indent)+$Work.Colors.Code+$Line+$Work.Colors.Default)
-                                $DisplayedLines++
-                            }
-                        }
-                    'section'
-                        {
-                            Write-Output ((' ' * $Indent)+$Work.Colors.Section+$Text+$Work.Colors.Default)
-                            $DisplayedLines++
-                        }
-                    'subsection'
-                        {
-                            Write-Output ((' ' * $Indent)+$Work.Colors.SubSection+$Text+$Work.Colors.Default)
-                            $DisplayedLines++
-                        }
-                    'extrasection'
-                        {
-                            Write-Output ((' ' * $Indent)+$Work.Colors.ExtraSection+$Text+$Work.Colors.Default)
-                            $DisplayedLines++
                         }
                     default
                         {
@@ -1826,7 +1831,8 @@ function Main
                 $Globbing = $ParamNode.globbing
                 $Aliases = $ParamNode.aliases
 
-                DisplayParagraph 1 'compact' ('-'+$ParamNode.name+' <'+$ParamNode.type.name+'>')
+                #DisplayParagraph 1 'compact' ('-'+$ParamNode.name+' <'+$ParamNode.type.name+'>')
+                DisplayParagraph 1 'subsection' ('-'+$ParamNode.name+' <'+$ParamNode.type.name+'>')
 
                 DisplayCollectionOfParagraphs 2 $ParamNode.Description.para
 
@@ -1856,9 +1862,8 @@ function Main
                 #################################
                 # function DisplaySingleExample #
 
-                DisplayParagraph 1 'regular' $Example.title
+                DisplayParagraph 1 'subsection' $Example.title
                 DisplayParagraph 2 'code' $Example.code
-                DisplayParagraph 2 'empty'
                 DisplayCollectionOfParagraphs 2 $Example.remarks.para
             }   # function DisplaySingleExample #
                 #################################
@@ -2197,7 +2202,7 @@ function Main
                 Section = $F_Magenta;
                 SubSection = $F_Cyan;
                 ExtraSection = $F_Green;
-                Parameter = $F_Yellow;
+                #Parameter = $F_Yellow;
                 Code = $F_Yellow;
                 Default = $F_Default;
                 }
@@ -2208,7 +2213,7 @@ function Main
                 Section = '';
                 SubSection = '';
                 ExtraSection = '';
-                Parameter = '';
+                #Parameter = '';
                 Code = '';
                 Default = '';
                 }
