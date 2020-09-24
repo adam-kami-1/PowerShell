@@ -1422,6 +1422,19 @@ function Main
             {
                 param (
                     [System.Int32] $IndentLevel,
+
+                    # Allowed values for $Format:
+                    # 'empty' - empty line
+                    # 'regular' - regular paragraph with empty line after it
+                    # 'hanging' - regular paragraph with all except first line indented one more level
+                    # 'compact' - compact paragraph, like regular but without empty line after it
+                    # 'bulletedlist' - compact paragraph being element of bulleted list, if wrapped then 
+                    #                  next lines indented 2 characters
+                    # 'table' - multiline paragraph containing already formatted text
+                    # 'code' - multiline paragraph containing code (formatting supressed) except $Work.Colors.Code
+                    # 'section' - regular paragraph coloured with $Work.Colors.Section
+                    # 'subsection' - regular paragraph coloured with $Work.Colors.SubSection
+                    # 'extrasection' - regular paragraph coloured with $Work.Colors.ExtraSection
                     [System.String] $Format,
                     [System.String] $Text = '',
                     [System.String] $DisplayedLinesVar = ''
@@ -1444,10 +1457,10 @@ function Main
                             Write-Output ''
                             $DisplayedLines++
                         }
-                    {($_ -eq 'para') -or
-                     ($_ -eq 'hangpara') -or
-                     ($_ -eq 'comppara') -or
-                     ($_ -eq 'listpara')}
+                    {($_ -eq 'regular') -or
+                     ($_ -eq 'hanging') -or
+                     ($_ -eq 'compact') -or
+                     ($_ -eq 'bulletedlist')}
                         {
                             $Text = $Text.Trim()
                             while ($Text.IndexOf('  ') -ne -1)
@@ -1475,9 +1488,9 @@ function Main
                                     }
                                     $Lines += @($Line.TrimEnd())
                                     $Text = $NextLine+$Text.Substring($TextWidth)
-                                    if ((($_ -eq 'hangpara') -or ($_ -eq 'listpara')) -and ($Lines.Count -eq 1))
+                                    if ((($_ -eq 'hanging') -or ($_ -eq 'bulletedlist')) -and ($Lines.Count -eq 1))
                                     {
-                                        if ($_ -eq 'listpara')
+                                        if ($_ -eq 'bulletedlist')
                                         {
                                             $TextWidth -= 2
                                         }
@@ -1494,9 +1507,9 @@ function Main
                                     Write-Output ((' ' * $Indent)+$Line)
                                     $DisplayedLines++
                                     $no++
-                                    if ((($_ -eq 'hangpara') -or ($_ -eq 'listpara')) -and ($no -eq 1))
+                                    if ((($_ -eq 'hanging') -or ($_ -eq 'bulletedlist')) -and ($no -eq 1))
                                     {
-                                        if ($_ -eq 'listpara')
+                                        if ($_ -eq 'bulletedlist')
                                         {
                                             $Indent += 2
                                         }
@@ -1507,13 +1520,13 @@ function Main
                                     }
                                 }
                             }
-                            if (($_ -ne 'comppara') -and ($_ -ne 'listpara'))
+                            if (($_ -ne 'compact') -and ($_ -ne 'bulletedlist'))
                             {
                                 Write-Output ''
                                 $DisplayedLines++
                             }
                         }
-                    'code'
+                    'table'
                         {
                             $Lines = $Text.Split("`n")
                             foreach ($Line in $Lines)
@@ -1526,15 +1539,37 @@ function Main
                                 $DisplayedLines++
                             }
                         }
-                    'sect'
+                    'code'
+                        {
+                            $Lines = $Text.Split("`n")
+                            foreach ($Line in $Lines)
+                            {
+                                if ($Line.Length -gt $TextWidth)
+                                {
+                                    $Line = $Line.Substring(0, $TextWidth-3)+'...'
+                                }
+                                Write-Output ((' ' * $Indent)+$Work.Colors.Code+$Line+$Work.Colors.Default)
+                                $DisplayedLines++
+                            }
+                        }
+                    'section'
                         {
                             Write-Output ((' ' * $Indent)+$Work.Colors.Section+$Text+$Work.Colors.Default)
                             $DisplayedLines++
                         }
-                    'subsect'
+                    'subsection'
+                        {
+                            Write-Output ((' ' * $Indent)+$Work.Colors.SubSection+$Text+$Work.Colors.Default)
+                            $DisplayedLines++
+                        }
+                    'extrasection'
                         {
                             Write-Output ((' ' * $Indent)+$Work.Colors.ExtraSection+$Text+$Work.Colors.Default)
                             $DisplayedLines++
+                        }
+                    default
+                        {
+                            Write-Error "Unknown paragraph format: $_"
                         }
                 }
                 if ($DisplayedLinesVar -ne '')
@@ -1634,13 +1669,13 @@ function Main
                             {
                                 # List heading paragraph
                                 $WasColon = $true
-                                DisplayParagraph $IndentLevel comppara $Paragraph 'Displayed'
+                                DisplayParagraph $IndentLevel 'compact' $Paragraph 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
                             else
                             {
                                 # Regular paragraph
-                                DisplayParagraph $IndentLevel para $Paragraph 'Displayed'
+                                DisplayParagraph $IndentLevel 'regular' $Paragraph 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
                         }
@@ -1649,29 +1684,29 @@ function Main
                             if ($Paragraph.Substring(0, 2) -eq '- ')
                             {
                                 # List item
-                                DisplayParagraph $IndentLevel listpara $Paragraph 'Displayed'
+                                DisplayParagraph $IndentLevel 'bulletedlist' $Paragraph 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
                             elseif ($Paragraph.Substring(0, 2) -eq '-- ')
                             {
                                 # List item
-                                DisplayParagraph $IndentLevel listpara ('- '+$Paragraph.Substring(3)) 'Displayed'
+                                DisplayParagraph $IndentLevel 'bulletedlist' ('- '+$Paragraph.Substring(3)) 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
                             elseif ($Paragraph.Substring(0, 2) -eq '--')
                             {
                                 # List item
-                                DisplayParagraph $IndentLevel listpara ('- '+$Paragraph.Substring(2)) 'Displayed'
+                                DisplayParagraph $IndentLevel 'bulletedlist' ('- '+$Paragraph.Substring(2)) 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
                             else
                             {
                                 # End of the list
-                                DisplayParagraph $IndentLevel empty
+                                DisplayParagraph $IndentLevel 'empty'
                                 $DisplayedLines += 1
                                 $WasColon = $false
                                 # Regular paragraph
-                                DisplayParagraph $IndentLevel para $Paragraph 'Displayed'
+                                DisplayParagraph $IndentLevel 'regular' $Paragraph 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
                         }
@@ -1679,7 +1714,7 @@ function Main
                 }
                 if ($WasColon)
                 {
-                    DisplayParagraph $IndentLevel empty
+                    DisplayParagraph $IndentLevel 'empty'
                     $DisplayedLines += 1
                 }
                 if ($DisplayedLinesVar -ne '')
@@ -1768,7 +1803,7 @@ function Main
                 {
                     $Paragraph += ' [<CommonParameters>]'
                 }
-                DisplayParagraph 1 hangpara $Paragraph
+                DisplayParagraph 1 'hanging' $Paragraph
             }   # function DisplaySingleSyntax #
                 ################################
 
@@ -1791,20 +1826,20 @@ function Main
                 $Globbing = $ParamNode.globbing
                 $Aliases = $ParamNode.aliases
 
-                DisplayParagraph 1 comppara ('-'+$ParamNode.name+' <'+$ParamNode.type.name+'>')
+                DisplayParagraph 1 'compact' ('-'+$ParamNode.name+' <'+$ParamNode.type.name+'>')
 
                 DisplayCollectionOfParagraphs 2 $ParamNode.Description.para
 
-                DisplayParagraph 2 code "Required?                    $Required"
-                DisplayParagraph 2 code "Position?                    $Position"
-                DisplayParagraph 2 code "Default value                $DefVal"
-                DisplayParagraph 2 code "Accept pipeline input?       $PipelineInput"
-                DisplayParagraph 2 code "Accept wildcard characters?  $Globbing"
+                DisplayParagraph 2 'table' "Required?                    $Required"
+                DisplayParagraph 2 'table' "Position?                    $Position"
+                DisplayParagraph 2 'table' "Default value                $DefVal"
+                DisplayParagraph 2 'table' "Accept pipeline input?       $PipelineInput"
+                DisplayParagraph 2 'table' "Accept wildcard characters?  $Globbing"
                 if (($Aliases -ne '') -and ($Aliases -ne 'none'))
                 {
-                    DisplayParagraph 2 code "Aliases                      $Aliases"
+                    DisplayParagraph 2 'table' "Aliases                      $Aliases"
                 }
-                DisplayParagraph 0 empty
+                DisplayParagraph 0 'empty'
             }   # function DisplaySingleParameter #
                 ###################################
 
@@ -1821,9 +1856,9 @@ function Main
                 #################################
                 # function DisplaySingleExample #
 
-                DisplayParagraph 1 para $Example.title
-                DisplayParagraph 2 code $Example.code
-                DisplayParagraph 2 empty
+                DisplayParagraph 1 'regular' $Example.title
+                DisplayParagraph 2 'code' $Example.code
+                DisplayParagraph 2 'empty'
                 DisplayCollectionOfParagraphs 2 $Example.remarks.para
             }   # function DisplaySingleExample #
                 #################################
@@ -1832,24 +1867,24 @@ function Main
             ###############################
             # function DisplayXmlHelpFile #
 
-            DisplayParagraph 0 empty
+            DisplayParagraph 0 'empty'
 
             #----------------------------------------------------------
             # Section NAME
-            DisplayParagraph 0 sect "NAME"
-            DisplayParagraph 1 para $CommandNode.details.name
+            DisplayParagraph 0 'section' "NAME"
+            DisplayParagraph 1 'regular' $CommandNode.details.name
 
             #----------------------------------------------------------
             # Section SYNOPSIS
-            DisplayParagraph 0 sect "SYNOPSIS"
-            DisplayParagraph 1 para $CommandNode.details.description.para
+            DisplayParagraph 0 'section' "SYNOPSIS"
+            DisplayParagraph 1 'regular' $CommandNode.details.description.para
 
             #----------------------------------------------------------
             # Section SYNTAX
             if (($null -ne $CommandNode.syntax) -and
                 ($null -ne $CommandNode.syntax.syntaxItem))
             {
-                DisplayParagraph 0 sect "SYNTAX"
+                DisplayParagraph 0 'section' "SYNTAX"
 
                 if ($CommandNode.syntax.syntaxItem.Count -ne 0)
                 {
@@ -1868,7 +1903,7 @@ function Main
             # Section ALIASES
             if (($null -ne $Item.Aliases) -and ($Item.Aliases.Count -gt 0))
             {
-                DisplayParagraph 0 sect "ALIASES"
+                DisplayParagraph 0 'section' "ALIASES"
                 $Paragraph = ''
                 foreach ($Alias in $Item.Aliases)
                 {
@@ -1881,14 +1916,14 @@ function Main
                         $Paragraph += ", $Alias"
                     }
                 }
-                DisplayParagraph 1 para $Paragraph
+                DisplayParagraph 1 'regular' $Paragraph
             }
 
             #----------------------------------------------------------
             # Section DESCRIPTION
             if ($CommandNode.description.para.Count -gt 0)
             {
-                DisplayParagraph 0 sect "DESCRIPTION"
+                DisplayParagraph 0 'section' "DESCRIPTION"
                 DisplayCollectionOfParagraphs 1 $CommandNode.description.para
             }
             if ($null -ne $CommandNode.description.section)
@@ -1897,13 +1932,13 @@ function Main
                 {
                     foreach ($Section in $CommandNode.description.section)
                     {
-                        DisplayParagraph 0 'subsect' $Section.name
+                        DisplayParagraph 0 'extrasection' $Section.name
                         DisplayCollectionOfParagraphs 1 $Section.para
                     }
                 }
                 else
                 {
-                    DisplayParagraph 0 'subsect' $CommandNode.description.section.name
+                    DisplayParagraph 0 'extrasection' $CommandNode.description.section.name
                     DisplayCollectionOfParagraphs 1 $CommandNode.description.section.para
                 }
             }
@@ -1914,7 +1949,7 @@ function Main
             if (($null -ne $CommandNode.parameters) -and
                 ($null -ne $CommandNode.parameters.parameter))
             {
-                DisplayParagraph 0 sect "PARAMETERS"
+                DisplayParagraph 0 'section' "PARAMETERS"
                 $HeaderDisplayed = $true
                 if ($CommandNode.parameters.parameter.Count -ne 0)
                 {
@@ -1932,11 +1967,11 @@ function Main
             {
                 if (-not $HeaderDisplayed)
                 {
-                    DisplayParagraph 0 sect "PARAMETERS"
+                    DisplayParagraph 0 'section' "PARAMETERS"
                 }
-                DisplayParagraph 1 comppara ('<CommonParameters>')
+                DisplayParagraph 1 'compact' ('<CommonParameters>')
 
-                DisplayParagraph 2 para ('This cmdlet supports the common parameters: '+
+                DisplayParagraph 2 'regular' ('This cmdlet supports the common parameters: '+
                     'Verbose, Debug, ErrorAction, ErrorVariable, WarningAction, '+
                     'WarningVariable, OutBuffer, PipelineVariable, and OutVariable. '+
                     'For more information, see about_CommonParameters '+
@@ -1950,14 +1985,14 @@ function Main
             {
                 if ($null -ne $CommandNode.InputTypes.InputType.Count)
                 {
-                    DisplayParagraph 0 sect "INPUTS"
+                    DisplayParagraph 0 'section' "INPUTS"
                     foreach ($InputType in $CommandNode.InputTypes.InputType)
                     {
-                        DisplayParagraph 1 comppara $InputType.type.name
+                        DisplayParagraph 1 'compact' $InputType.type.name
                         DisplayCollectionOfParagraphs 2 $InputType.description.para 'DisplayedLines'
                         if ($DisplayedLines -eq 0)
                         {
-                            DisplayParagraph 2 empty
+                            DisplayParagraph 2 'empty'
                         }
                     }
                 }
@@ -1966,12 +2001,12 @@ function Main
                     if ((([String]$CommandNode.InputTypes.InputType.type.name) -ne '') -or
                         (([String]$CommandNode.InputTypes.InputType.description.para) -ne ''))
                     {
-                        DisplayParagraph 0 sect "INPUTS"
-                        DisplayParagraph 1 comppara $CommandNode.InputTypes.InputType.type.name
+                        DisplayParagraph 0 'section' "INPUTS"
+                        DisplayParagraph 1 'compact' $CommandNode.InputTypes.InputType.type.name
                         DisplayCollectionOfParagraphs 2 $CommandNode.InputTypes.InputType.description.para 'DisplayedLines'
                         if ($DisplayedLines -eq 0)
                         {
-                            DisplayParagraph 2 empty
+                            DisplayParagraph 2 'empty'
                         }
                     }
                 }
@@ -1984,14 +2019,14 @@ function Main
             {
                 if ($null -ne $CommandNode.returnValues.returnValue.Count)
                 {
-                    DisplayParagraph 0 sect "OUTPUTS"
+                    DisplayParagraph 0 'section' "OUTPUTS"
                     foreach ($returnValue in $CommandNode.returnValues.returnValue)
                     {
-                        DisplayParagraph 1 comppara $returnValue.type.name
+                        DisplayParagraph 1 'compact' $returnValue.type.name
                         DisplayCollectionOfParagraphs 2 $returnValue.description.para 'DisplayedLines'
                         if ($DisplayedLines -eq 0)
                         {
-                            DisplayParagraph 2 empty
+                            DisplayParagraph 2 'empty'
                         }
                     }
                 }
@@ -2000,12 +2035,12 @@ function Main
                     if ((([String]$CommandNode.returnValues.returnValue.type.name) -ne '') -or
                         (([String]$CommandNode.returnValues.returnValue.description.para) -ne ''))
                     {
-                        DisplayParagraph 0 sect "OUTPUTS"
-                        DisplayParagraph 1 comppara $CommandNode.returnValues.returnValue.type.name
+                        DisplayParagraph 0 'section' "OUTPUTS"
+                        DisplayParagraph 1 'compact' $CommandNode.returnValues.returnValue.type.name
                         DisplayCollectionOfParagraphs 2 $CommandNode.returnValues.returnValue.description.para 'DisplayedLines'
                         if ($DisplayedLines -eq 0)
                         {
-                            DisplayParagraph 2 empty
+                            DisplayParagraph 2 'empty'
                         }
                     }
                 }
@@ -2018,7 +2053,7 @@ function Main
                 ($CommandNode.alertSet.alert.para.Count -ne 0) -and
                 ($null -ne $CommandNode.alertSet.alert.para[0]))
             {
-                DisplayParagraph 0 sect "NOTES"
+                DisplayParagraph 0 'section' "NOTES"
                 DisplayCollectionOfParagraphs 1 $CommandNode.alertSet.alert.para
             }
 
@@ -2027,7 +2062,7 @@ function Main
             if (($null -ne $CommandNode.examples) -and
                 ($null -ne $CommandNode.examples.example))
             {
-                DisplayParagraph 0 sect "EXAMPLES"
+                DisplayParagraph 0 'section' "EXAMPLES"
                 if ($CommandNode.examples.example.Count -ne 0)
                 {
                     foreach ($Example in $CommandNode.examples.example)
@@ -2046,7 +2081,7 @@ function Main
             if (($null -ne $CommandNode.relatedLinks) -and
                 ($null -ne $CommandNode.relatedLinks.navigationLink))
             {
-                DisplayParagraph 0 sect "RELATED LINKS"
+                DisplayParagraph 0 'section' "RELATED LINKS"
                 $Links = @()
                 if (($CommandNode.relatedLinks.navigationLink -is [System.Object[]]) -and
                     ($CommandNode.relatedLinks.navigationLink.Count -gt 0))
@@ -2069,8 +2104,8 @@ function Main
             # Section REMARKS
             if ($false)
             {
-                DisplayParagraph 0 sect "REMARKS"
-                DisplayParagraph 1 para 'Remarks will be described later !!!'
+                DisplayParagraph 0 'section' "REMARKS"
+                DisplayParagraph 1 'regular' 'Remarks will be described later !!!'
             }
 
         }   # function DisplayXmlHelpFile #
@@ -2160,8 +2195,10 @@ function Main
 
             $Work.Colors = @{
                 Section = $F_Magenta;
-                ExtraSection = $F_Cyan;
+                SubSection = $F_Cyan;
+                ExtraSection = $F_Green;
                 Parameter = $F_Yellow;
+                Code = $F_Yellow;
                 Default = $F_Default;
                 }
         }
@@ -2169,8 +2206,10 @@ function Main
         {
             $Work.Colors = @{
                 Section = '';
+                SubSection = '';
                 ExtraSection = '';
                 Parameter = '';
+                Code = '';
                 Default = '';
                 }
         }
