@@ -1494,7 +1494,7 @@ function Main
                                     continue
                                 }
                                 # Line containg sentence with one dot char at the end is regular paragraph
-                                if (($Line.Length -lt 8) -or
+                                if (($Line.Length -lt 20) -or
                                     ($Line.Substring($Line.Length-1,1) -ne '.') -or
                                     ($Line.Substring($Line.Length-3,3) -eq '...') -or
                                     ($Line.Substring(0,7) -eq 'PS C:\>') -or
