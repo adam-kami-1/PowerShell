@@ -1482,18 +1482,41 @@ function Main
                         }
                     'code'
                         {
+                            $LastLineWasEmpty = $false
                             $Lines = $Text.Split("`n")
                             foreach ($Line in $Lines)
                             {
-                                if ($Line.Length -gt $TextWidth)
+                                # Drop empty line if previous was also ampty
+                                if ($LastLineWasEmpty -and ($Line.Trim().Length -eq 0))
                                 {
-                                    $Line = $Line.Substring(0, $TextWidth-3)+'...'
+                                    continue
                                 }
-                                Write-Output ((' ' * $IndentWidth)+$Work.Colors.Code+$Line+$Work.Colors.Default)
+                                # Line containg sentence with one dot char at the end is regular paragraph
+                                if (($Line.Length -lt 4) -or 
+                                    ($Line.Substring($Line.Length-1,1) -ne '.') -or
+                                    ($Line.Substring($Line.Length-3,3) -eq '...') -or
+                                    ($CommandNode.details.name -eq 'Get-Help'))
+                                {
+                                    if ($Line.Length -gt $TextWidth)
+                                    {
+                                        $Line = $Line.Substring(0, $TextWidth-3)+'...'
+                                    }
+                                    Write-Output ((' ' * $IndentWidth)+$Work.Colors.Code+$Line+$Work.Colors.Default)
+                                    $DisplayedLines++
+                                    $LastLineWasEmpty = ($Line.Trim().Length -eq 0)
+                                }
+                                else
+                                {
+                                    DisplayParagraph $IndentLevel 'regular' $Line 'D'
+                                    $DisplayedLines += $D
+                                    $LastLineWasEmpty = $true
+                                }
+                            }
+                            if (-not $LastLineWasEmpty)
+                            {
+                                Write-Output ''
                                 $DisplayedLines++
                             }
-                            Write-Output ''
-                            $DisplayedLines++
                             break
                         }
                     'formatted'
