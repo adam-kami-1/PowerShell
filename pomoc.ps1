@@ -2054,7 +2054,7 @@ function Main
                 {
                     DisplayParagraph 0 'section' "PARAMETERS"
                 }
-                DisplayParagraph 1 'compact' ('<CommonParameters>')
+                DisplayParagraph 1 'subsection' ('<CommonParameters>')
 
                 DisplayParagraph 2 'regular' ('This cmdlet supports the common parameters: '+
                     'Verbose, Debug, ErrorAction, ErrorVariable, WarningAction, '+
