@@ -1942,7 +1942,7 @@ function Main
                 #################################
                 # function DisplaySingleExample #
 
-                DisplayParagraph 1 'subsection' $Example.title
+                DisplayParagraph 1 'subsection' $Example.title.Trim('- ')
                 DisplayParagraph 2 'code' $Example.code
                 DisplayCollectionOfParagraphs 2 $Example.remarks.para
             }   # function DisplaySingleExample #
