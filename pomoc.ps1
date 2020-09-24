@@ -1428,16 +1428,18 @@ function Main
                     # All compact paragraphs do not displays empty line after it.
                     #
                     # Allowed values for $ParagraphType:
-                    # 'empty' - empty line
                     #
+                    ### Regular paragraphs:
                     # 'regular' - regular paragraph
                     # 'hanging' - regular paragraph with all except first line indented one more level
+                    # 'code' - multiline paragraph containing code (formatting supressed) except $Work.Colors.Code
                     #
+                    ### Compact paragraphs:
+                    # 'empty' - empty line
                     # 'compact' - compact paragraph, like regular but without empty line after it
                     # 'bulletedlist' - compact paragraph being element of bulleted list, if wrapped then 
                     #                  next lines indented 2 characters
-                    # 'table' - multiline compact paragraph containing already formatted text
-                    # 'code' - multiline paragraph containing code (formatting supressed) except $Work.Colors.Code, with empty line after it
+                    # 'formatted' - multiline compact paragraph containing already formatted text
                     # 'section' - compact paragraph coloured with $Work.Colors.Section
                     # 'subsection' - compact paragraph coloured with $Work.Colors.SubSection
                     # 'extrasection' - compact paragraph coloured with $Work.Colors.ExtraSection
@@ -1449,19 +1451,17 @@ function Main
                 #############################
                 # function DisplayParagraph #
 
-                $Indent = $Work.IndentSize * $IndentLevel
-                $TextWidth = $Work.OutputWidth-$Indent
-                if ($Text -eq '')
+                if ($Text.Trim() -eq '')
                 {
                     $ParagraphType = 'empty'
                 }
-                if (($ParagraphType -ne 'empty') -and
-                    ($ParagraphType -ne 'regular') -and
+                if (($ParagraphType -ne 'regular') -and
                     ($ParagraphType -ne 'hanging') -and
+                    ($ParagraphType -ne 'code') -and
+                    ($ParagraphType -ne 'empty') -and
                     ($ParagraphType -ne 'compact') -and
                     ($ParagraphType -ne 'bulletedlist') -and
-                    ($ParagraphType -ne 'table') -and
-                    ($ParagraphType -ne 'code') -and
+                    ($ParagraphType -ne 'formatted') -and
                     ($ParagraphType -ne 'section') -and
                     ($ParagraphType -ne 'subsection') -and
                     ($ParagraphType -ne 'extrasection'))
@@ -1469,6 +1469,8 @@ function Main
                     Write-Error "Unknown paragraph type: $_, fallback into regular"
                     $ParagraphType = 'regular'
                 }
+                $IndentWidth = $Work.IndentSize * $IndentLevel
+                $TextWidth = $Work.OutputWidth-$IndentWidth
                 $DisplayedLines = 0
                 switch -wildcard ($ParagraphType)
                 {
@@ -1487,14 +1489,14 @@ function Main
                                 {
                                     $Line = $Line.Substring(0, $TextWidth-3)+'...'
                                 }
-                                Write-Output ((' ' * $Indent)+$Work.Colors.Code+$Line+$Work.Colors.Default)
+                                Write-Output ((' ' * $IndentWidth)+$Work.Colors.Code+$Line+$Work.Colors.Default)
                                 $DisplayedLines++
                             }
                             Write-Output ''
                             $DisplayedLines++
                             break
                         }
-                    'table'
+                    'formatted'
                         {
                             $Lines = $Text.Split("`n")
                             foreach ($Line in $Lines)
@@ -1503,7 +1505,7 @@ function Main
                                 {
                                     $Line = $Line.Substring(0, $TextWidth-3)+'...'
                                 }
-                                Write-Output ((' ' * $Indent)+$Line)
+                                Write-Output ((' ' * $IndentWidth)+$Line)
                                 $DisplayedLines++
                             }
                             break
@@ -1511,111 +1513,105 @@ function Main
                     'regular'
                         {
                             $Compact = $false
+                            $HangSize = 0
                             $StartColor = ''
                             $EndColor = ''
                         }
                     'hanging'
                         {
                             $Compact = $false
+                            $HangSize = $Work.IndentSize
                             $StartColor = ''
                             $EndColor = ''
                         }
                     'compact'
                         {
                             $Compact = $true
+                            $HangSize = 0
                             $StartColor = ''
                             $EndColor = ''
                         }
                     'bulletedlist'
                         {
                             $Compact = $true
+                            $HangSize = 2
                             $StartColor = ''
                             $EndColor = ''
                         }
                     'section'
                         {
                             $Compact = $true
+                            $HangSize = 0
                             $StartColor = $Work.Colors.Section
                             $EndColor = $Work.Colors.Default
-                            #Write-Output ((' ' * $Indent)+$Work.Colors.Section+$Text+$Work.Colors.Default)
-                            #$DisplayedLines++
                         }
                     'subsection'
                         {
                             $Compact = $true
+                            $HangSize = 0
                             $StartColor = $Work.Colors.SubSection
                             $EndColor = $Work.Colors.Default
-                            #Write-Output ((' ' * $Indent)+$Work.Colors.SubSection+$Text+$Work.Colors.Default)
-                            #$DisplayedLines++
                         }
                     'extrasection'
                         {
                             $Compact = $true
+                            $HangSize = 0
                             $StartColor = $Work.Colors.ExtraSection
                             $EndColor = $Work.Colors.Default
-                            #Write-Output ((' ' * $Indent)+$Work.Colors.ExtraSection+$Text+$Work.Colors.Default)
-                            #$DisplayedLines++
                         }
                     "*"
                         {
                             $Text = $Text.Trim()
+                            # Replace inside text all sequences of more spaces into one space
                             while ($Text.IndexOf('  ') -ne -1)
                             {
                                 $Text = $Text.Replace('  ', ' ')
                             }
+                            # Remove all spaces prepending dot character
                             while ($Text.IndexOf(' .') -ne -1)
                             {
                                 $Text = $Text.Replace(' .', '.')
                             }
+                            #----------------------------------------------------------
+                            # Break paragraph text into lines not longer than $TextWidth
                             $Lines = @()
-                            if ($Text.Length -gt 0)
+                            while ($Text.Length -gt $TextWidth)
                             {
-                                while ($Text.Length -gt $TextWidth)
+                                $Line = $Text.Substring(0, $TextWidth)
+                                # Move last broken (or glued to the end of $Line) word to $NextLine
+                                $NextLine = ''
+                                if ($Line.IndexOf(' ') -ne -1)
                                 {
-                                    $Line = $Text.Substring(0, $TextWidth)
-                                    $NextLine = ''
-                                    if ($Line.IndexOf(' ') -ne -1)
+                                    while (($Line.Length -gt 0) -and ($Line.Substring($Line.Length-1, 1) -ne ' '))
                                     {
-                                        while (($Line.Length -gt 0) -and ($Line.Substring($Line.Length-1, 1) -ne ' '))
-                                        {
-                                            $NextLine = $NextLine.Insert(0, $Line.Substring($Line.Length-1, 1))
-                                            $Line = $Line.Substring(0, $Line.Length-1)
-                                        }
-                                    }
-                                    $Lines += @($Line.TrimEnd())
-                                    $Text = $NextLine+$Text.Substring($TextWidth)
-                                    if ((($_ -eq 'hanging') -or ($_ -eq 'bulletedlist')) -and ($Lines.Count -eq 1))
-                                    {
-                                        if ($_ -eq 'bulletedlist')
-                                        {
-                                            $TextWidth -= 2
-                                        }
-                                        else
-                                        {
-                                            $TextWidth -= $Work.IndentSize
-                                        }
+                                        $NextLine = $NextLine.Insert(0, $Line.Substring($Line.Length-1, 1))
+                                        $Line = $Line.Substring(0, $Line.Length-1)
                                     }
                                 }
-                                $Lines += @($Text)
-                                $no = 0
-                                foreach ($Line in $Lines)
+                                # Store current line in $Lines
+                                $Lines += @($Line.TrimEnd())
+                                # Use $NextLine and rest of the $Text as a new $Text
+                                $Text = $NextLine+$Text.Substring($TextWidth)
+                                #
+                                if ($Lines.Count -eq 1)
                                 {
-                                    Write-Output ((' ' * $Indent)+$StartColor+$Line+$EndColor)
-                                    $DisplayedLines++
-                                    $no++
-                                    if ((($_ -eq 'hanging') -or ($_ -eq 'bulletedlist')) -and ($no -eq 1))
-                                    {
-                                        if ($_ -eq 'bulletedlist')
-                                        {
-                                            $Indent += 2
-                                        }
-                                        else
-                                        {
-                                            $Indent += $Work.IndentSize
-                                        }
-                                    }
+                                    $TextWidth -= $HangSize
                                 }
                             }
+                            $Lines += @($Text)
+                            #----------------------------------------------------------
+                            # Display all paragraph lines
+                            foreach ($Line in $Lines)
+                            {
+                                Write-Output ((' ' * $IndentWidth)+$StartColor+$Line+$EndColor)
+                                $DisplayedLines++
+                                if ($DisplayedLines -eq 1)
+                                {
+                                    $IndentWidth += $HangSize
+                                }
+                            }
+                            #----------------------------------------------------------
+                            # Display extra empty line for regular paragraphs
                             if (-not $Compact)
                             {
                                 Write-Output ''
@@ -1882,14 +1878,14 @@ function Main
 
                 DisplayCollectionOfParagraphs 2 $ParamNode.Description.para
 
-                DisplayParagraph 2 'table' "Required?                    $Required"
-                DisplayParagraph 2 'table' "Position?                    $Position"
-                DisplayParagraph 2 'table' "Default value                $DefVal"
-                DisplayParagraph 2 'table' "Accept pipeline input?       $PipelineInput"
-                DisplayParagraph 2 'table' "Accept wildcard characters?  $Globbing"
+                DisplayParagraph 2 'formatted' "Required?                    $Required"
+                DisplayParagraph 2 'formatted' "Position?                    $Position"
+                DisplayParagraph 2 'formatted' "Default value                $DefVal"
+                DisplayParagraph 2 'formatted' "Accept pipeline input?       $PipelineInput"
+                DisplayParagraph 2 'formatted' "Accept wildcard characters?  $Globbing"
                 if (($Aliases -ne '') -and ($Aliases -ne 'none'))
                 {
-                    DisplayParagraph 2 'table' "Aliases                      $Aliases"
+                    DisplayParagraph 2 'formatted' "Aliases                      $Aliases"
                 }
                 DisplayParagraph 0 'empty'
             }   # function DisplaySingleParameter #
