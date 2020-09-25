@@ -230,6 +230,7 @@ function Main
             # Used only during displaying results
             OutputWidth = $Width
             IndentSize = 4
+            WasColon = $false
             Colors = @{};
             }
 
@@ -522,6 +523,27 @@ function Main
                     ##################################
 
 
+
+                ###############################
+                # function StoreCodeParagraph #
+                ###############################
+                function StoreCodeParagraph
+                {
+                    param (
+                        [System.Collections.Hashtable] $Item,
+                        [System.Xml.XmlDocument] $XML,
+                        [System.Xml.XmlElement] $ParentNode,
+                        [System.String] $Paragraph
+                    )
+
+                    ###############################
+                    # function StoreCodeParagraph #
+
+                    AddLinesToNewChild $XML $ParentNode 'code' 0 $Paragraph
+                }   # function StoreCodeParagraph #
+                    ###############################
+
+
                 ################################
                 # function ExtraSectionHeading #
                 ################################
@@ -584,6 +606,10 @@ function Main
                                 # The synopsis was separated with empty line from SHORT DESCRIPTION.
                                 $Description = $Details.AppendChild($XML.CreateElement('description'))
                                 $Para = $Description.AppendChild($XML.CreateElement('para'))
+                                if ($UsedIndentation -eq 0)
+                                {
+                                    $UsedIndentation = $Paragraph.Length-$Paragraph.TrimStart().Length
+                                }
                                 $Paragraph = CleanParagraph $Paragraph
                                 $Para.Set_innerText($Paragraph)
                             }
@@ -630,6 +656,29 @@ function Main
                             {
                                 '^$'
                                     {
+                                        # Need to check if we have code or fomatted paragraph
+                                        if ($Paragraph.Substring(0,$UsedIndentation) -eq (' '*$UsedIndentation))
+                                        {
+                                            if ($Paragraph.Substring($UsedIndentation,1) -eq ' ')
+                                            {
+                                                if ($null -eq $Item.CurrentExtraSectionNode)
+                                                {
+                                                    # There is formatted paragraph or code ????!!!!
+                                                    $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
+                                                    if ($null -eq $Description)
+                                                    {
+                                                        # There was no LONG DESCRIPTION header in file
+                                                        $Description = $Command.AppendChild($XML.CreateElement('description'))
+                                                    }
+                                                    StoreCodeParagraph $Item $XML $Description $Paragraph
+                                                }
+                                                else
+                                                {
+                                                    StoreCodeParagraph $Item $XML $Item.CurrentExtraSectionNode $Paragraph
+                                                }
+                                                break
+                                            }
+                                        }
                                         # Really regular paragraph, add to appropriate section
                                         StoreRegularparagraph $Item $XML $Paragraph
                                     }
@@ -698,6 +747,8 @@ function Main
             $Item.DisplayName = $Item.Name.Replace('_', ' ')
             $Item.DisplayName = ToCamelCase $Item.DisplayName
 
+            # Gues indentation used in file for regular paragraphs
+            $UsedIndentation = 0
 
             # parse paragraphs converting them into MAML like XML object
             #----------------------------------------------------------=
@@ -733,7 +784,7 @@ function Main
                                 ParseRegularParagraph $Item $XML $Paragraph
                             }
                         }
-                    # In about_Type_Accelerators.help.txt there is typo: 'SHORT DESRIPTION'
+                    # In about_Type_Accelerators.help.txt there is a typo: 'SHORT DESRIPTION'
                     '^(SHORT DES(C)?RIPTION|SYNOPSIS)$'
                         {
                             if ($Item.CurrentSectionName -eq 'DESCRIPTION')
@@ -754,6 +805,10 @@ function Main
                                 # Extract synopsis and put it into XML.
                                 $Description = $Details.AppendChild($XML.CreateElement('description'))
                                 # !!! Need trim and remove duplicate spaces
+                                if ($UsedIndentation -eq 0)
+                                {
+                                    $UsedIndentation = $Paragraph.Length-$Paragraph.TrimStart().Length
+                                }
                                 AddLinesToNewChild $XML $Description 'para' 1 $Paragraph
                             }
                             $Item.CurrentSectionName = 'SYNOPSIS'
@@ -1667,88 +1722,44 @@ function Main
             {
                 param (
                     [System.Int32] $IndentLevel,
-                    [System.Object[]] $collection,
-                    [System.String] $DisplayedLinesVar = '',
-                    [System.Boolean] $WasColon = $false
+                    $Collection,
+                    [System.String] $DisplayedLinesVar = ''
                 )
 
 
-                #################################
-                # function ExtractParagraphText #
-                #################################
-                function ExtractParagraphText
+                ###########################################
+                # function DisplayParagraphFromCollection #
+                ###########################################
+                function DisplayParagraphFromCollection
                 {
                     param (
-                        [System.Xml.XmlElement] $ParaNode
+                        [System.String] $Paragraph,
+                        [System.String] $DisplayedLinesVar = ''
                     )
 
-                    #################################
-                    # function ExtractParagraphText #
-
-                    $Text = ''
-                    foreach ($Child in $ParaNode.ChildNodes)
-                    {
-                        switch ($Child.GetType())
-                        {
-                            'System.Xml.XmlText'
-                                {
-                                    $Text += $Child.Value
-                                }
-                            'System.Xml.XmlElement'
-                                {
-                                    $Text += ExtractParagraphText $Child
-                                }
-                        }
-                    }
-                    return $Text
-                }   # function ExtractParagraphText #
-                    #################################
-
-
-                ##########################################
-                # function DisplayCollectionOfParagraphs #
-
-                if (($collection.Count -eq 0) -or ($collection[0].Length -eq 0))
-                {
-                    if ($DisplayedLinesVar -ne '')
-                    {
-                        Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value 0
-                    }
-                    return
-                }
-                #$WasColon = $false
-                $DisplayedLines = 0
-                foreach ($ParaNode in $collection)
-                {
-                    if ($ParaNode.GetType().FullName -eq 'System.Xml.XmlElement')
-                    {
-                        # This is a temporary solution. In target version we will need reverse operation:
-                        # gues the links even wen they are not fully tagged.
-                        $Paragraph = ExtractParagraphText $ParaNode
-                    }
-                    else
-                    {
-                        $Paragraph = $ParaNode
-                    }
+                    ###########################################
+                    # function DisplayParagraphFromCollection #
+                    
+                    $DisplayedLines = 0
                     if ($Paragraph.Length -eq 0)
                     {
-                        continue
+                        return
                     }
                     if ($Paragraph.IndexOf("`n") -ne -1)
                     {
-                        # Instead of $WasColon there should be used info about colon in last paragraph
-                        DisplayCollectionOfParagraphs $IndentLevel ($Paragraph.Split("`n")) 'Displayed' $WasColon
+                        # Instead of $Work.WasColon there should be used info about colon in last paragraph
+                        DisplayCollectionOfParagraphs $IndentLevel ($Paragraph.Split("`n")) 'Displayed'
                         $DisplayedLines += $Displayed
                     }
                     else
                     {
                         $Paragraph = $Paragraph.TrimEnd()
-                        if (-not $WasColon)
+                        if (-not $Work.WasColon)
                         {
                             if ($Paragraph.Substring($Paragraph.Length-1, 1) -eq ':')
                             {
                                 # List heading paragraph
-                                $WasColon = $true
+                                $Work.WasColon = $true
                                 DisplayParagraph $IndentLevel 'compact' $Paragraph 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
@@ -1790,15 +1801,61 @@ function Main
                                 # End of the list
                                 DisplayParagraph $IndentLevel 'empty'
                                 $DisplayedLines += 1
-                                $WasColon = $false
+                                $Work.WasColon = $false
                                 # Regular paragraph
                                 DisplayParagraph $IndentLevel 'regular' $Paragraph 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
                         }
                     }
+                    if ($DisplayedLinesVar -ne '')
+                    {
+                        Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
+                    }
+                }   # function DisplayParagraphFromCollection #
+                    ###########################################
+
+                ##########################################
+                # function DisplayCollectionOfParagraphs #
+
+                $Work.WasColon = $false
+                $DisplayedLines = 0
+                switch ($Collection.GetType().FullName)
+                {
+                    'System.Xml.XmlElement'
+                        {
+                            foreach ($Child in $Collection.ChildNodes)
+                            {
+                                switch ($Child.LocalName)
+                                {
+                                    'para'
+                                        {
+                                            $Paragraph = $Child.InnerText
+                                            DisplayParagraphFromCollection $Paragraph 'Displayed'
+                                            $DisplayedLines += $Displayed
+                                        }
+                                    'code'
+                                        {
+                                            DisplayParagraph 1 'code' $Child.InnerText 'Displayed'
+                                            $DisplayedLines += $Displayed
+                                        }
+                                }
+                            }
+                        }
+                    {($_ -eq 'System.Object[]') -or
+                     ($_ -eq 'System.String[]')}
+                        {
+                            foreach ($Paragraph in $Collection)
+                            {
+                                DisplayParagraphFromCollection $Paragraph 'Displayed'
+                                $DisplayedLines += $Displayed
+                            }
+                        }
+                    default
+                        {
+                        }
                 }
-                if ($WasColon)
+                if ($Work.WasColon)
                 {
                     DisplayParagraph $IndentLevel 'empty'
                     $DisplayedLines += 1
@@ -1915,7 +1972,7 @@ function Main
                 #DisplayParagraph 1 'compact' ('-'+$ParamNode.name+' <'+$ParamNode.type.name+'>')
                 DisplayParagraph 1 'subsection' ('-'+$ParamNode.name+' <'+$ParamNode.type.name+'>')
 
-                DisplayCollectionOfParagraphs 2 $ParamNode.Description.para
+                DisplayCollectionOfParagraphs 2 $ParamNode.Description
 
                 DisplayParagraph 2 'formatted' "Required?                    $Required"
                 DisplayParagraph 2 'formatted' "Position?                    $Position"
@@ -1945,7 +2002,7 @@ function Main
 
                 DisplayParagraph 1 'subsection' $Example.title.Trim('- ')
                 DisplayParagraph 2 'code' $Example.code
-                DisplayCollectionOfParagraphs 2 $Example.remarks.para
+                DisplayCollectionOfParagraphs 2 $Example.remarks
             }   # function DisplaySingleExample #
                 #################################
 
@@ -2010,8 +2067,27 @@ function Main
             if ($CommandNode.description.para.Count -gt 0)
             {
                 DisplayParagraph 0 'section' "DESCRIPTION"
-                DisplayCollectionOfParagraphs 1 $CommandNode.description.para
+                foreach ($Child in $CommandNode.description.ChildNodes)
+                {
+                    switch ($Child.LocalName)
+                    {
+                        'para'
+                            {
+                                DisplayParagraph 1 'regular' $Child.InnerText
+                            }
+                        'code'
+                            {
+                                DisplayParagraph 1 'code' $Child.InnerText
+                            }
+                        'section'
+                            {
+                                DisplayParagraph 0 'extrasection' $Child.FirstChild.InnerText
+                                DisplayCollectionOfParagraphs 1 $Child
+                            }
+                    }
+                }
             }
+            <#
             if ($null -ne $CommandNode.description.section)
             {
                 if ($CommandNode.description.section.Count -gt 1)
@@ -2028,6 +2104,7 @@ function Main
                     DisplayCollectionOfParagraphs 1 $CommandNode.description.section.para
                 }
             }
+            #>
 
             #----------------------------------------------------------
             # Section PARAMETERS
@@ -2075,7 +2152,7 @@ function Main
                     foreach ($InputType in $CommandNode.InputTypes.InputType)
                     {
                         DisplayParagraph 1 'compact' $InputType.type.name
-                        DisplayCollectionOfParagraphs 2 $InputType.description.para 'DisplayedLines'
+                        DisplayCollectionOfParagraphs 2 $InputType.description 'DisplayedLines'
                         if ($DisplayedLines -eq 0)
                         {
                             DisplayParagraph 2 'empty'
@@ -2089,7 +2166,7 @@ function Main
                     {
                         DisplayParagraph 0 'section' "INPUTS"
                         DisplayParagraph 1 'compact' $CommandNode.InputTypes.InputType.type.name
-                        DisplayCollectionOfParagraphs 2 $CommandNode.InputTypes.InputType.description.para 'DisplayedLines'
+                        DisplayCollectionOfParagraphs 2 $CommandNode.InputTypes.InputType.description 'DisplayedLines'
                         if ($DisplayedLines -eq 0)
                         {
                             DisplayParagraph 2 'empty'
@@ -2109,7 +2186,7 @@ function Main
                     foreach ($returnValue in $CommandNode.returnValues.returnValue)
                     {
                         DisplayParagraph 1 'compact' $returnValue.type.name
-                        DisplayCollectionOfParagraphs 2 $returnValue.description.para 'DisplayedLines'
+                        DisplayCollectionOfParagraphs 2 $returnValue.description 'DisplayedLines'
                         if ($DisplayedLines -eq 0)
                         {
                             DisplayParagraph 2 'empty'
@@ -2123,7 +2200,7 @@ function Main
                     {
                         DisplayParagraph 0 'section' "OUTPUTS"
                         DisplayParagraph 1 'compact' $CommandNode.returnValues.returnValue.type.name
-                        DisplayCollectionOfParagraphs 2 $CommandNode.returnValues.returnValue.description.para 'DisplayedLines'
+                        DisplayCollectionOfParagraphs 2 $CommandNode.returnValues.returnValue.description 'DisplayedLines'
                         if ($DisplayedLines -eq 0)
                         {
                             DisplayParagraph 2 'empty'
@@ -2140,7 +2217,7 @@ function Main
                 ($null -ne $CommandNode.alertSet.alert.para[0]))
             {
                 DisplayParagraph 0 'section' "NOTES"
-                DisplayCollectionOfParagraphs 1 $CommandNode.alertSet.alert.para
+                DisplayCollectionOfParagraphs 1 $CommandNode.alertSet.alert
             }
 
             #----------------------------------------------------------
