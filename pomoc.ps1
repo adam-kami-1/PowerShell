@@ -1656,6 +1656,7 @@ function Main
                                 $Text = $Text.Replace('  ', ' ')
                             }
                             # Remove all spaces prepending dot character
+                            # Should not remove space before '.NET' !!!???
                             while ($Text.IndexOf(' .') -ne -1)
                             {
                                 $Text = $Text.Replace(' .', '.')
@@ -2067,44 +2068,19 @@ function Main
             if ($CommandNode.description.para.Count -gt 0)
             {
                 DisplayParagraph 0 'section' "DESCRIPTION"
+                DisplayCollectionOfParagraphs 1 $CommandNode.description
+
+                #----------------------------------------------------------
+                # Display extra sections
                 foreach ($Child in $CommandNode.description.ChildNodes)
                 {
-                    switch ($Child.LocalName)
+                    if ($Child.LocalName -eq 'section')
                     {
-                        'para'
-                            {
-                                DisplayParagraph 1 'regular' $Child.InnerText
-                            }
-                        'code'
-                            {
-                                DisplayParagraph 1 'code' $Child.InnerText
-                            }
-                        'section'
-                            {
-                                DisplayParagraph 0 'extrasection' $Child.FirstChild.InnerText
-                                DisplayCollectionOfParagraphs 1 $Child
-                            }
+                        DisplayParagraph 0 'extrasection' $Child.FirstChild.InnerText
+                        DisplayCollectionOfParagraphs 1 $Child
                     }
                 }
             }
-            <#
-            if ($null -ne $CommandNode.description.section)
-            {
-                if ($CommandNode.description.section.Count -gt 1)
-                {
-                    foreach ($Section in $CommandNode.description.section)
-                    {
-                        DisplayParagraph 0 'extrasection' $Section.name
-                        DisplayCollectionOfParagraphs 1 $Section.para
-                    }
-                }
-                else
-                {
-                    DisplayParagraph 0 'extrasection' $CommandNode.description.section.name
-                    DisplayCollectionOfParagraphs 1 $CommandNode.description.section.para
-                }
-            }
-            #>
 
             #----------------------------------------------------------
             # Section PARAMETERS
@@ -2185,7 +2161,10 @@ function Main
                     DisplayParagraph 0 'section' "OUTPUTS"
                     foreach ($returnValue in $CommandNode.returnValues.returnValue)
                     {
-                        DisplayParagraph 1 'compact' $returnValue.type.name
+                        if ($returnValue.type.name -ne '')
+                        {
+                            DisplayParagraph 1 'compact' $returnValue.type.name
+                        }
                         DisplayCollectionOfParagraphs 2 $returnValue.description 'DisplayedLines'
                         if ($DisplayedLines -eq 0)
                         {
@@ -2199,7 +2178,10 @@ function Main
                         (([String]$CommandNode.returnValues.returnValue.description.para) -ne ''))
                     {
                         DisplayParagraph 0 'section' "OUTPUTS"
-                        DisplayParagraph 1 'compact' $CommandNode.returnValues.returnValue.type.name
+                        if ($CommandNode.returnValues.returnValue.type.name -ne '')
+                        {
+                            DisplayParagraph 1 'compact' $CommandNode.returnValues.returnValue.type.name
+                        }
                         DisplayCollectionOfParagraphs 2 $CommandNode.returnValues.returnValue.description 'DisplayedLines'
                         if ($DisplayedLines -eq 0)
                         {
