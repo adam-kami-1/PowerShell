@@ -693,7 +693,7 @@ function Main
                                 default
                                     {
                                         $Item.CurrentExtraSectionName = $ExtraSection.ToUpper()
-                                        #Write-Verbose "ExtraSection: " $Item.CurrentExtraSectionName
+                                        #Write-Verbose "ExtraSection: $($Item.CurrentExtraSectionName)"
                                         $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
                                         $Item.CurrentExtraSectionNode = $Description.AppendChild($XML.CreateElement('section'))
                                         $Name = $Item.CurrentExtraSectionNode.AppendChild($XML.CreateElement('name'))
@@ -738,10 +738,6 @@ function Main
                 $Paragraphs += $Paragraph
             }
             Clear-Variable File
-            if (($Item.Name -eq 'about_PowerShell_exe'))
-            {
-                #Write-Host "Breakpoint"
-            }
 
             # Convert file name into help item name
             $Item.DisplayName = $Item.Name.Replace('_', ' ')
@@ -888,7 +884,7 @@ function Main
             ####################
             # function AddItem #
 
-            #Write-Verbose ("Adding Item "+$Item.Name)
+            #Write-Verbose "Adding Item $($Item.Name)"
             if ($null -eq $HelpInfo.ItemIndex[$Item.Name])
             {
                 if ($null -ne $Work.Functions[$Item.Name])
@@ -988,7 +984,7 @@ function Main
                                 {
                                     $ModuleName = 'Microsoft.PowerShell.Core'
                                 }
-                                $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
+                                $version = '{0}.{1}' -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
 
                                 #$a0 = $ModuleName.Value
                                 #$a1 = $a0.ToLower()
@@ -1022,7 +1018,7 @@ function Main
                     {
                         if ($ModuleName -eq '')
                         {
-                            Write-Verbose "Checking txt HelpFiles in PSHOME"
+                            Write-Verbose 'Checking txt HelpFiles in PSHOME'
                         }
                         else
                         {
@@ -1090,7 +1086,7 @@ function Main
                         {
                             if ($null -ne $XML.helpItems.command)
                             {
-                                if (($XML.helpItems.command).GetType().Name -eq "Object[]")
+                                if (($XML.helpItems.command).GetType().Name -eq 'Object[]')
                                 {
                                     for ($Index = 0; $Index -lt ($XML.helpItems.command).Count; $Index++)
                                     {
@@ -1168,7 +1164,7 @@ function Main
                     }
                     if ($ModuleName -eq '')
                     {
-                        Write-Verbose "Checking xml HelpFiles in PSHOME"
+                        Write-Verbose 'Checking xml HelpFiles in PSHOME'
                     }
                     else
                     {
@@ -1439,7 +1435,7 @@ function Main
                 }
                 else
                 {
-                    $version = "{0}.{1}" -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
+                    $version = '{0}.{1}' -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
                     if ($null -ne $HelpInfo.ItemIndex[$LinkText])
                     {
                         $URI = $HelpInfo.ItemIndex[$LinkText]
@@ -1647,7 +1643,7 @@ function Main
                             $StartColor = $Work.Colors.ExtraSection
                             $EndColor = $Work.Colors.Default
                         }
-                    "*"
+                    '*'
                         {
                             $Text = $Text.Trim()
                             # Replace inside text all sequences of more spaces into one space
@@ -1742,6 +1738,7 @@ function Main
                     # function DisplayParagraphFromCollection #
                     
                     $DisplayedLines = 0
+                    $Paragraph = $Paragraph.TrimEnd(" `n")
                     if ($Paragraph.Length -eq 0)
                     {
                         return
@@ -1819,7 +1816,6 @@ function Main
                 ##########################################
                 # function DisplayCollectionOfParagraphs #
 
-                $Work.WasColon = $false
                 $DisplayedLines = 0
                 switch ($Collection.GetType().FullName)
                 {
@@ -1970,9 +1966,9 @@ function Main
                 $Globbing = $ParamNode.globbing
                 $Aliases = $ParamNode.aliases
 
-                #DisplayParagraph 1 'compact' ('-'+$ParamNode.name+' <'+$ParamNode.type.name+'>')
                 DisplayParagraph 1 'subsection' ('-'+$ParamNode.name+' <'+$ParamNode.type.name+'>')
 
+                $Work.WasColon = $false
                 DisplayCollectionOfParagraphs 2 $ParamNode.Description
 
                 DisplayParagraph 2 'formatted' "Required?                    $Required"
@@ -2003,6 +1999,7 @@ function Main
 
                 DisplayParagraph 1 'subsection' $Example.title.Trim('- ')
                 DisplayParagraph 2 'code' $Example.code
+                $Work.WasColon = $false
                 DisplayCollectionOfParagraphs 2 $Example.remarks
             }   # function DisplaySingleExample #
                 #################################
@@ -2015,12 +2012,12 @@ function Main
 
             #----------------------------------------------------------
             # Section NAME
-            DisplayParagraph 0 'section' "NAME"
+            DisplayParagraph 0 'section' 'NAME'
             DisplayParagraph 1 'regular' $CommandNode.details.name
 
             #----------------------------------------------------------
             # Section SYNOPSIS
-            DisplayParagraph 0 'section' "SYNOPSIS"
+            DisplayParagraph 0 'section' 'SYNOPSIS'
             DisplayParagraph 1 'regular' $CommandNode.details.description.para
 
             #----------------------------------------------------------
@@ -2028,7 +2025,7 @@ function Main
             if (($null -ne $CommandNode.syntax) -and
                 ($null -ne $CommandNode.syntax.syntaxItem))
             {
-                DisplayParagraph 0 'section' "SYNTAX"
+                DisplayParagraph 0 'section' 'SYNTAX'
 
                 if ($CommandNode.syntax.syntaxItem.Count -ne 0)
                 {
@@ -2047,7 +2044,7 @@ function Main
             # Section ALIASES
             if (($null -ne $Item.Aliases) -and ($Item.Aliases.Count -gt 0))
             {
-                DisplayParagraph 0 'section' "ALIASES"
+                DisplayParagraph 0 'section' 'ALIASES'
                 $Paragraph = ''
                 foreach ($Alias in $Item.Aliases)
                 {
@@ -2067,7 +2064,8 @@ function Main
             # Section DESCRIPTION
             if ($CommandNode.description.para.Count -gt 0)
             {
-                DisplayParagraph 0 'section' "DESCRIPTION"
+                DisplayParagraph 0 'section' 'DESCRIPTION'
+                $Work.WasColon = $false
                 DisplayCollectionOfParagraphs 1 $CommandNode.description
 
                 #----------------------------------------------------------
@@ -2077,6 +2075,7 @@ function Main
                     if ($Child.LocalName -eq 'section')
                     {
                         DisplayParagraph 0 'extrasection' $Child.FirstChild.InnerText
+                        $Work.WasColon = $false
                         DisplayCollectionOfParagraphs 1 $Child
                     }
                 }
@@ -2088,7 +2087,7 @@ function Main
             if (($null -ne $CommandNode.parameters) -and
                 ($null -ne $CommandNode.parameters.parameter))
             {
-                DisplayParagraph 0 'section' "PARAMETERS"
+                DisplayParagraph 0 'section' 'PARAMETERS'
                 $HeaderDisplayed = $true
                 if ($CommandNode.parameters.parameter.Count -ne 0)
                 {
@@ -2106,7 +2105,7 @@ function Main
             {
                 if (-not $HeaderDisplayed)
                 {
-                    DisplayParagraph 0 'section' "PARAMETERS"
+                    DisplayParagraph 0 'section' 'PARAMETERS'
                 }
                 DisplayParagraph 1 'subsection' ('<CommonParameters>')
 
@@ -2124,10 +2123,11 @@ function Main
             {
                 if ($null -ne $CommandNode.InputTypes.InputType.Count)
                 {
-                    DisplayParagraph 0 'section' "INPUTS"
+                    DisplayParagraph 0 'section' 'INPUTS'
                     foreach ($InputType in $CommandNode.InputTypes.InputType)
                     {
                         DisplayParagraph 1 'compact' $InputType.type.name
+                        $Work.WasColon = $false
                         DisplayCollectionOfParagraphs 2 $InputType.description 'DisplayedLines'
                         if ($DisplayedLines -eq 0)
                         {
@@ -2140,8 +2140,9 @@ function Main
                     if ((([String]$CommandNode.InputTypes.InputType.type.name) -ne '') -or
                         (([String]$CommandNode.InputTypes.InputType.description.para) -ne ''))
                     {
-                        DisplayParagraph 0 'section' "INPUTS"
+                        DisplayParagraph 0 'section' 'INPUTS'
                         DisplayParagraph 1 'compact' $CommandNode.InputTypes.InputType.type.name
+                        $Work.WasColon = $false
                         DisplayCollectionOfParagraphs 2 $CommandNode.InputTypes.InputType.description 'DisplayedLines'
                         if ($DisplayedLines -eq 0)
                         {
@@ -2158,13 +2159,14 @@ function Main
             {
                 if ($null -ne $CommandNode.returnValues.returnValue.Count)
                 {
-                    DisplayParagraph 0 'section' "OUTPUTS"
+                    DisplayParagraph 0 'section' 'OUTPUTS'
                     foreach ($returnValue in $CommandNode.returnValues.returnValue)
                     {
                         if ($returnValue.type.name -ne '')
                         {
                             DisplayParagraph 1 'compact' $returnValue.type.name
                         }
+                        $Work.WasColon = $false
                         DisplayCollectionOfParagraphs 2 $returnValue.description 'DisplayedLines'
                         if ($DisplayedLines -eq 0)
                         {
@@ -2177,11 +2179,12 @@ function Main
                     if ((([String]$CommandNode.returnValues.returnValue.type.name) -ne '') -or
                         (([String]$CommandNode.returnValues.returnValue.description.para) -ne ''))
                     {
-                        DisplayParagraph 0 'section' "OUTPUTS"
+                        DisplayParagraph 0 'section' 'OUTPUTS'
                         if ($CommandNode.returnValues.returnValue.type.name -ne '')
                         {
                             DisplayParagraph 1 'compact' $CommandNode.returnValues.returnValue.type.name
                         }
+                        $Work.WasColon = $false
                         DisplayCollectionOfParagraphs 2 $CommandNode.returnValues.returnValue.description 'DisplayedLines'
                         if ($DisplayedLines -eq 0)
                         {
@@ -2198,7 +2201,8 @@ function Main
                 ($CommandNode.alertSet.alert.para.Count -ne 0) -and
                 ($null -ne $CommandNode.alertSet.alert.para[0]))
             {
-                DisplayParagraph 0 'section' "NOTES"
+                DisplayParagraph 0 'section' 'NOTES'
+                $Work.WasColon = $false
                 DisplayCollectionOfParagraphs 1 $CommandNode.alertSet.alert
             }
 
@@ -2207,7 +2211,7 @@ function Main
             if (($null -ne $CommandNode.examples) -and
                 ($null -ne $CommandNode.examples.example))
             {
-                DisplayParagraph 0 'section' "EXAMPLES"
+                DisplayParagraph 0 'section' 'EXAMPLES'
                 if ($CommandNode.examples.example.Count -ne 0)
                 {
                     foreach ($Example in $CommandNode.examples.example)
@@ -2226,7 +2230,7 @@ function Main
             if (($null -ne $CommandNode.relatedLinks) -and
                 ($null -ne $CommandNode.relatedLinks.navigationLink))
             {
-                DisplayParagraph 0 'section' "RELATED LINKS"
+                DisplayParagraph 0 'section' 'RELATED LINKS'
                 $Links = @()
                 if (($CommandNode.relatedLinks.navigationLink -is [System.Object[]]) -and
                     ($CommandNode.relatedLinks.navigationLink.Count -gt 0))
@@ -2242,6 +2246,7 @@ function Main
                     $LinkValue = BuildLinkValue $CommandNode.relatedLinks.navigationLink.linkText $CommandNode.relatedLinks.navigationLink.uri
                     $Links += @('* '+$LinkValue)
                 }
+                $Work.WasColon = $false
                 DisplayCollectionOfParagraphs 1 $Links
             }
 
@@ -2249,7 +2254,7 @@ function Main
             # Section REMARKS
             if ($false)
             {
-                DisplayParagraph 0 'section' "REMARKS"
+                DisplayParagraph 0 'section' 'REMARKS'
                 DisplayParagraph 1 'regular' 'Remarks will be described later !!!'
             }
 
@@ -2271,15 +2276,15 @@ function Main
 
             switch ($Item.Format)
             {
-                "txt"
+                'txt'
                     {
                         $XML = ParseTxtHelpFile $Item
                         Write-Verbose (show-XML.ps1 $XML -Tree ascii -Width ([System.Console]::WindowWidth-5)| Out-String)
                         DisplayXmlHelpFile $Item $XML.ChildNodes[1].ChildNodes[0]
                     }
-                "xml"
+                'xml'
                     {
-                        Write-Verbose ("Displaying file: "+$Item.File+" Item no: "+$Item.Index)
+                        Write-Verbose "Displaying file: $($Item.File) Item no: $($Item.Index)"
                         $XML = [System.Xml.XmlDocument](Get-Content $Item.File)
                         DisplayXmlHelpFile $Item ($XML.helpItems.command)[$Item.Index]
                     }
@@ -2303,10 +2308,10 @@ function Main
         else
         {
             # Find all *.help.txt and  *.dll-help.xml HelpFiles and parse them
-            Write-Verbose "Find all *.help.txt and  *.dll-help.xml files HelpFiles"
+            Write-Verbose 'Find all *.help.txt and  *.dll-help.xml files HelpFiles'
             FindHelpFiles
             # Export description of all found help items
-            Write-Verbose ("Storing info about help files to $($Work.ItemsFile)")
+            Write-Verbose "Storing info about help files to $($Work.ItemsFile)"
             Export-Clixml -Path $Work.ItemsFile -Encoding UTF8 -InputObject $HelpInfo
         }
         #----------------------------------------------------------
@@ -2368,7 +2373,7 @@ function Main
         #----------------------------------------------------------
         if ($Online -or $ShowWindow)
         {
-            Write-Verbose "Parameter Online or ShowWindow used, fallback to Get-Help"
+            Write-Verbose 'Parameter Online or ShowWindow used, fallback to Get-Help'
             Microsoft.PowerShell.Core\Get-Help @PSBoundParameters
             return
         }
