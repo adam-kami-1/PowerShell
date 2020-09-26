@@ -2139,39 +2139,18 @@ function Main
             if (($null -ne $CommandNode.returnValues) -and
                 ($null -ne $CommandNode.returnValues.returnValue))
             {
-                if ($null -ne $CommandNode.returnValues.returnValue.Count)
+                DisplayParagraph 0 'section' 'OUTPUTS'
+                foreach ($returnValue in $CommandNode.returnValues.returnValue)
                 {
-                    DisplayParagraph 0 'section' 'OUTPUTS'
-                    foreach ($returnValue in $CommandNode.returnValues.returnValue)
+                    if ($returnValue.type.name -ne '')
                     {
-                        if ($returnValue.type.name -ne '')
-                        {
-                            DisplayParagraph 1 'compact' $returnValue.type.name
-                        }
-                        $Work.WasColon = $false
-                        DisplayCollectionOfParagraphs 2 $returnValue.description 'DisplayedLines'
-                        if ($DisplayedLines -eq 0)
-                        {
-                            DisplayParagraph 2 'empty'
-                        }
+                        DisplayParagraph 1 'compact' $returnValue.type.name
                     }
-                }
-                else
-                {
-                    if ((([String]$CommandNode.returnValues.returnValue.type.name) -ne '') -or
-                        (([String]$CommandNode.returnValues.returnValue.description.para) -ne ''))
+                    $Work.WasColon = $false
+                    DisplayCollectionOfParagraphs 2 $returnValue.description 'DisplayedLines'
+                    if ($DisplayedLines -eq 0)
                     {
-                        DisplayParagraph 0 'section' 'OUTPUTS'
-                        if ($CommandNode.returnValues.returnValue.type.name -ne '')
-                        {
-                            DisplayParagraph 1 'compact' $CommandNode.returnValues.returnValue.type.name
-                        }
-                        $Work.WasColon = $false
-                        DisplayCollectionOfParagraphs 2 $CommandNode.returnValues.returnValue.description 'DisplayedLines'
-                        if ($DisplayedLines -eq 0)
-                        {
-                            DisplayParagraph 2 'empty'
-                        }
+                        DisplayParagraph 2 'empty'
                     }
                 }
             }
