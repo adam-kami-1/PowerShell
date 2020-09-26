@@ -2121,15 +2121,32 @@ function Main
             if (($null -ne $CommandNode.InputTypes) -and
                 ($null -ne $CommandNode.InputTypes.InputType))
             {
-                DisplayParagraph 0 'section' 'INPUTS'
+                $HeaderDisplayed = $false
                 foreach ($InputType in $CommandNode.InputTypes.InputType)
                 {
-                    DisplayParagraph 1 'compact' $InputType.type.name
-                    $Work.WasColon = $false
-                    DisplayCollectionOfParagraphs 2 $InputType.description 'DisplayedLines'
-                    if ($DisplayedLines -eq 0)
+                    if ('' -ne $InputType.type.name)
                     {
-                        DisplayParagraph 2 'empty'
+                        if (-not $HeaderDisplayed)
+                        {
+                            DisplayParagraph 0 'section' 'INPUTS'
+                            $HeaderDisplayed = $true
+                        }
+                        DisplayParagraph 1 'compact' $InputType.type.name
+                    }
+                    if (($null -ne $InputType.description.para) -and
+                        ('' -ne $InputType.description.para[0]))
+                    {
+                        if (-not $HeaderDisplayed)
+                        {
+                            DisplayParagraph 0 'section' 'INPUTS'
+                            $HeaderDisplayed = $true
+                        }
+                        $Work.WasColon = $false
+                        DisplayCollectionOfParagraphs 2 $InputType.description 'DisplayedLines'
+                        if ($DisplayedLines -eq 0)
+                        {
+                            DisplayParagraph 2 'empty'
+                        }
                     }
                 }
             }
@@ -2139,18 +2156,32 @@ function Main
             if (($null -ne $CommandNode.returnValues) -and
                 ($null -ne $CommandNode.returnValues.returnValue))
             {
-                DisplayParagraph 0 'section' 'OUTPUTS'
+                $HeaderDisplayed = $false
                 foreach ($returnValue in $CommandNode.returnValues.returnValue)
                 {
                     if ($returnValue.type.name -ne '')
                     {
+                        if (-not $HeaderDisplayed)
+                        {
+                            DisplayParagraph 0 'section' 'OUTPUTS'
+                            $HeaderDisplayed = $true
+                        }
                         DisplayParagraph 1 'compact' $returnValue.type.name
                     }
-                    $Work.WasColon = $false
-                    DisplayCollectionOfParagraphs 2 $returnValue.description 'DisplayedLines'
-                    if ($DisplayedLines -eq 0)
+                    if (($null -ne $returnValue.description.para) -and
+                        ('' -ne $returnValue.description.para[0]))
                     {
-                        DisplayParagraph 2 'empty'
+                        if (-not $HeaderDisplayed)
+                        {
+                            DisplayParagraph 0 'section' 'OUTPUTS'
+                            $HeaderDisplayed = $true
+                        }
+                        $Work.WasColon = $false
+                        DisplayCollectionOfParagraphs 2 $returnValue.description 'DisplayedLines'
+                        if ($DisplayedLines -eq 0)
+                        {
+                            DisplayParagraph 2 'empty'
+                        }
                     }
                 }
             }
