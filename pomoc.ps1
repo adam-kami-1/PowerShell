@@ -1950,21 +1950,82 @@ function Main
 
             ###################################
             # function DisplaySingleParameter #
+            ###################################
             function DisplaySingleParameter
             {
                 param (
                     [System.Xml.XmlElement] $ParamNode
                 )
 
+
+                ####################################
+                # function NormalizeAttributeValue #
+                ####################################
+                function NormalizeAttributeValue
+                {
+                    param (
+                        [System.String] $Value
+                    )
+                
+                    ####################################
+                    # function NormalizeAttributeValue #
+                    switch -regex ($Value.Trim()){
+                        '^True$'
+                            {
+                                'True'
+                            }
+                        '^False$'
+                            {
+                                'False'
+                            }
+                        '^None$'
+                            {
+                                'None'
+                            }
+                        '^Named$'
+                            {
+                                'Named'
+                            }
+                        '^True *\(?ByPropertyName\)?$'
+                            {
+                                'True (ByPropertyName)'
+                            }
+                        '^True *\(?ByValue\)?$'
+                            {
+                                'True (ByValue)'
+                            }
+                        '^True *\(?ByValue, *ByPropertyName\)?$'
+                            {
+                                'True (ByValue, ByPropertyName)'
+                            }
+                        '^True *\(?ByPropertyName, *ByValue\)?$'
+                            {
+                                'True (ByValue, ByPropertyName)'
+                            }
+                        default
+                            {
+                                $Value
+                            }
+                    }
+                }   # function NormalizeAttributeValue #
+                    ####################################
+
+
                 ###################################
                 # function DisplaySingleParameter #
 
-                $Required = $ParamNode.required
-                $Position = $ParamNode.position
-                $DefVal = $ParamNode.defaultValue
-                $PipelineInput = $ParamNode.pipelineInput
-                $Globbing = $ParamNode.globbing
+                $Required = NormalizeAttributeValue $ParamNode.required
+                $Position = NormalizeAttributeValue $ParamNode.position
+                $DefVal = NormalizeAttributeValue $ParamNode.defaultValue
+                $PipelineInput = NormalizeAttributeValue $ParamNode.pipelineInput
+                #Parameter set name           (All)
+                $Globbing = NormalizeAttributeValue $ParamNode.globbing
                 $Aliases = $ParamNode.aliases
+                if (($Aliases -eq '') -or ($Aliases -eq 'none'))
+                {
+                    $Aliases = 'None'
+                }
+                #Dynamic?                     false
 
                 DisplayParagraph 1 'subsection' ('-'+$ParamNode.name+' <'+$ParamNode.type.name+'>')
 
@@ -1976,10 +2037,7 @@ function Main
                 DisplayParagraph 2 'formatted' "Default value                $DefVal"
                 DisplayParagraph 2 'formatted' "Accept pipeline input?       $PipelineInput"
                 DisplayParagraph 2 'formatted' "Accept wildcard characters?  $Globbing"
-                if (($Aliases -ne '') -and ($Aliases -ne 'none'))
-                {
-                    DisplayParagraph 2 'formatted' "Aliases                      $Aliases"
-                }
+                DisplayParagraph 2 'formatted' "Aliases                      $Aliases"
                 DisplayParagraph 0 'empty'
             }   # function DisplaySingleParameter #
                 ###################################
