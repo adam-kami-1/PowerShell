@@ -1754,6 +1754,8 @@ function Main
                         $Paragraph = $Paragraph.TrimEnd()
                         if (-not $Work.WasColon)
                         {
+                            #----------------------------------------------------------
+                            # Previous paragraph/line was not the list heading paragraph
                             if ($Paragraph.Substring($Paragraph.Length-1, 1) -eq ':')
                             {
                                 # List heading paragraph
@@ -1770,6 +1772,8 @@ function Main
                         }
                         else
                         {
+                            #----------------------------------------------------------
+                            # Previous paragraph/line was the list heading paragraph or the list item
                             if ($Paragraph -match '^[0-9]+ =')
                             {
                                 # Numbered list item
@@ -1800,9 +1804,20 @@ function Main
                                 DisplayParagraph $IndentLevel 'empty'
                                 $DisplayedLines += 1
                                 $Work.WasColon = $false
-                                # Regular paragraph
-                                DisplayParagraph $IndentLevel 'regular' $Paragraph 'Displayed'
-                                $DisplayedLines += $Displayed
+                                # But it could be begin of the next list
+                                if ($Paragraph.Substring($Paragraph.Length-1, 1) -eq ':')
+                                {
+                                    # List heading paragraph
+                                    $Work.WasColon = $true
+                                    DisplayParagraph $IndentLevel 'compact' $Paragraph 'Displayed'
+                                    $DisplayedLines += $Displayed
+                                }
+                                else
+                                {
+                                    # Regular paragraph
+                                    DisplayParagraph $IndentLevel 'regular' $Paragraph 'Displayed'
+                                    $DisplayedLines += $Displayed
+                                }
                             }
                         }
                     }
