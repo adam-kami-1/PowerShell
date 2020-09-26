@@ -2202,8 +2202,11 @@ function Main
                 ($null -ne $CommandNode.alertSet.alert.para[0]))
             {
                 DisplayParagraph 0 'section' 'NOTES'
-                $Work.WasColon = $false
-                DisplayCollectionOfParagraphs 1 $CommandNode.alertSet.alert
+                foreach ($alert in $CommandNode.alertSet.alert)
+                {
+                    $Work.WasColon = $false
+                    DisplayCollectionOfParagraphs 1 $alert
+                }
             }
 
             #----------------------------------------------------------
