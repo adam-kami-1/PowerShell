@@ -2124,6 +2124,7 @@ function Main
                 $HeaderDisplayed = $false
                 foreach ($InputType in $CommandNode.InputTypes.InputType)
                 {
+                    $DisplayedLines = 0
                     if ('' -ne $InputType.type.name)
                     {
                         if (-not $HeaderDisplayed)
@@ -2134,7 +2135,7 @@ function Main
                         DisplayParagraph 1 'compact' $InputType.type.name
                     }
                     if (($null -ne $InputType.description.para) -and
-                        ('' -ne $InputType.description.para[0]))
+                        ($null -ne $InputType.description.para[0]))
                     {
                         if (-not $HeaderDisplayed)
                         {
@@ -2143,10 +2144,10 @@ function Main
                         }
                         $Work.WasColon = $false
                         DisplayCollectionOfParagraphs 2 $InputType.description 'DisplayedLines'
-                        if ($DisplayedLines -eq 0)
-                        {
-                            DisplayParagraph 2 'empty'
-                        }
+                    }
+                    if ($HeaderDisplayed -and ($DisplayedLines -eq 0))
+                    {
+                        DisplayParagraph 2 'empty'
                     }
                 }
             }
@@ -2159,6 +2160,7 @@ function Main
                 $HeaderDisplayed = $false
                 foreach ($returnValue in $CommandNode.returnValues.returnValue)
                 {
+                    $DisplayedLines = 0
                     if ($returnValue.type.name -ne '')
                     {
                         if (-not $HeaderDisplayed)
@@ -2169,7 +2171,7 @@ function Main
                         DisplayParagraph 1 'compact' $returnValue.type.name
                     }
                     if (($null -ne $returnValue.description.para) -and
-                        ('' -ne $returnValue.description.para[0]))
+                        ($null -ne $returnValue.description.para[0]))
                     {
                         if (-not $HeaderDisplayed)
                         {
@@ -2178,10 +2180,10 @@ function Main
                         }
                         $Work.WasColon = $false
                         DisplayCollectionOfParagraphs 2 $returnValue.description 'DisplayedLines'
-                        if ($DisplayedLines -eq 0)
-                        {
-                            DisplayParagraph 2 'empty'
-                        }
+                    }
+                    if ($HeaderDisplayed -and ($DisplayedLines -eq 0))
+                    {
+                        DisplayParagraph 2 'empty'
                     }
                 }
             }
