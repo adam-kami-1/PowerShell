@@ -2121,33 +2121,15 @@ function Main
             if (($null -ne $CommandNode.InputTypes) -and
                 ($null -ne $CommandNode.InputTypes.InputType))
             {
-                if ($null -ne $CommandNode.InputTypes.InputType.Count)
+                DisplayParagraph 0 'section' 'INPUTS'
+                foreach ($InputType in $CommandNode.InputTypes.InputType)
                 {
-                    DisplayParagraph 0 'section' 'INPUTS'
-                    foreach ($InputType in $CommandNode.InputTypes.InputType)
+                    DisplayParagraph 1 'compact' $InputType.type.name
+                    $Work.WasColon = $false
+                    DisplayCollectionOfParagraphs 2 $InputType.description 'DisplayedLines'
+                    if ($DisplayedLines -eq 0)
                     {
-                        DisplayParagraph 1 'compact' $InputType.type.name
-                        $Work.WasColon = $false
-                        DisplayCollectionOfParagraphs 2 $InputType.description 'DisplayedLines'
-                        if ($DisplayedLines -eq 0)
-                        {
-                            DisplayParagraph 2 'empty'
-                        }
-                    }
-                }
-                else
-                {
-                    if ((([String]$CommandNode.InputTypes.InputType.type.name) -ne '') -or
-                        (([String]$CommandNode.InputTypes.InputType.description.para) -ne ''))
-                    {
-                        DisplayParagraph 0 'section' 'INPUTS'
-                        DisplayParagraph 1 'compact' $CommandNode.InputTypes.InputType.type.name
-                        $Work.WasColon = $false
-                        DisplayCollectionOfParagraphs 2 $CommandNode.InputTypes.InputType.description 'DisplayedLines'
-                        if ($DisplayedLines -eq 0)
-                        {
-                            DisplayParagraph 2 'empty'
-                        }
+                        DisplayParagraph 2 'empty'
                     }
                 }
             }
