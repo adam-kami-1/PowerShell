@@ -598,7 +598,7 @@ function Main
                     {
                         return ''
                     }
-                    if (-not ($Paragraph -match '^[-:, a-z0-9]+$'))
+                    if (-not ($Paragraph -match '^[-:, a-z0-9$?_]+$'))
                     {
                         return ''
                     }
