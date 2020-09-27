@@ -443,13 +443,9 @@ function Main
                     $Paragraph = $Paragraph.Substring($Paragraph.IndexOf("`n")+1)
                     $SkipLines--
                 }
-                if ($Clean)
+                if (-not ($Paragraph -match ' *(- |-- |[0-9]+ =)'))
                 {
                     $Paragraph = CleanParagraph $Paragraph
-                }
-                else
-                {
-                    $Paragraph = $Paragraph.Replace("`n", ' ')
                 }
                 $Child = $ParentNode.AppendChild($XML.CreateElement($ChildName))
                 $Child.Set_innerText($Paragraph)
