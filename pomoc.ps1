@@ -655,8 +655,20 @@ function Main
                             }
                         }
                     {($_ -eq 'DESCRIPTION') -or
-                     ($_ -eq 'NOTES')}
+                     ($_ -eq 'NOTES') -or
+                     ($_ -eq 'EXAMPLES') -or
+                     ($_ -eq 'EXAMPLE')}
                         {
+                            if ($Paragraph -match '^ *EXAMPLE [0-9]+:')
+                            {
+                                $Examples = (Select-XML -Xml $XML -XPath '/helpItems/command/examples').Node
+                                $Example = $Examples.AppendChild($XML.CreateElement('example'))
+                                $Title = $Example.AppendChild($XML.CreateElement('title'))
+                                $Title.Set_innerText($Paragraph.Trim())
+                                $Item.CurrentExtraSectionNode = $Example
+                                $Item.CurrentSectionName = 'EXAMPLE'
+                                break
+                            }
                             $ExtraSection = ExtraSectionHeading $Paragraph
                             if ($Item.Name -eq 'about_Comment_Based_Help')
                             {
@@ -704,7 +716,7 @@ function Main
                                                 break
                                             }
                                         }
-                                        # Really regular paragraph, add to appropriate section
+                                        # Actually regular paragraph, add to appropriate section
                                         StoreRegularparagraph $Item $XML $Paragraph
                                         $Work.CodeIndent = -1
                                     }
@@ -867,6 +879,11 @@ function Main
                             }
                             $Item.CurrentSectionName = 'DESCRIPTION'
                             $Item.CurrentExtraSectionNode = $null
+                        }
+                    '^EXAMPLES$'
+                        {
+                            $Examples = $Command.AppendChild($XML.CreateElement('examples'))
+                            $Item.CurrentSectionName = 'EXAMPLES'
                         }
                     '^SEE ALSO$'
                         {
@@ -1758,6 +1775,7 @@ function Main
                 function DisplayParagraphFromCollection
                 {
                     param (
+                        [System.Int32] $IndentLevel,
                         [System.String] $Paragraph,
                         [System.String] $DisplayedLinesVar = ''
                     )
@@ -1874,7 +1892,7 @@ function Main
                                     'para'
                                         {
                                             $Paragraph = $Child.InnerText
-                                            DisplayParagraphFromCollection $Paragraph 'Displayed'
+                                            DisplayParagraphFromCollection $IndentLevel $Paragraph 'Displayed'
                                             $DisplayedLines += $Displayed
                                         }
                                     'code'
@@ -1885,7 +1903,7 @@ function Main
                                                 $DisplayedLines += 1
                                                 $Work.WasColon = $false
                                             }
-                                            DisplayParagraph 1 'code' $Child.InnerText 'Displayed'
+                                            DisplayParagraph $IndentLevel 'code' $Child.InnerText 'Displayed'
                                             $DisplayedLines += $Displayed
                                         }
                                 }
@@ -1896,7 +1914,7 @@ function Main
                         {
                             foreach ($Paragraph in $Collection)
                             {
-                                DisplayParagraphFromCollection $Paragraph 'Displayed'
+                                DisplayParagraphFromCollection $IndentLevel $Paragraph 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
                         }
@@ -2108,9 +2126,14 @@ function Main
                 # function DisplaySingleExample #
 
                 DisplayParagraph 1 'subsection' $Example.title.Trim('- ')
-                DisplayParagraph 2 'code' $Example.code
+                #DisplayParagraph 2 'code' $Example.code
                 $Work.WasColon = $false
-                DisplayCollectionOfParagraphs 2 $Example.remarks
+                DisplayCollectionOfParagraphs 2 $Example
+                if ($null -ne $Example.remarks)
+                {
+                    $Work.WasColon = $false
+                    DisplayCollectionOfParagraphs 2 $Example.remarks
+                }
             }   # function DisplaySingleExample #
                 #################################
 
