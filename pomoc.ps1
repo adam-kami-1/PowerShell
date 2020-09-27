@@ -1740,6 +1740,7 @@ function Main
                     
                     $DisplayedLines = 0
                     $Paragraph = $Paragraph.TrimEnd(" `n")
+                    $Paragraph = $Paragraph.TrimStart()
                     if ($Paragraph.Length -eq 0)
                     {
                         return
@@ -1752,7 +1753,6 @@ function Main
                     }
                     else
                     {
-                        $Paragraph = $Paragraph.TrimEnd()
                         if (-not $Work.WasColon)
                         {
                             #----------------------------------------------------------
@@ -1781,19 +1781,22 @@ function Main
                                 DisplayParagraph $IndentLevel 'numberedlist' $Paragraph 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
-                            elseif ($Paragraph.Substring(0, 2) -eq '- ')
+                            elseif (($Paragraph.Length -gt 2) -and
+                                    ($Paragraph.Substring(0, 2) -eq '- '))
                             {
                                 # Bulleted list item
                                 DisplayParagraph $IndentLevel 'bulletedlist' $Paragraph 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
-                            elseif ($Paragraph.Substring(0, 2) -eq '-- ')
+                            elseif (($Paragraph.Length -gt 3) -and
+                                    ($Paragraph.Substring(0, 3) -eq '-- '))
                             {
                                 # Bulleted list item
                                 DisplayParagraph $IndentLevel 'bulletedlist' ('- '+$Paragraph.Substring(3)) 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
-                            elseif ($Paragraph.Substring(0, 2) -eq '--')
+                            elseif (($Paragraph.Length -gt 2) -and
+                                    ($Paragraph.Substring(0, 2) -eq '--'))
                             {
                                 # Bulleted list item
                                 DisplayParagraph $IndentLevel 'bulletedlist' ('- '+$Paragraph.Substring(2)) 'Displayed'
