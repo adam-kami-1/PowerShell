@@ -548,15 +548,25 @@ function Main
                             $Work.CodeIndent++
                         }
                     }
-                    foreach ($Line in $Paragraph.Split("`n"))
+                    $Lines = $Paragraph.Split("`n")
+                    $Paragraph = ''
+                    foreach ($Line in $Lines)
                     {
-                        $Child = $ParentNode.AppendChild($XML.CreateElement('code'))
                         if (' '*$Work.CodeIndent -eq $Line.Substring(0,$Work.CodeIndent))
                         {
                             $Line = $Line.Substring($Work.CodeIndent)
                         }
-                        $Child.Set_innerText($Line)
+                        if ('' -eq $Paragraph)
+                        {
+                            $Paragraph = $Line
+                        }
+                        else
+                        {
+                            $Paragraph += "`n"+$Line
+                        }
                     }
+                    $Child = $ParentNode.AppendChild($XML.CreateElement('code'))
+                    $Child.Set_innerText($Paragraph)
                 }   # function StoreCodeParagraph #
                     ###############################
 
