@@ -231,6 +231,7 @@ function Main
             OutputWidth = $Width
             IndentSize = 4
             WasColon = $false
+            CodeIndent = -1 # -1 means that it is unknown
             Colors = @{};
             }
 
@@ -539,7 +540,23 @@ function Main
                     ###############################
                     # function StoreCodeParagraph #
 
-                    AddLinesToNewChild $XML $ParentNode 'code' 0 $Paragraph
+                    if (-1 -eq $Work.CodeIndent)
+                    {
+                        $Work.CodeIndent = 0
+                        while (' ' -eq $Paragraph.Substring($Work.CodeIndent,1))
+                        {
+                            $Work.CodeIndent++
+                        }
+                    }
+                    foreach ($Line in $Paragraph.Split("`n"))
+                    {
+                        $Child = $ParentNode.AppendChild($XML.CreateElement('code'))
+                        if (' '*$Work.CodeIndent -eq $Line.Substring(0,$Work.CodeIndent))
+                        {
+                            $Line = $Line.Substring($Work.CodeIndent)
+                        }
+                        $Child.Set_innerText($Line)
+                    }
                 }   # function StoreCodeParagraph #
                     ###############################
 
@@ -659,7 +676,8 @@ function Main
                                         # Need to check if we have code or fomatted paragraph
                                         if ($Paragraph.Substring(0,$UsedIndentation) -eq (' '*$UsedIndentation))
                                         {
-                                            if ($Paragraph.Substring($UsedIndentation,1) -eq ' ')
+                                            if (($Paragraph.Substring($UsedIndentation,1) -eq ' ') -and
+                                                ('[!NOTE]' -ne $Paragraph.TrimStart().Substring(0,7)))
                                             {
                                                 if ($null -eq $Item.CurrentExtraSectionNode)
                                                 {
@@ -681,6 +699,7 @@ function Main
                                         }
                                         # Really regular paragraph, add to appropriate section
                                         StoreRegularparagraph $Item $XML $Paragraph
+                                        $Work.CodeIndent = -1
                                     }
                                 '^(NOTES|REMARKS)$'
                                     {
