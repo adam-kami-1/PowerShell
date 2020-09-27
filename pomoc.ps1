@@ -683,6 +683,7 @@ function Main
                                         if ($Paragraph.Substring(0,$UsedIndentation) -eq (' '*$UsedIndentation))
                                         {
                                             if (($Paragraph.Substring($UsedIndentation,1) -eq ' ') -and
+                                                (7 -lt $Paragraph.TrimStart().Length) -and
                                                 ('[!NOTE]' -ne $Paragraph.TrimStart().Substring(0,7)))
                                             {
                                                 if ($null -eq $Item.CurrentExtraSectionNode)
