@@ -1852,6 +1852,12 @@ function Main
                                         }
                                     'code'
                                         {
+                                            if ($Work.WasColon)
+                                            {
+                                                DisplayParagraph $IndentLevel 'empty'
+                                                $DisplayedLines += 1
+                                                $Work.WasColon = $false
+                                            }
                                             DisplayParagraph 1 'code' $Child.InnerText 'Displayed'
                                             $DisplayedLines += $Displayed
                                         }
