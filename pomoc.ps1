@@ -512,6 +512,16 @@ function Main
                     {
                         AddLinesToNewChild $XML $Item.CurrentExtraSectionNode 'para' 0 $Paragraph
                     }
+                    elseif ($Item.CurrentSectionName -eq 'EXAMPLES')
+                    {
+                        $Examples = (Select-XML -Xml $XML -XPath '/helpItems/command/examples').Node
+                        $Example = $Examples.AppendChild($XML.CreateElement('example'))
+                        $Title = $Example.AppendChild($XML.CreateElement('title'))
+                        $Title.Set_innerText('Example')
+                        $Item.CurrentExtraSectionNode = $Example
+                        $Item.CurrentSectionName = 'EXAMPLE'
+                        AddLinesToNewChild $XML $Item.CurrentExtraSectionNode 'para' 0 $Paragraph
+                    }
                     else
                     {
                         AddDescriptionParagraph $XML $Paragraph
@@ -695,8 +705,9 @@ function Main
                                         if ($Paragraph.Substring(0,$UsedIndentation) -eq (' '*$UsedIndentation))
                                         {
                                             if (($Paragraph.Substring($UsedIndentation,1) -eq ' ') -and
-                                                (7 -lt $Paragraph.TrimStart().Length) -and
-                                                ('[!NOTE]' -ne $Paragraph.TrimStart().Substring(0,7)))
+                                                (10 -lt $Paragraph.TrimStart().Length) -and
+                                                ('[!NOTE]' -ne $Paragraph.TrimStart().Substring(0,7)) -and
+                                                ('[!WARNING]' -ne $Paragraph.TrimStart().Substring(0,10)))
                                             {
                                                 if ($null -eq $Item.CurrentExtraSectionNode)
                                                 {
@@ -883,6 +894,7 @@ function Main
                     '^EXAMPLES$'
                         {
                             $Examples = $Command.AppendChild($XML.CreateElement('examples'))
+                            $Item.CurrentExtraSectionNode = $null
                             $Item.CurrentSectionName = 'EXAMPLES'
                         }
                     '^SEE ALSO$'
