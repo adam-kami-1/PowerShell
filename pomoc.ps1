@@ -706,9 +706,7 @@ function Main
                                         if ($Paragraph.Substring(0,$UsedIndentation) -eq (' '*$UsedIndentation))
                                         {
                                             if (($Paragraph.Substring($UsedIndentation,1) -eq ' ') -and
-                                                (10 -lt $Paragraph.TrimStart().Length) -and
-                                                ('[!NOTE]' -ne $Paragraph.TrimStart().Substring(0,7)) -and
-                                                ('[!WARNING]' -ne $Paragraph.TrimStart().Substring(0,10)))
+                                                ($Paragraph.TrimStart() -notmatch '\[!(NOTE|WARNING|IMPORTANT)\]'))
                                             {
                                                 if ($null -eq $Item.CurrentExtraSectionNode)
                                                 {
