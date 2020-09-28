@@ -558,7 +558,8 @@ function Main
                     $Paragraph = ''
                     foreach ($Line in $Lines)
                     {
-                        if (' '*$Work.CodeIndent -eq $Line.Substring(0,$Work.CodeIndent))
+                        if (($Work.CodeIndent -lt $Line.Length) -and
+                            (' '*$Work.CodeIndent -eq $Line.Substring(0,$Work.CodeIndent)))
                         {
                             $Line = $Line.Substring($Work.CodeIndent)
                         }
