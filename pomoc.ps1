@@ -605,6 +605,10 @@ function Main
                     {
                         return ''
                     }
+                    if ($Paragraph -eq 'Examples:')
+                    {
+                        return 'Examples'
+                    }
                     if ($Paragraph.Substring($Paragraph.Length-1,1) -in @('.', ':'))
                     {
                         return ''
