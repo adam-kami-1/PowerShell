@@ -978,6 +978,13 @@ function Main
                 $HelpInfo.ItemIndex[$Item.Name] = $HelpInfo.Items.Count
                 $HelpInfo.Items += $Item
             }
+            elseif ($null -ne $Item.LastWriteTime)
+            {
+                if ($Item.LastWriteTime -gt $HelpInfo.Items[$HelpInfo.ItemIndex[$Item.Name]].LastWriteTime)
+                {
+                    $HelpInfo.Items[$HelpInfo.ItemIndex[$Item.Name]] = $Item
+                }
+            }
         }   # function AddItem #
             ####################
 
@@ -1093,7 +1100,7 @@ function Main
                     {
                         return
                     }
-                    $Files = (Get-ChildItem $Path\*.help.txt).Name
+                    $Files = Get-ChildItem $Path\*.help.txt
                     if ($Files.Count -gt 0)
                     {
                         if ($ModuleName -eq '')
@@ -1106,15 +1113,18 @@ function Main
                         }
                         foreach ($File in $Files)
                         {
-                            $Name = $File -replace '.help.txt',''
+                            $Name = $File.Name -replace '.help.txt',''
                             $URI = GetModuleAndOnlineURI $Name $ModuleName
                             if ($URI.Module -eq 'drop it !!!')
                             {
                                 continue
                             }
+                            if ($Name -eq 'about_ActivityCommonParameters')
+                            {Write-Verbose 'BreakPoint'}
                             $Item = @{Name = $Name;
                                       ModuleName = $URI.Module;
-                                      File = "$Path\$File";
+                                      File = "$Path\$($File.Name)";
+                                      LastWriteTime = $File.LastWriteTime;
                                       OnlineURI = $URI.URI;
                                       Format = 'txt';
                                       Index = -1;
@@ -1189,6 +1199,7 @@ function Main
                                         AddItem $true @{Name = $command.details.name;
                                                         ModuleName = $ModuleName;
                                                         File = "$Path\$File";
+                                                        LastWriteTime = $null;
                                                         OnlineURI = '';
                                                         Format = 'xml';
                                                         Index = $Index;
@@ -1219,6 +1230,7 @@ function Main
                                 AddItem $false @{Name = $CommandName;
                                                  ModuleName = $ModuleName;
                                                  File = '';
+                                                 LastWriteTime = $null;
                                                  OnlineURI = '';
                                                  Format = '';
                                                  Index = -1;
@@ -1412,6 +1424,7 @@ function Main
                         AddItem $true @{Name = $_.Name;
                                         ModuleName = $Item.ModuleName;
                                         File = $Item.File;
+                                        LastWriteTime = $Item.LastWriteTime;
                                         OnlineURI = $Item.OnlineURI;
                                         Format = $Item.Format;
                                         Index = $Item.Index;
@@ -1429,6 +1442,7 @@ function Main
                         AddItem $true @{Name = $_.Name;
                                         ModuleName = '';
                                         File = '';
+                                        LastWriteTime = $null;
                                         OnlineURI = '';
                                         Format = '';
                                         Index = -1;
@@ -1461,6 +1475,7 @@ function Main
                     AddItem $false @{Name = $Function;
                                      ModuleName = '';
                                      File = '';
+                                     LastWriteTime = $null;
                                      OnlineURI = '';
                                      Format = '';
                                      Index = -1;
