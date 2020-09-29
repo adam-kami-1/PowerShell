@@ -645,7 +645,11 @@ function Main
                     {
                         return ''
                     }
-                    if ($FirstLine.Length -gt 60)
+                    if (($FirstLine.Length -gt 45) -and ($FirstLine.Length -ne $Paragraph.Trim("`t ").Length))
+                    {
+                        return ''
+                    }
+                    if ($FirstLine -match ' is ')
                     {
                         return ''
                     }
