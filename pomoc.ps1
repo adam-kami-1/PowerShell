@@ -296,8 +296,9 @@ function Main
             ###########################
             # function CleanParagraph #
 
-            # Replace all new lines with spaces
+            # Replace all new lines and tabs with spaces
             $Paragraph = $Paragraph.Replace("`n", ' ')
+            $Paragraph = $Paragraph.Replace("`t", ' ')
 
             # Compress every spaces string into single space
             while ($Paragraph.IndexOf('  ') -ne -1)
@@ -854,12 +855,12 @@ function Main
                                 # SHORT DESCRIPTION and synopsis are in one paragraph, but in two lines.
                                 # Extract synopsis and put it into XML.
                                 $Description = $Details.AppendChild($XML.CreateElement('description'))
-                                # !!! Need trim and remove duplicate spaces
+                                $Paragraph = $Paragraph.Substring($Paragraph.IndexOf("`n")+1)
                                 if ($UsedIndentation -eq 0)
                                 {
                                     $UsedIndentation = $Paragraph.Length-$Paragraph.TrimStart().Length
                                 }
-                                AddLinesToNewChild $XML $Description 'para' 1 $Paragraph
+                                AddLinesToNewChild $XML $Description 'para' 0 $Paragraph
                             }
                             $Item.CurrentSectionName = 'SYNOPSIS'
                         }
