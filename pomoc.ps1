@@ -649,7 +649,7 @@ function Main
                     {
                         return ''
                     }
-                    if (-not ($FirstLine -match '^[-:, a-z0-9$?_]+$'))
+                    if (-not ($FirstLine -match '^[-: a-z0-9$?_\(\)]+$'))
                     {
                         return ''
                     }
