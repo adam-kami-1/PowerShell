@@ -2424,7 +2424,7 @@ function Main
                 'txt'
                     {
                         $XML = ParseTxtHelpFile $Item
-                        Write-Verbose (show-XML.ps1 $XML -Tree ascii -Width ([System.Console]::WindowWidth-5)| Out-String)
+                        Write-Verbose (show-XML.ps1 $XML -Tree ascii -Width ($Work.OutputWidth-5)| Out-String)
                         DisplayXmlHelpFile $Item $XML.ChildNodes[1].ChildNodes[0]
                     }
                 'xml'
@@ -2463,7 +2463,12 @@ function Main
         # Configuring output width
         if ($Work.OutputWidth -eq 0)
         {
-            $Work.OutputWidth = [System.Console]::WindowWidth
+            try {
+                $Work.OutputWidth = [System.Console]::WindowWidth
+            }
+            catch {
+                $Work.OutputWidth = 80
+            }
         }
         #----------------------------------------------------------
         # Configuring output colors
