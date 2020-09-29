@@ -645,6 +645,10 @@ function Main
                     {
                         return ''
                     }
+                    if ($FirstLine.Length -gt 60)
+                    {
+                        return ''
+                    }
                     if (-not ($FirstLine -match '^[-:, a-z0-9$?_]+$'))
                     {
                         return ''
@@ -1119,8 +1123,6 @@ function Main
                             {
                                 continue
                             }
-                            if ($Name -eq 'about_ActivityCommonParameters')
-                            {Write-Verbose 'BreakPoint'}
                             $Item = @{Name = $Name;
                                       ModuleName = $URI.Module;
                                       File = "$Path\$($File.Name)";
