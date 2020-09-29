@@ -539,7 +539,6 @@ function Main
                     param (
                         [System.Collections.Hashtable] $Item,
                         [System.Xml.XmlDocument] $XML,
-                        [System.Xml.XmlElement] $ParentNode,
                         [System.String] $Paragraph
                     )
 
@@ -571,6 +570,31 @@ function Main
                         {
                             $Paragraph += "`n"+$Line
                         }
+                    }
+
+                    if ($Item.CurrentSectionName -eq 'NOTES')
+                    {
+                        $ParentNode = (Select-XML -Xml $XML -XPath '/helpItems/command/alertSet/alert').Node
+                    }
+                    elseif ($Item.CurrentSectionName -eq 'EXAMPLES')
+                    {
+                        #$Alert = (Select-XML -Xml $XML -XPath '/helpItems/command/alertSet/alert').Node
+                        #AddLinesToNewChild $XML $Alert 'para' 0 $Paragraph  
+                    }
+                    elseif ($null -ne $Item.CurrentExtraSectionNode)
+                    {
+                        $ParentNode = $Item.CurrentExtraSectionNode
+                    }
+                    else
+                    {
+                        # There is formatted paragraph or code ????!!!!
+                        $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
+                        if ($null -eq $Description)
+                        {
+                            # There was no LONG DESCRIPTION header in file
+                            $Description = $Command.AppendChild($XML.CreateElement('description'))
+                        }
+                        $ParentNode = $Description
                     }
                     $Child = $ParentNode.AppendChild($XML.CreateElement('code'))
                     $Child.Set_innerText($Paragraph)
@@ -712,35 +736,13 @@ function Main
                                             if (($Paragraph.Substring($UsedIndentation,1) -eq ' ') -and
                                                 ($Paragraph.TrimStart() -notmatch '\[!(NOTE|WARNING|IMPORTANT)\]'))
                                             {
-                                                if ($null -eq $Item.CurrentExtraSectionNode)
-                                                {
-                                                    # There is formatted paragraph or code ????!!!!
-                                                    $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
-                                                    if ($null -eq $Description)
-                                                    {
-                                                        # There was no LONG DESCRIPTION header in file
-                                                        $Description = $Command.AppendChild($XML.CreateElement('description'))
-                                                    }
-                                                    StoreCodeParagraph $Item $XML $Description $Paragraph
-                                                }
-                                                else
-                                                {
-                                                    StoreCodeParagraph $Item $XML $Item.CurrentExtraSectionNode $Paragraph
-                                                }
+                                                StoreCodeParagraph $Item $XML $Paragraph
                                                 break
                                             }
                                         }
                                         # Actually regular paragraph, add to appropriate section
                                         StoreRegularparagraph $Item $XML $Paragraph
                                         $Work.CodeIndent = -1
-                                    }
-                                '^(NOTES|REMARKS)$'
-                                    {
-                                        $Command = (Select-XML -Xml $XML -XPath '/helpItems/command').Node
-                                        $AlertSet = $Command.AppendChild($XML.CreateElement('alertSet'))
-                                        $Alert = $AlertSet.AppendChild($XML.CreateElement('alert'))
-                                        $Item.CurrentSectionName = 'NOTES'
-                                        $Item.CurrentExtraSectionNode = $null
                                     }
                                 default
                                     {
@@ -899,6 +901,14 @@ function Main
                             $Examples = $Command.AppendChild($XML.CreateElement('examples'))
                             $Item.CurrentExtraSectionNode = $null
                             $Item.CurrentSectionName = 'EXAMPLES'
+                        }
+                    '^(NOTES|REMARKS)$'
+                        {
+                            #$Command = (Select-XML -Xml $XML -XPath '/helpItems/command').Node
+                            $AlertSet = $Command.AppendChild($XML.CreateElement('alertSet'))
+                            $Alert = $AlertSet.AppendChild($XML.CreateElement('alert'))
+                            $Item.CurrentSectionName = 'NOTES'
+                            $Item.CurrentExtraSectionNode = $null
                         }
                     '^SEE ALSO$'
                         {
