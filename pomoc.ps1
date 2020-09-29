@@ -615,34 +615,41 @@ function Main
                     ################################
                     # function ExtraSectionHeading #
 
-                    if (($Paragraph.IndexOf("`n") -ne -1) -or
-                        ($Paragraph.Trim().Length -eq 0))
+                    if ($Paragraph.IndexOf("`n") -ne -1)
+                    {
+                        $FirstLine = $Paragraph.Substring(0,$Paragraph.IndexOf("`n"))
+                    }
+                    else
+                    {
+                        $FirstLine = $Paragraph
+                    }
+                    if ($FirstLine.Trim().Length -eq 0)
                     {
                         return ''
                     }
-                    $Paragraph = $Paragraph.TrimEnd()
-                    if ($Paragraph.Substring(0,1) -in @(' ','-'))
+                    $FirstLine = $FirstLine.TrimEnd()
+                    if ($FirstLine.Substring(0,1) -in @(' ','-',"`t"))
                     {
                         return ''
                     }
-                    $Paragraph = $Paragraph.TrimStart()
-                    if ($Paragraph -in @('or', 'and'))
+                    $FirstLine = $FirstLine.TrimStart("`t ")
+                    if ($FirstLine -in @('or', 'and'))
                     {
                         return ''
                     }
-                    if ($Paragraph -eq 'Examples:')
+                    if ($FirstLine -eq 'Examples:')
                     {
                         return 'Examples'
                     }
-                    if ($Paragraph.Substring($Paragraph.Length-1,1) -in @('.', ':'))
+                    if ($FirstLine.Substring($FirstLine.Length-1,1) -in @('.', ':'))
                     {
                         return ''
                     }
-                    if (-not ($Paragraph -match '^[-:, a-z0-9$?_]+$'))
+                    if (-not ($FirstLine -match '^[-:, a-z0-9$?_]+$'))
                     {
                         return ''
                     }
-                    return $Paragraph
+                    return $FirstLine
                 }   # function ExtraSectionHeading #
                     ################################
 
@@ -754,6 +761,10 @@ function Main
                                         $Name = $Item.CurrentExtraSectionNode.AppendChild($XML.CreateElement('name'))
                                         $Name.Set_innerText($Item.CurrentExtraSectionName)
                                         $Item.CurrentSectionName = 'DESCRIPTION'
+                                        if ($Paragraph.IndexOf("`n") -ne -1)
+                                        {
+                                            ParseRegularParagraph $Item $XML $Paragraph.Substring($Paragraph.IndexOf("`n")+1)
+                                        }
                                     }
                             }
                         }
