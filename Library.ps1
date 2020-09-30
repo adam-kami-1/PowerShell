@@ -94,6 +94,7 @@ function Help ()
         {
             $PSBoundParameters.Remove('Parameter')
         }
+        <#
         if (($Name.IndexOf('-') -eq -1) -or
             ($Name -like 'about_*'))
         {
@@ -106,7 +107,8 @@ function Help ()
         }
         else
         {
+        #>
             pomoc.ps1 @PSBoundParameters | less
-        }
+        #}
     }
 } # Help #
