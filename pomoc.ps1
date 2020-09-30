@@ -579,8 +579,13 @@ function Main
                     }
                     elseif ($Item.CurrentSectionName -eq 'EXAMPLES')
                     {
-                        #$Alert = (Select-XML -Xml $XML -XPath '/helpItems/command/alertSet/alert').Node
-                        #AddLinesToNewChild $XML $Alert 'para' 0 $Paragraph  
+                        $Examples = (Select-XML -Xml $XML -XPath '/helpItems/command/examples').Node
+                        $Example = $Examples.AppendChild($XML.CreateElement('example'))
+                        $Title = $Example.AppendChild($XML.CreateElement('title'))
+                        $Title.Set_innerText('Example')
+                        $Item.CurrentExtraSectionNode = $Example
+                        $Item.CurrentSectionName = 'EXAMPLE'
+                        $ParentNode = $Item.CurrentExtraSectionNode
                     }
                     elseif ($null -ne $Item.CurrentExtraSectionNode)
                     {
@@ -653,7 +658,7 @@ function Main
                     {
                         return ''
                     }
-                    if (-not ($FirstLine -match '^[-: a-z0-9$?_\(\)]+$'))
+                    if (-not ($FirstLine -match '^[-\*: a-z0-9$?_\(\)]+$'))
                     {
                         return ''
                     }
@@ -716,7 +721,20 @@ function Main
                         {
                             if ($Paragraph -match '^ *EXAMPLE [0-9]+:')
                             {
-                                $Examples = (Select-XML -Xml $XML -XPath '/helpItems/command/examples').Node
+                                if (($Item.CurrentSectionName -eq 'DESCRIPTION') -and
+                                    ($Item.CurrentExtraSectionName -match 'EXAMPLES'))
+                                {
+                                    $Examples = $Command.AppendChild($XML.CreateElement('examples'))
+                                    foreach ($Child in $Item.CurrentExtraSectionNode.ChildNodes)
+                                    {
+                                        [void]$Examples.AppendChild($Child.Clone())
+                                    }
+                                    [void]$Description.RemoveChild($Item.CurrentExtraSectionNode)
+                                }
+                                else
+                                {
+                                    $Examples = (Select-XML -Xml $XML -XPath '/helpItems/command/examples').Node
+                                }
                                 $Example = $Examples.AppendChild($XML.CreateElement('example'))
                                 $Title = $Example.AppendChild($XML.CreateElement('title'))
                                 $Title.Set_innerText($Paragraph.Trim())
@@ -784,6 +802,7 @@ function Main
             #############################
             # function ParseTxtHelpFile #
 
+            Write-Verbose "Parsing HelpFile $($Item.File)"
             # Convert contents of the HelpFile into array of paragraphs
             $File = Get-Content $Item.File
             $Paragraphs = @()
@@ -918,17 +937,30 @@ function Main
                         }
                     '^EXAMPLES$'
                         {
-                            $Examples = $Command.AppendChild($XML.CreateElement('examples'))
-                            $Item.CurrentExtraSectionNode = $null
-                            $Item.CurrentSectionName = 'EXAMPLES'
+                            if ($Item.Name -ne 'about_Preference_Variables')
+                            {
+                                $Examples = $Command.AppendChild($XML.CreateElement('examples'))
+                                $Item.CurrentExtraSectionNode = $null
+                                $Item.CurrentSectionName = 'EXAMPLES'
+                            }
+                            else
+                            {
+                                ParseRegularParagraph $Item $XML $Paragraph
+                            }
                         }
                     '^(NOTES|REMARKS)$'
                         {
-                            #$Command = (Select-XML -Xml $XML -XPath '/helpItems/command').Node
-                            $AlertSet = $Command.AppendChild($XML.CreateElement('alertSet'))
-                            $Alert = $AlertSet.AppendChild($XML.CreateElement('alert'))
-                            $Item.CurrentSectionName = 'NOTES'
-                            $Item.CurrentExtraSectionNode = $null
+                            if ($Item.Name -ne 'about_Updatable_Help')
+                            {
+                                $AlertSet = $Command.AppendChild($XML.CreateElement('alertSet'))
+                                $Alert = $AlertSet.AppendChild($XML.CreateElement('alert'))
+                                $Item.CurrentSectionName = 'NOTES'
+                                $Item.CurrentExtraSectionNode = $null
+                            }
+                            else
+                            {
+                                ParseRegularParagraph $Item $XML $Paragraph
+                            }
                         }
                     '^SEE ALSO$'
                         {
@@ -2399,7 +2431,14 @@ function Main
             if (($null -ne $CommandNode.examples) -and
                 ($null -ne $CommandNode.examples.example))
             {
-                DisplayParagraph 0 'section' 'EXAMPLES'
+                if ($null -eq $CommandNode.examples.name)
+                {
+                    DisplayParagraph 0 'section' 'EXAMPLES'
+                }
+                else
+                {
+                    DisplayParagraph 0 'section' $CommandNode.examples.name
+                }
                 if ($CommandNode.examples.example.Count -ne 0)
                 {
                     foreach ($Example in $CommandNode.examples.example)
