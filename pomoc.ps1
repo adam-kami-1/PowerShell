@@ -502,6 +502,69 @@ function Main
                         [System.String] $Paragraph
                     )
 
+
+                    ###########################
+                    # function StoreParagraph #
+                    ###########################
+                    function StoreParagraph
+                    {
+                        param (
+                            [System.Collections.Hashtable] $Item,
+                            [System.Xml.XmlDocument] $XML,
+                            [System.String] $Paragraph,
+                            [System.Boolean] $AddToPrevious
+                        )
+
+                        ###########################
+                        # function StoreParagraph #
+                        if ($Item.CurrentSectionName -eq 'NOTES')
+                        {
+                            $Alert = (Select-XML -Xml $XML -XPath '/helpItems/command/alertSet/alert').Node
+                            if ($AddToPrevious)
+                            {
+                                # Add to previous
+                            }
+                            else
+                            {
+                                AddLinesToNewChild $XML $Alert 'para' 0 $Paragraph
+                            }
+                        }
+                        elseif ($null -ne $Item.CurrentExtraSectionNode)
+                        {
+                            if ($AddToPrevious)
+                            {
+                                # Add to previous
+                            }
+                            else
+                            {
+                                AddLinesToNewChild $XML $Item.CurrentExtraSectionNode 'para' 0 $Paragraph
+                            }
+                        }
+                        elseif ($Item.CurrentSectionName -eq 'EXAMPLES')
+                        {
+                            $Examples = (Select-XML -Xml $XML -XPath '/helpItems/command/examples').Node
+                            $Example = $Examples.AppendChild($XML.CreateElement('example'))
+                            $Title = $Example.AppendChild($XML.CreateElement('title'))
+                            $Title.Set_innerText('Example')
+                            $Item.CurrentExtraSectionNode = $Example
+                            $Item.CurrentSectionName = 'EXAMPLE'
+                            AddLinesToNewChild $XML $Item.CurrentExtraSectionNode 'para' 0 $Paragraph
+                        }
+                        else
+                        {
+                            if ($AddToPrevious)
+                            {
+                                # Add to previous
+                            }
+                            else
+                            {
+                                AddDescriptionParagraph $XML $Paragraph
+                            }
+                        }
+                    }   # function StoreParagraph #
+                        ###########################
+
+
                     ##################################
                     # function StoreRegularParagraph #
 
@@ -527,6 +590,12 @@ function Main
                                     $Paragraph.Substring($pos+1+$Work.ListIndent)
                                 $pos = $Paragraph.IndexOf("`n")
                             }
+                            elseif ($Paragraph.Substring($pos+1) -match '^ *([0-9]+ =|-+) *')
+                            {
+                                StoreParagraph $Item $XML $Paragraph.Substring(0,$pos) $AddToPrevious
+                                StoreRegularParagraph $Item $XML $Paragraph.Substring($pos+1)
+                                return
+                            }
                             else
                             {
                                 break
@@ -545,50 +614,7 @@ function Main
                         # Regular paragraph
                         $Work.ListIndent = 0
                     }
-                    if ($Item.CurrentSectionName -eq 'NOTES')
-                    {
-                        $Alert = (Select-XML -Xml $XML -XPath '/helpItems/command/alertSet/alert').Node
-                        if ($AddToPrevious)
-                        {
-                            # Add to previous
-                        }
-                        else
-                        {
-                            AddLinesToNewChild $XML $Alert 'para' 0 $Paragraph
-                        }
-                    }
-                    elseif ($null -ne $Item.CurrentExtraSectionNode)
-                    {
-                        if ($AddToPrevious)
-                        {
-                            # Add to previous
-                        }
-                        else
-                        {
-                            AddLinesToNewChild $XML $Item.CurrentExtraSectionNode 'para' 0 $Paragraph
-                        }
-                    }
-                    elseif ($Item.CurrentSectionName -eq 'EXAMPLES')
-                    {
-                        $Examples = (Select-XML -Xml $XML -XPath '/helpItems/command/examples').Node
-                        $Example = $Examples.AppendChild($XML.CreateElement('example'))
-                        $Title = $Example.AppendChild($XML.CreateElement('title'))
-                        $Title.Set_innerText('Example')
-                        $Item.CurrentExtraSectionNode = $Example
-                        $Item.CurrentSectionName = 'EXAMPLE'
-                        AddLinesToNewChild $XML $Item.CurrentExtraSectionNode 'para' 0 $Paragraph
-                    }
-                    else
-                    {
-                        if ($AddToPrevious)
-                        {
-                            # Add to previous
-                        }
-                        else
-                        {
-                            AddDescriptionParagraph $XML $Paragraph
-                        }
-                    }
+                    StoreParagraph $Item $XML $Paragraph $AddToPrevious
                 }   # function StoreRegularParagraph #
                     ##################################
 
@@ -732,8 +758,6 @@ function Main
                 ##################################
                 # function ParseRegularParagraph #
 
-                if ($Paragraph -eq 'Valid values:')
-                { Write-Verbose 'BreakPoint' }
                 #Write-Verbose $Paragraph
                 switch ($Item.CurrentSectionName)
                 {
