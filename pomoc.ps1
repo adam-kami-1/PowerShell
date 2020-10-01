@@ -230,6 +230,7 @@ function Main
             # Used only during displaying results
             OutputWidth = $Width
             IndentSize = 4
+            ListIndent = 0
             WasColon = $false
             CodeIndent = -1 # -1 means that it is unknown
             Colors = @{};
@@ -535,8 +536,9 @@ function Main
                     elseif (($Work.ListIndent -gt 0) -and
                             ($Paragraph.Substring(0,$Work.ListIndent) -eq (' '*$Work.ListIndent)))
                     {
-                        # Numbered/bulleted list elemnent continuation
+                        # Numbered/bulleted list element continuation
                         $AddToPrevious = $true
+                        Write-Host "`$AddToPrevious = `$true"
                     }
                     else
                     {
@@ -2493,13 +2495,13 @@ function Main
             if (($null -ne $CommandNode.examples) -and
                 ($null -ne $CommandNode.examples.example))
             {
-                if ($null -eq $CommandNode.examples.name)
+                if ('name' -eq $CommandNode.examples.FirstChild.name)
                 {
-                    DisplayParagraph 0 'section' 'EXAMPLES'
+                    DisplayParagraph 0 'section' $CommandNode.examples.FirstChild.InnerText
                 }
                 else
                 {
-                    DisplayParagraph 0 'section' $CommandNode.examples.name
+                    DisplayParagraph 0 'section' 'EXAMPLES'
                 }
                 if ($CommandNode.examples.example.Count -ne 0)
                 {
