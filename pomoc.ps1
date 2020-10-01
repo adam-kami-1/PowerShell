@@ -491,9 +491,9 @@ function Main
 
 
                 ##################################
-                # function StoreRegularparagraph #
+                # function StoreRegularParagraph #
                 ##################################
-                function StoreRegularparagraph
+                function StoreRegularParagraph
                 {
                     param (
                         [System.Collections.Hashtable] $Item,
@@ -502,16 +502,69 @@ function Main
                     )
 
                     ##################################
-                    # function StoreRegularparagraph #
+                    # function StoreRegularParagraph #
 
+                    $AddToPrevious = $false
+                    if ($Paragraph -match '^ *([0-9]+ =|-+) *')
+                    {
+                        # Numbered/bulleted list elemnent
+                        $Work.ListIndent = 0
+                        while ($Paragraph.Substring($Work.ListIndent,1) -match '[- =0-9]')
+                        {
+                            $Work.ListIndent++
+                        }
+                        while ($Paragraph.Substring($Paragraph.Length-1,1) -eq "`n")
+                        {
+                            $Paragraph = $Paragraph.Substring(0,$Paragraph.Length-1)
+                        }
+                        $pos = $Paragraph.IndexOf("`n")
+                        while ($pos -ne -1)
+                        {
+                            if ($Paragraph.Substring($pos+1,$Work.ListIndent) -eq (' '*$Work.ListIndent))
+                            {
+                                $Paragraph = $Paragraph.Substring(0,$pos)+' '+
+                                    $Paragraph.Substring($pos+1+$Work.ListIndent)
+                                $pos = $Paragraph.IndexOf("`n")
+                            }
+                            else
+                            {
+                                break
+                            }
+                        }
+                    }
+                    elseif (($Work.ListIndent -gt 0) -and
+                            ($Paragraph.Substring(0,$Work.ListIndent) -eq (' '*$Work.ListIndent)))
+                    {
+                        # Numbered/bulleted list elemnent continuation
+                        $AddToPrevious = $true
+                    }
+                    else
+                    {
+                        # Regular paragraph
+                        $Work.ListIndent = 0
+                    }
                     if ($Item.CurrentSectionName -eq 'NOTES')
                     {
                         $Alert = (Select-XML -Xml $XML -XPath '/helpItems/command/alertSet/alert').Node
-                        AddLinesToNewChild $XML $Alert 'para' 0 $Paragraph
+                        if ($AddToPrevious)
+                        {
+                            # Add to previous
+                        }
+                        else
+                        {
+                            AddLinesToNewChild $XML $Alert 'para' 0 $Paragraph
+                        }
                     }
                     elseif ($null -ne $Item.CurrentExtraSectionNode)
                     {
-                        AddLinesToNewChild $XML $Item.CurrentExtraSectionNode 'para' 0 $Paragraph
+                        if ($AddToPrevious)
+                        {
+                            # Add to previous
+                        }
+                        else
+                        {
+                            AddLinesToNewChild $XML $Item.CurrentExtraSectionNode 'para' 0 $Paragraph
+                        }
                     }
                     elseif ($Item.CurrentSectionName -eq 'EXAMPLES')
                     {
@@ -525,9 +578,16 @@ function Main
                     }
                     else
                     {
-                        AddDescriptionParagraph $XML $Paragraph
+                        if ($AddToPrevious)
+                        {
+                            # Add to previous
+                        }
+                        else
+                        {
+                            AddDescriptionParagraph $XML $Paragraph
+                        }
                     }
-                }   # function StoreRegularparagraph #
+                }   # function StoreRegularParagraph #
                     ##################################
 
 
@@ -670,6 +730,8 @@ function Main
                 ##################################
                 # function ParseRegularParagraph #
 
+                if ($Paragraph -eq 'Valid values:')
+                { Write-Verbose 'BreakPoint' }
                 #Write-Verbose $Paragraph
                 switch ($Item.CurrentSectionName)
                 {
@@ -775,7 +837,7 @@ function Main
                                             }
                                         }
                                         # Actually regular paragraph, add to appropriate section
-                                        StoreRegularparagraph $Item $XML $Paragraph
+                                        StoreRegularParagraph $Item $XML $Paragraph
                                         $Work.CodeIndent = -1
                                     }
                                 default
