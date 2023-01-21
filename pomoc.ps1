@@ -206,10 +206,8 @@ function Main
         [System.Management.Automation.SwitchParameter] $Rescan
     )
 
-
-
-    #################
-    # function Main #
+    ###############################
+    # function Main - Begin block #
     Begin
     {
         #==========================================================
@@ -222,7 +220,7 @@ function Main
             }
 
         $Work = @{
-            ItemsFile = "$($env:USERPROFILE)\.PS-pomoc.xml"
+            ItemsFile = $(Get-Item $PROFILE).PSParentPath + "\.PS-pomoc.xml"
 
             # Used only during building $HelpInfo
             Functions = @{};
@@ -246,6 +244,10 @@ function Main
                 }
             }
 
+
+        #########################################
+        # Main function - Begin block functions #
+        #########################################
 
         #==========================================================
         # Universal utility functions
@@ -1512,24 +1514,27 @@ function Main
 
             foreach ($ModulePath in (($env:PSModulePath).Split(';')))
             {
-                foreach ($Module in ((Get-Childitem $ModulePath -Directory).Name))
+                if (Test-Path -Path $ModulePath)
                 {
-                    CheckModule $ModulePath $Module
-                    $Version = ''
-                    foreach ($SubDir in ((Get-Childitem $ModulePath\$Module -Directory).Name))
+                    foreach ($Module in ((Get-Childitem $ModulePath -Directory).Name))
                     {
-                        if ($SubDir -match '^([0-9]\.)+[0-9]+$')
+                        CheckModule $ModulePath $Module
+                        $Version = ''
+                        foreach ($SubDir in ((Get-Childitem $ModulePath\$Module -Directory).Name))
                         {
-                            if ((CompareVersions $Version $SubDir) -le 0)
+                            if ($SubDir -match '^([0-9]\.)+[0-9]+$')
                             {
-                                $Version = $SubDir
+                                if ((CompareVersions $Version $SubDir) -le 0)
+                                {
+                                    $Version = $SubDir
+                                }
                             }
                         }
-                    }
-                    if ($Version -ne '')
-                    {
-                        Write-Verbose "Checking module: $Module\$SubDir"
-                        CheckModule $ModulePath $Module $Version
+                        if ($Version -ne '')
+                        {
+                            Write-Verbose "Checking module: $Module\$SubDir"
+                            CheckModule $ModulePath $Module $Version
+                        }
                     }
                 }
             }
@@ -2589,6 +2594,7 @@ function Main
             ############################
             # function DisplayHelpItem #
 
+            Write-Output $Work.Colors.Default
             switch ($Item.Format)
             {
                 'txt'
@@ -2612,6 +2618,9 @@ function Main
         }   # function DisplayHelpItem #
             ############################
 
+        #==========================================================
+        # Main function - Begin block code
+        #==========================================================
 
         #----------------------------------------------------------
         if ((Test-Path -Path $Work.ItemsFile) -and -not $Rescan)
@@ -2684,12 +2693,17 @@ function Main
                 }
         }
 
-    } # Begin #
-    #################
-    # function Main #
-    #################
+    } # function Main - Begin block #
+
+    #################################
+    # function Main - Process block #
+    #################################
     Process
     {
+        #==========================================================
+        # Main function - Process block code
+        #==========================================================
+
         #----------------------------------------------------------
         if ($Online -or $ShowWindow)
         {
@@ -2758,10 +2772,11 @@ function Main
                     }
                 }
         }
-    } # Process #
-    #################
-    # function Main #
-    #################
+    } # function Main - Process block #
+
+    #############################
+    # function Main - End block #
+    #############################
     End
     {
     }
