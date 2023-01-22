@@ -220,7 +220,8 @@ function Main
             }
 
         $Work = @{
-            ItemsFile = $(Get-Item $PROFILE).PSParentPath + "\.PS-pomoc.xml"
+            ProfileDir = ($PROFILE).Substring(0, ($PROFILE).LastIndexOf("\"))
+            ItemsFile = $Work.ProfileDir + "\.PS-pomoc.xml"
 
             # Used only during building $HelpInfo
             Functions = @{};
@@ -609,7 +610,7 @@ function Main
                     {
                         # Numbered/bulleted list element continuation
                         $AddToPrevious = $true
-                        Write-Host "`$AddToPrevious = `$true"
+                        Write-Verbose "`$AddToPrevious = `$true"
                     }
                     else
                     {
@@ -2623,6 +2624,10 @@ function Main
         #==========================================================
 
         #----------------------------------------------------------
+        if (-not (Test-Path -Path $Work.ProfileDir))
+        {
+            New-Item -Path $Work.ProfileDir
+        }
         if ((Test-Path -Path $Work.ItemsFile) -and -not $Rescan)
         {
             # Import description of all previously found help items
@@ -2637,6 +2642,11 @@ function Main
             # Export description of all found help items
             Write-Verbose "Storing info about help files to $($Work.ItemsFile)"
             Export-Clixml -Path $Work.ItemsFile -Encoding UTF8 -InputObject $HelpInfo
+        }
+        # Ignore Rescan parameter
+        if ($Rescan)
+        {
+            $PSBoundParameters.Remove('Rescan')
         }
         #----------------------------------------------------------
         # Configuring output width
