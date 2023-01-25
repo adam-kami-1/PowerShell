@@ -230,7 +230,7 @@ function Main
             ItemsFile = ($PROFILE).Substring(0, ($PROFILE).LastIndexOf("\")) + "\.PS-pomoc.xml"
 
             # Used only during building $HelpInfo
-            Functions = @{};
+            Functions = @{};    # list of all global functions
 
             # Used only during displaying results
             OutputWidth = $Width
@@ -241,16 +241,60 @@ function Main
             Colors = @{};
             }
 
-        # Extract list of all global functions into $Work.Functions
-        Get-ChildItem -Path function: |
-            ForEach-Object -Process `
-            {
-                if ($_.Name -ne 'Main')
-                {
-                    $Work.Functions[$_.Name] = 'Function'
-                }
+        #----------------------------------------------------------
+        # Configuring output width
+        if ($Work.OutputWidth -eq 0)
+        {
+            try {
+                $Work.OutputWidth = [System.Console]::WindowWidth
             }
+            catch {
+                $Work.OutputWidth = 80
+            }
+        }
+        #----------------------------------------------------------
+        # Configuring output colors
+        if ($null -eq $psISE)
+        {
+            $Esc=[char]0x1B;
+            $F_Default = "${Esc}[39m";
+            # $F_Black = "${Esc}[30m";
+            # $F_DarkRed = "${Esc}[31m";
+            # $F_DarkGreen = "${Esc}[32m";
+            # $F_DarkYellow = "${Esc}[33m";
+            # $F_DarkBlue = "${Esc}[34m";
+            # $F_DarkMagenta = "${Esc}[35m";
+            # $F_DarkCyan = "${Esc}[36m";
+            # $F_Gray = "${Esc}[37m";
+            # $F_DarkGray = "${Esc}[90m";
+            # $F_Red = "${Esc}[91m";
+            $F_Green = "${Esc}[92m";
+            $F_Yellow = "${Esc}[93m";
+            # $F_Blue = "${Esc}[94m";
+            $F_Magenta = "${Esc}[95m";
+            $F_Cyan = "${Esc}[96m";
+            # $F_White = "${Esc}[97m";
 
+            $Work.Colors = @{
+                Section = $F_Magenta;
+                SubSection = $F_Cyan;
+                ExtraSection = $F_Green;
+                #Parameter = $F_Yellow;
+                Code = $F_Yellow;
+                Default = $F_Default;
+                }
+        }
+        else
+        {
+            $Work.Colors = @{
+                Section = '';
+                SubSection = '';
+                ExtraSection = '';
+                #Parameter = '';
+                Code = '';
+                Default = '';
+                }
+        }
 
         #########################################
         # Main function - Begin block functions #
@@ -1119,7 +1163,11 @@ function Main
             {
                 if ($Item.LastWriteTime -gt $HelpInfo.Items[$HelpInfo.ItemIndex[$Item.Name]].LastWriteTime)
                 {
-                    $HelpInfo.Items[$HelpInfo.ItemIndex[$Item.Name]] = $Item
+                    <# Write-Host ("Trying to overwrite " + $Item.Name)
+                    Write-Host ("  Old file was: "+$HelpInfo.Items[$HelpInfo.ItemIndex[$Item.Name]].File)
+                    Write-Host ("  New file is:  "+$Item.File)
+                    !!!!????!?!?!?! #>
+                    # $HelpInfo.Items[$HelpInfo.ItemIndex[$Item.Name]] = $Item
                 }
             }
         }   # function AddItem #
@@ -1240,14 +1288,7 @@ function Main
                     $Files = @(Get-ChildItem $Path\*.help.txt)
                     if ($Files.Count -gt 0)
                     {
-                        if ($ModuleName -eq '')
-                        {
-                            Write-Verbose "Checking txt HelpFiles in $PSHOME"
-                        }
-                        else
-                        {
-                            Write-Verbose "Checking txt HelpFiles in module $ModuleName"
-                        }
+                        Write-Verbose "Checking txt HelpFiles in module $Path"
                         foreach ($File in $Files)
                         {
                             $Name = $File.Name -replace '.help.txt',''
@@ -1258,7 +1299,7 @@ function Main
                             }
                             $Item = @{Name = $Name;
                                       ModuleName = $URI.Module;
-                                      File = "$Path\$($File.Name)";
+                                      File = $File.FullName; # "$Path\$($File.Name)";
                                       LastWriteTime = $File.LastWriteTime;
                                       OnlineURI = $URI.URI;
                                       Format = 'txt';
@@ -1389,15 +1430,8 @@ function Main
                     {
                         return
                     }
-                    if ($ModuleName -eq '')
-                    {
-                        Write-Verbose "Checking xml HelpFiles in $PSHOME"
-                    }
-                    else
-                    {
-                        Write-Verbose "Checking xml HelpFiles in module $ModuleName"
-                    }
-                    $Files = @((Get-ChildItem $Path\*$Pattern).Name)
+                    Write-Verbose "Checking xml HelpFiles in module $Path"
+                    $Files = (Get-ChildItem $Path\*$Pattern).Name
                     if ($Files.Count -gt 0)
                     {
                         foreach ($File in $Files)
@@ -1471,6 +1505,7 @@ function Main
                                 }
                             }
                         }
+                        # We need to add support for $Info.AliasesToExport !!!???!?!?!?
                     }
                 }
 
@@ -1515,87 +1550,105 @@ function Main
             ##########################
             # function FindHelpFiles #
 
-            if ($showProgress)
-            {
-                $modulePercent = (100.0 / (@(($env:PSModulePath).Split(';')).Length + 4))
-                $percentComplete = 0
-                Write-Progress -Activity "Analyzing modules" -Status "Progress:" -Id 0 -CurrentOperation $PSHOME -PercentComplete $percentComplete
-            }
             #----------------------------------------------------------
-            # Search for help files in PowerShell Home directory
-
-            CheckModule $PSHOME
+            # Create a list of directories to search for help files.
+            $DirList = @($PSHOME)
+            foreach ($ModulePath in (($env:PSModulePath).Split(';')))
+            {
+                if (-not (Test-Path -Path $ModulePath -PathType Container))
+                {
+                    # $ModulePath do not exists or is not a directory
+                    continue
+                }
+                if ($ModulePath.EndsWith("Modules"))
+                {
+                    $parent = $ModulePath.Substring(0, $ModulePath.Length-8)
+                    if ($parent -notin $DirList)
+                    {
+                        $DirList += $parent
+                    }
+                }
+                if ($ModulePath -notin $DirList)
+                {
+                    $DirList += $ModulePath
+                }
+            }
             if ($showProgress)
             {
-                $percentComplete += $modulePercent
+                $DirNo = 0
+                $DirPercentComplete = 0
             }
-
             #----------------------------------------------------------
             # Search for help files in module directories
-
-            foreach ($ModulePath in (($env:PSModulePath).Split(';')))
+            foreach ($ModulePath in $DirList)
             {
                 if ($showProgress)
                 {
-                    Write-Progress -Activity "Analyzing modules" -Status "Progress:" -Id 0 -CurrentOperation $ModulePath -PercentComplete $percentComplete
+                    Write-Progress -Activity "Analyzing directories" -Status "Progress:" -Id 0 `
+                        -CurrentOperation $DirList[$DirNo] -PercentComplete $DirPercentComplete
+                    $moduleCount = 1 + @((Get-Childitem $ModulePath -Directory).Name).Count
+                    $moduleNo = 0
+                    $modulePercentComplete = 0
                 }
-                # if ( -not (Test-Path -Path $ModulePath -PathType Container))
-                # {
-                #     continue
-                # }
-                if (Test-Path -Path $ModulePath) # Chyba niepotrzebne, jak się włączy powyższego ifa ????!!!!?!?!?!?!
+                #----------------------------------------------------------
+                # Checking indirect directory
+                CheckModule $ModulePath
+                if (-not $ModulePath.EndsWith("Modules"))
+                {
+                    continue
+                }
+                #----------------------------------------------------------
+                # Checking Modules directories
+                foreach ($Module in ((Get-Childitem $ModulePath -Directory).Name))
                 {
                     if ($showProgress)
                     {
-                        $moduleCount = @((Get-Childitem $ModulePath -Directory).Name).Length
-                        $moduleNo = 0
-                        $modulePercentComplete = 0
+                        Write-Progress -Activity ("Checking module " + $Module) -Status "Progress:" -Id 1 -ParentId 0 -PercentComplete $modulePercentComplete
                     }
-                    foreach ($Module in ((Get-Childitem $ModulePath -Directory).Name))
+                    CheckModule $ModulePath $Module
+                    $Version = ''
+                    foreach ($SubDir in ((Get-Childitem $ModulePath\$Module -Directory).Name))
                     {
-                        if ($showProgress)
+                        if ($SubDir -match '^([0-9]\.)+[0-9]+$')
                         {
-                            Write-Progress -Activity ("Checking module " + $Module) -Status "Progress:" -Id 1 -ParentId 0 -PercentComplete $modulePercentComplete
-                            # Write-Host ("Checking module {0} {1}" -f ($Module, $modulePercentComplete))
-                        }
-                        CheckModule $ModulePath $Module
-                        $Version = ''
-                        foreach ($SubDir in ((Get-Childitem $ModulePath\$Module -Directory).Name))
-                        {
-                            if ($SubDir -match '^([0-9]\.)+[0-9]+$')
+                            if ((CompareVersions $Version $SubDir) -le 0)
                             {
-                                if ((CompareVersions $Version $SubDir) -le 0)
-                                {
-                                    $Version = $SubDir
-                                }
+                                $Version = $SubDir
                             }
                         }
-                        if ($Version -ne '')
-                        {
-                            Write-Verbose "Checking module: $Module\$SubDir"
-                            CheckModule $ModulePath $Module $Version
-                        }
-                        if ($showProgress)
-                        {
-                            $ModuleNo += 1
-                            $modulePercentComplete = ($ModuleNo*100/$moduleCount)
-                        }
                     }
-                    Write-Progress -Activity "Checking modules" -Status "Progress:" -Id 1 -ParentId 0 -Completed
+                    if ($Version -ne '')
+                    {
+                        Write-Verbose "Checking module: $Module\$SubDir"
+                        CheckModule $ModulePath $Module $Version
+                    }
+                    if ($showProgress)
+                    {
+                        $moduleNo += 1
+                        $modulePercentComplete = ($moduleNo*100/$moduleCount)
+                    }
                 }
                 if ($showProgress)
                 {
-                    $percentComplete += $modulePercent
+                    Write-Progress -Activity "Checking modules" -Status "Progress:" -Id 1 -ParentId 0 -Completed
+                    $DirNo += 1
+                    $DirPercentComplete = ($DirNo*100/$DirList.Count)
                 }
             }
+            if ($showProgress)
+            {
+                Write-Progress -Activity "Analyzing help files" -Completed
+            }
+
+
+            #----------------------------------------------------------
+            # Search for help files in PowerShell Home directory
+
+            
 
             #----------------------------------------------------------
             # Add help items for aliases
 
-            if ($showProgress)
-            {
-                Write-Progress -Activity "Analyzing aliases" -Status "Progress:" -Id 0 -CurrentOperation "alias:" -PercentComplete $percentComplete
-            }
             Get-ChildItem alias: |
                 ForEach-Object `
                 {
@@ -1643,10 +1696,6 @@ function Main
 
             #----------------------------------------------------------
             # Added help items for functions for which we do not found yet help
-            if ($showProgress)
-            {
-                Write-Progress -Activity "Analyzing functions" -Status "Progress:" -Id 0 -CurrentOperation "function:" -PercentComplete $percentComplete
-            }
             foreach ($Function in $Work.Functions.keys)
             {
                 if ($null -ne $Work.Functions[$Function])
@@ -1677,10 +1726,6 @@ function Main
                 }
             }
             $Work.Functions = @{}
-            if ($showProgress)
-            {
-                Write-Progress -Activity "Analyzing help files" -Completed
-            }
         }   # function FindHelpFiles #
             ##########################
 
@@ -2683,6 +2728,16 @@ function Main
         # Main function - Begin block code
         #==========================================================
 
+
+        # Extract list of all global functions into $Work.Functions
+        Get-ChildItem -Path function: |
+            ForEach-Object -Process `
+            {
+                if ($_.Name -ne 'Main')
+                {
+                    $Work.Functions[$_.Name] = 'Function'
+                }
+            }
         #----------------------------------------------------------
         # Ignore HideProgress parameter
         $showProgress = -not $HideProgress
@@ -2690,10 +2745,15 @@ function Main
         {
             $PSBoundParameters.Remove('HideProgress')
         }
+        #----------------------------------------------------------
+        # Create profile directory if not yet exits.
         if (-not (Test-Path -Path $Work.ProfileDir))
         {
             New-Item -Path $Work.ProfileDir
         }
+        #----------------------------------------------------------
+        # If items file exists and we are not required to recreate it,
+        # loads its contents else recreate it.
         if ((Test-Path -Path $Work.ItemsFile) -and -not $Rescan)
         {
             # Import description of all previously found help items
@@ -2702,8 +2762,8 @@ function Main
         }
         else
         {
-            # Find all *.help.txt and  *.dll-help.xml HelpFiles and parse them
-            Write-Verbose 'Find all *.help.txt and  *.dll-help.xml files HelpFiles'
+            # Find all *.help.txt and  *help.xml HelpFiles and parse them
+            Write-Verbose 'Find all *.help.txt and *help.xml HelpFiles'
             FindHelpFiles
             # Export description of all found help items
             Write-Verbose "Storing info about help files to $($Work.ItemsFile)"
@@ -2713,60 +2773,6 @@ function Main
         if ($Rescan)
         {
             $PSBoundParameters.Remove('Rescan')
-        }
-        #----------------------------------------------------------
-        # Configuring output width
-        if ($Work.OutputWidth -eq 0)
-        {
-            try {
-                $Work.OutputWidth = [System.Console]::WindowWidth
-            }
-            catch {
-                $Work.OutputWidth = 80
-            }
-        }
-        #----------------------------------------------------------
-        # Configuring output colors
-        if ($null -eq $psISE)
-        {
-            $Esc=[char]0x1B;
-            $F_Default = "${Esc}[39m";
-            $F_Black = "${Esc}[30m";
-            $F_DarkRed = "${Esc}[31m";
-            $F_DarkGreen = "${Esc}[32m";
-            $F_DarkYellow = "${Esc}[33m";
-            $F_DarkBlue = "${Esc}[34m";
-            $F_DarkMagenta = "${Esc}[35m";
-            $F_DarkCyan = "${Esc}[36m";
-            $F_Gray = "${Esc}[37m";
-            $F_DarkGray = "${Esc}[90m";
-            $F_Red = "${Esc}[91m";
-            $F_Green = "${Esc}[92m";
-            $F_Yellow = "${Esc}[93m";
-            $F_Blue = "${Esc}[94m";
-            $F_Magenta = "${Esc}[95m";
-            $F_Cyan = "${Esc}[96m";
-            $F_White = "${Esc}[97m";
-
-            $Work.Colors = @{
-                Section = $F_Magenta;
-                SubSection = $F_Cyan;
-                ExtraSection = $F_Green;
-                #Parameter = $F_Yellow;
-                Code = $F_Yellow;
-                Default = $F_Default;
-                }
-        }
-        else
-        {
-            $Work.Colors = @{
-                Section = '';
-                SubSection = '';
-                ExtraSection = '';
-                #Parameter = '';
-                Code = '';
-                Default = '';
-                }
         }
 
     } # function Main - Begin block #
