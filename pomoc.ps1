@@ -89,13 +89,16 @@ param (
     [System.Management.Automation.SwitchParameter] $ShowWindow,
 
     # Specifies the number of characters in each line of output. If this parameter is not used, the width is determined by the characteristics of the host. The default for the PowerShell console is 80 characters.
-    #
     [Parameter(Mandatory=$false)]
     [System.Int32] $Width,
 
-    # Rescan help files. This is required when there are added new or newer help files
+    # Rescan help files. This is required when there are added new or newer help files.
     [Parameter(Mandatory=$false)]
-    [System.Management.Automation.SwitchParameter] $Rescan
+    [System.Management.Automation.SwitchParameter] $Rescan,
+
+    # Hide progress information during help files rescan.
+    [Parameter(Mandatory=$false)]
+    [System.Management.Automation.SwitchParameter] $HideProgress
 )
 
 
@@ -197,13 +200,16 @@ function Main
         [System.Management.Automation.SwitchParameter] $ShowWindow,
 
         # Specifies the number of characters in each line of output. If this parameter is not used, the width is determined by the characteristics of the host. The default for the PowerShell console is 80 characters.
-        #
         [Parameter(Mandatory=$false)]
         [System.Int32] $Width,
 
-        # Rescan help files. This is required when there are added new or newer help files
+        # Rescan help files. This is required when there are added new or newer help files.
         [Parameter(Mandatory=$false)]
-        [System.Management.Automation.SwitchParameter] $Rescan
+        [System.Management.Automation.SwitchParameter] $Rescan,
+
+        # Hide progress information during help files rescan.
+        [Parameter(Mandatory=$false)]
+        [System.Management.Automation.SwitchParameter] $HideProgress
     )
 
     ###############################
@@ -221,7 +227,7 @@ function Main
 
         $Work = @{
             ProfileDir = ($PROFILE).Substring(0, ($PROFILE).LastIndexOf("\"))
-            ItemsFile = $Work.ProfileDir + "\.PS-pomoc.xml"
+            ItemsFile = ($PROFILE).Substring(0, ($PROFILE).LastIndexOf("\")) + "\.PS-pomoc.xml"
 
             # Used only during building $HelpInfo
             Functions = @{};
@@ -1231,12 +1237,12 @@ function Main
                     {
                         return
                     }
-                    $Files = Get-ChildItem $Path\*.help.txt
+                    $Files = @(Get-ChildItem $Path\*.help.txt)
                     if ($Files.Count -gt 0)
                     {
                         if ($ModuleName -eq '')
                         {
-                            Write-Verbose 'Checking txt HelpFiles in PSHOME'
+                            Write-Verbose "Checking txt HelpFiles in $PSHOME"
                         }
                         else
                         {
@@ -1385,13 +1391,13 @@ function Main
                     }
                     if ($ModuleName -eq '')
                     {
-                        Write-Verbose 'Checking xml HelpFiles in PSHOME'
+                        Write-Verbose "Checking xml HelpFiles in $PSHOME"
                     }
                     else
                     {
                         Write-Verbose "Checking xml HelpFiles in module $ModuleName"
                     }
-                    $Files = (Get-ChildItem $Path\*$Pattern).Name
+                    $Files = @((Get-ChildItem $Path\*$Pattern).Name)
                     if ($Files.Count -gt 0)
                     {
                         foreach ($File in $Files)
@@ -1439,26 +1445,30 @@ function Main
                 $LocalCommands = @{}
                 if (Test-Path -Path "$Path\$ModuleName.psd1")
                 {
+                    $Info = $null
                     $Info = Import-PowerShellDataFile -Path "$Path\$ModuleName.psd1" -ErrorAction SilentlyContinue
-                    $LocalFunctions = $Info.FunctionsToExport
-                    if ($null -ne $LocalFunctions)
+                    if ($null -ne $Info)
                     {
-                        foreach ($Function in $LocalFunctions)
+                        $LocalFunctions = $Info.FunctionsToExport
+                        if ($null -ne $LocalFunctions)
                         {
-                            if (($null -ne $Function) -and ('' -ne $Function))
+                            foreach ($Function in $LocalFunctions)
                             {
-                                $LocalCommands[$Function] = 'Function'
+                                if (($null -ne $Function) -and ('' -ne $Function))
+                                {
+                                    $LocalCommands[$Function] = 'Function'
+                                }
                             }
                         }
-                    }
-                    $LocalCmdlets = $Info.CmdletsToExport
-                    if ($null -ne $LocalCmdlets)
-                    {
-                        foreach ($Cmdlet in $LocalCmdlets)
+                        $LocalCmdlets = $Info.CmdletsToExport
+                        if ($null -ne $LocalCmdlets)
                         {
-                            if (($null -ne $Cmdlet) -and ('' -ne $Cmdlet))
+                            foreach ($Cmdlet in $LocalCmdlets)
                             {
-                                $LocalCommands[$Cmdlet] = 'Cmdlet'
+                                if (($null -ne $Cmdlet) -and ('' -ne $Cmdlet))
+                                {
+                                    $LocalCommands[$Cmdlet] = 'Cmdlet'
+                                }
                             }
                         }
                     }
@@ -1505,20 +1515,49 @@ function Main
             ##########################
             # function FindHelpFiles #
 
+            if ($showProgress)
+            {
+                $modulePercent = (100.0 / (@(($env:PSModulePath).Split(';')).Length + 4))
+                $percentComplete = 0
+                Write-Progress -Activity "Analyzing modules" -Status "Progress:" -Id 0 -CurrentOperation $PSHOME -PercentComplete $percentComplete
+            }
             #----------------------------------------------------------
             # Search for help files in PowerShell Home directory
 
             CheckModule $PSHOME
+            if ($showProgress)
+            {
+                $percentComplete += $modulePercent
+            }
 
             #----------------------------------------------------------
             # Search for help files in module directories
 
             foreach ($ModulePath in (($env:PSModulePath).Split(';')))
             {
-                if (Test-Path -Path $ModulePath)
+                if ($showProgress)
                 {
+                    Write-Progress -Activity "Analyzing modules" -Status "Progress:" -Id 0 -CurrentOperation $ModulePath -PercentComplete $percentComplete
+                }
+                # if ( -not (Test-Path -Path $ModulePath -PathType Container))
+                # {
+                #     continue
+                # }
+                if (Test-Path -Path $ModulePath) # Chyba niepotrzebne, jak się włączy powyższego ifa ????!!!!?!?!?!?!
+                {
+                    if ($showProgress)
+                    {
+                        $moduleCount = @((Get-Childitem $ModulePath -Directory).Name).Length
+                        $moduleNo = 0
+                        $modulePercentComplete = 0
+                    }
                     foreach ($Module in ((Get-Childitem $ModulePath -Directory).Name))
                     {
+                        if ($showProgress)
+                        {
+                            Write-Progress -Activity ("Checking module " + $Module) -Status "Progress:" -Id 1 -ParentId 0 -PercentComplete $modulePercentComplete
+                            # Write-Host ("Checking module {0} {1}" -f ($Module, $modulePercentComplete))
+                        }
                         CheckModule $ModulePath $Module
                         $Version = ''
                         foreach ($SubDir in ((Get-Childitem $ModulePath\$Module -Directory).Name))
@@ -1536,13 +1575,27 @@ function Main
                             Write-Verbose "Checking module: $Module\$SubDir"
                             CheckModule $ModulePath $Module $Version
                         }
+                        if ($showProgress)
+                        {
+                            $ModuleNo += 1
+                            $modulePercentComplete = ($ModuleNo*100/$moduleCount)
+                        }
                     }
+                    Write-Progress -Activity "Checking modules" -Status "Progress:" -Id 1 -ParentId 0 -Completed
+                }
+                if ($showProgress)
+                {
+                    $percentComplete += $modulePercent
                 }
             }
 
             #----------------------------------------------------------
             # Add help items for aliases
 
+            if ($showProgress)
+            {
+                Write-Progress -Activity "Analyzing aliases" -Status "Progress:" -Id 0 -CurrentOperation "alias:" -PercentComplete $percentComplete
+            }
             Get-ChildItem alias: |
                 ForEach-Object `
                 {
@@ -1590,7 +1643,10 @@ function Main
 
             #----------------------------------------------------------
             # Added help items for functions for which we do not found yet help
-
+            if ($showProgress)
+            {
+                Write-Progress -Activity "Analyzing functions" -Status "Progress:" -Id 0 -CurrentOperation "function:" -PercentComplete $percentComplete
+            }
             foreach ($Function in $Work.Functions.keys)
             {
                 if ($null -ne $Work.Functions[$Function])
@@ -1621,6 +1677,10 @@ function Main
                 }
             }
             $Work.Functions = @{}
+            if ($showProgress)
+            {
+                Write-Progress -Activity "Analyzing help files" -Completed
+            }
         }   # function FindHelpFiles #
             ##########################
 
@@ -2624,6 +2684,12 @@ function Main
         #==========================================================
 
         #----------------------------------------------------------
+        # Ignore HideProgress parameter
+        $showProgress = -not $HideProgress
+        if ($HideProgress)
+        {
+            $PSBoundParameters.Remove('HideProgress')
+        }
         if (-not (Test-Path -Path $Work.ProfileDir))
         {
             New-Item -Path $Work.ProfileDir
