@@ -209,7 +209,11 @@ function Main
 
         # Hide progress information during help files rescan.
         [Parameter(Mandatory=$false)]
-        [System.Management.Automation.SwitchParameter] $HideProgress
+        [System.Management.Automation.SwitchParameter] $HideProgress,
+
+        #
+        [Parameter(Mandatory=$false)]
+        [System.Collections.Hashtable] $Functions
     )
 
     ###############################
@@ -226,8 +230,8 @@ function Main
             }
 
         $Work = @{
-            ProfileDir = ($PROFILE).Substring(0, ($PROFILE).LastIndexOf("\"))
-            ItemsFile = ($PROFILE).Substring(0, ($PROFILE).LastIndexOf("\")) + "\.PS-pomoc.xml"
+            ProfileDir = (Split-Path -Path $PROFILE -Parent)
+            ItemsFile = (Join-Path -Path (Split-Path -Path $PROFILE -Parent) -ChildPath ".PS-pomoc.xml")
 
             # Used only during building $HelpInfo
             Functions = @{};    # list of all global functions
@@ -1188,8 +1192,7 @@ function Main
             function CheckModule
             {
                 param (
-                    [System.String] $Path,
-                    [System.String] $ModuleName = '',
+                    [System.String] $ModulePath,
                     [System.String] $Version = ''
                 )
 
@@ -1200,8 +1203,8 @@ function Main
                 function CheckTxtHelpFiles
                 {
                     param (
-                        [System.String] $ModuleName,
-                        [System.String] $Path
+                        [System.String] $Path,
+                        [System.String] $ModuleName
                     )
 
 
@@ -1285,7 +1288,7 @@ function Main
                     {
                         return
                     }
-                    $Files = @(Get-ChildItem $Path\*.help.txt)
+                    $Files = @(Get-ChildItem (Join-Path -Path $Path -ChildPath *.help.txt))
                     if ($Files.Count -gt 0)
                     {
                         Write-Verbose "Checking txt HelpFiles in module $Path"
@@ -1299,7 +1302,7 @@ function Main
                             }
                             $Item = @{Name = $Name;
                                       ModuleName = $URI.Module;
-                                      File = $File.FullName; # "$Path\$($File.Name)";
+                                      File = $File.FullName;
                                       LastWriteTime = $File.LastWriteTime;
                                       OnlineURI = $URI.URI;
                                       Format = 'txt';
@@ -1325,9 +1328,8 @@ function Main
                 {
                     param (
                         [System.Collections.Hashtable] $LocalCommands,
-                        [System.String] $ModuleName,
                         [System.String] $Path,
-                        [System.String] $Pattern
+                        [System.String] $ModuleName
                     )
 
 
@@ -1339,15 +1341,16 @@ function Main
                     {
                         param (
                             [System.Collections.Hashtable] $LocalCommands,
-                            [System.String] $ModuleName,
                             [System.String] $Path,
+                            [System.String] $ModuleName,
                             [System.String] $File
                         )
 
                         #########################
                         # function CheckXMLFile #
 
-                        $XML = [System.Xml.XmlDocument](Get-Content "$Path\$File")
+                        $FilePath = Join-Path -Path $Path -ChildPath $File
+                        $XML = [System.Xml.XmlDocument](Get-Content $FilePath)
                         if ($null -ne $XML.helpItems)
                         {
                             if ($null -ne $XML.helpItems.command)
@@ -1374,7 +1377,7 @@ function Main
                                         }
                                         AddItem $true @{Name = $command.details.name;
                                                         ModuleName = $ModuleName;
-                                                        File = "$Path\$File";
+                                                        File = $FilePath;
                                                         LastWriteTime = $null;
                                                         OnlineURI = '';
                                                         Format = 'xml';
@@ -1430,8 +1433,9 @@ function Main
                     {
                         return
                     }
+                    $Pattern = '-help.xml'
                     Write-Verbose "Checking xml HelpFiles in module $Path"
-                    $Files = (Get-ChildItem $Path\*$Pattern).Name
+                    $Files = (Get-ChildItem (Join-Path -Path $Path -ChildPath *$Pattern)).Name
                     if ($Files.Count -gt 0)
                     {
                         foreach ($File in $Files)
@@ -1452,11 +1456,11 @@ function Main
                                             $MN = 'Microsoft.PowerShell.Host'
                                         }
                                 }
-                                CheckXMLFile $LocalCommands $MN $Path $File
+                                CheckXMLFile $LocalCommands $Path $MN $File
                             }
                             else
                             {
-                                CheckXMLFile $LocalCommands $ModuleName $Path $File
+                                CheckXMLFile $LocalCommands $Path $ModuleName $File
                             }
                         }
                     }
@@ -1467,20 +1471,27 @@ function Main
                 ########################
                 # function CheckModule #
 
-                if ($ModuleName -ne '')
+                $ModuleName = Split-Path -Path $ModulePath -Leaf
+                if ($ModuleName -eq $PSUICulture)
                 {
-                    $Path = "$Path\$ModuleName"
+                    CheckTxtHelpFiles $ModulePath ""
+                    return
+                }
+                if ($ModuleName -eq "v1.0" || $ModuleName -eq "7")
+                {
+                    $ModuleName = ""
                 }
                 if ($Version -ne '')
                 {
-                    $Path = "$Path\$Version"
+                    $ModulePath = Join-Path -Path $ModulePath -ChildPath $Version
                 }
-                Write-Verbose "Checking module $Path"
+                Write-Verbose "Checking module $ModulePath"
                 $LocalCommands = @{}
-                if (Test-Path -Path "$Path\$ModuleName.psd1")
+                $ModuleManifest = Join-Path -Path $ModulePath -ChildPath "$ModuleName.psd1"
+                if (Test-Path -Path $ModuleManifest)
                 {
                     $Info = $null
-                    $Info = Import-PowerShellDataFile -Path "$Path\$ModuleName.psd1" -ErrorAction SilentlyContinue
+                    $Info = Import-PowerShellDataFile -Path $ModuleManifest -ErrorAction SilentlyContinue
                     if ($null -ne $Info)
                     {
                         $LocalFunctions = $Info.FunctionsToExport
@@ -1509,9 +1520,9 @@ function Main
                     }
                 }
 
-
-                CheckTxtHelpFiles $ModuleName "$Path\$PSUICulture"
-                CheckXmlHelpFiles $LocalCommands $ModuleName "$Path\$PSUICulture" '-help.xml'
+                $UICulturePath = Join-Path -Path $ModulePath -ChildPath $PSUICulture
+                CheckTxtHelpFiles $UICulturePath $ModuleName
+                CheckXmlHelpFiles $LocalCommands $UICulturePath $ModuleName
             }   # function CheckModule #
                 ########################
 
@@ -1555,18 +1566,15 @@ function Main
             $DirList = @($PSHOME)
             foreach ($ModulePath in (($env:PSModulePath).Split(';')))
             {
+                # If last item in path is Modules then start from its parent
+                if ((Split-Path -Path $ModulePath -Leaf) -eq "Modules")
+                {
+                    $ModulePath = Split-Path -Path $ModulePath -Parent
+                }
                 if (-not (Test-Path -Path $ModulePath -PathType Container))
                 {
                     # $ModulePath do not exists or is not a directory
                     continue
-                }
-                if ($ModulePath.EndsWith("Modules"))
-                {
-                    $parent = $ModulePath.Substring(0, $ModulePath.Length-8)
-                    if ($parent -notin $DirList)
-                    {
-                        $DirList += $parent
-                    }
                 }
                 if ($ModulePath -notin $DirList)
                 {
@@ -1580,34 +1588,45 @@ function Main
             }
             #----------------------------------------------------------
             # Search for help files in module directories
-            foreach ($ModulePath in $DirList)
+            foreach ($Directory in $DirList)
             {
+                $SubDirList = @()
+                $Path = Join-Path -Path $Directory -ChildPath "Help"
+                if (Test-Path -Path $Path -PathType Container)
+                {
+                    $SubDirList += (Get-ChildItem -Path $Path -Directory).FullName
+                }
+                $Path = Join-Path -Path $Directory -ChildPath "Modules"
+                if (Test-Path -Path $Path -PathType Container)
+                {
+                    $SubDirList += (Get-ChildItem -Path $Path -Directory).FullName
+                }
+                if ($SubDirList.Count -eq 0)
+                {
+                    continue
+                }
                 if ($showProgress)
                 {
                     Write-Progress -Activity "Analyzing directories" -Status "Progress:" -Id 0 `
-                        -CurrentOperation $DirList[$DirNo] -PercentComplete $DirPercentComplete
-                    $moduleCount = 1 + @((Get-Childitem $ModulePath -Directory).Name).Count
+                        -CurrentOperation $Directory -PercentComplete $DirPercentComplete
+                    $moduleCount = 1 + $SubDirList.Count
                     $moduleNo = 0
                     $modulePercentComplete = 0
                 }
                 #----------------------------------------------------------
-                # Checking indirect directory
-                CheckModule $ModulePath
-                if (-not $ModulePath.EndsWith("Modules"))
-                {
-                    continue
-                }
+                # Checking $Directory directory
+                CheckModule $Directory
                 #----------------------------------------------------------
-                # Checking Modules directories
-                foreach ($Module in ((Get-Childitem $ModulePath -Directory).Name))
+                # Checking Help and Modules directories
+                foreach ($ModulePath in $SubDirList)
                 {
                     if ($showProgress)
                     {
-                        Write-Progress -Activity ("Checking module " + $Module) -Status "Progress:" -Id 1 -ParentId 0 -PercentComplete $modulePercentComplete
+                        Write-Progress -Activity ("Checking module " + $ModulePath) -Status "Progress:" -Id 1 -ParentId 0 -PercentComplete $modulePercentComplete
                     }
-                    CheckModule $ModulePath $Module
+                    CheckModule $ModulePath
                     $Version = ''
-                    foreach ($SubDir in ((Get-Childitem $ModulePath\$Module -Directory).Name))
+                    foreach ($SubDir in ((Get-Childitem $ModulePath -Directory).Name))
                     {
                         if ($SubDir -match '^([0-9]\.)+[0-9]+$')
                         {
@@ -1619,8 +1638,8 @@ function Main
                     }
                     if ($Version -ne '')
                     {
-                        Write-Verbose "Checking module: $Module\$SubDir"
-                        CheckModule $ModulePath $Module $Version
+                        Write-Verbose "Checking module: $ModulePath"
+                        CheckModule $ModulePath $Version
                     }
                     if ($showProgress)
                     {
@@ -2700,19 +2719,21 @@ function Main
             ############################
             # function DisplayHelpItem #
 
-            Write-Output $Work.Colors.Default
             switch ($Item.Format)
             {
                 'txt'
                     {
                         $XML = ParseTxtHelpFile $Item
+                        Write-Verbose ("Displaying help file " + $HelpInfo.Items[$found[0]].File)
                         Write-Verbose (show-XML.ps1 $XML -Tree ascii -Width ($Work.OutputWidth-5)| Out-String)
+                        Write-Output $Work.Colors.Default
                         DisplayXmlHelpFile $Item $XML.ChildNodes[1].ChildNodes[0]
                     }
                 'xml'
                     {
                         Write-Verbose "Displaying file: $($Item.File) Item no: $($Item.Index)"
                         $XML = [System.Xml.XmlDocument](Get-Content $Item.File)
+                        Write-Output $Work.Colors.Default
                         DisplayXmlHelpFile $Item ($XML.helpItems.command)[$Item.Index]
                     }
                 default
@@ -2728,22 +2749,15 @@ function Main
         # Main function - Begin block code
         #==========================================================
 
-
         # Extract list of all global functions into $Work.Functions
-        Get-ChildItem -Path function: |
-            ForEach-Object -Process `
-            {
-                if ($_.Name -ne 'Main')
-                {
-                    $Work.Functions[$_.Name] = 'Function'
-                }
-            }
+        $Work.Functions = $Functions
+        $PSBoundParameters.Remove('Functions') | Out-Null
         #----------------------------------------------------------
         # Ignore HideProgress parameter
         $showProgress = -not $HideProgress
         if ($HideProgress)
         {
-            $PSBoundParameters.Remove('HideProgress')
+            $PSBoundParameters.Remove('HideProgress') | Out-Null
         }
         #----------------------------------------------------------
         # Create profile directory if not yet exits.
@@ -2865,5 +2879,13 @@ function Main
 }   # function Main #
     #################
 
-
-Main @PSBoundParameters
+$Functions = @{}
+Get-ChildItem -Path function: |
+ForEach-Object -Process `
+{
+    if ($_.Name -ne 'Main')
+    {
+        $Functions[$_.Name] = 'Function'
+    }
+}
+Main @PSBoundParameters -Functions $Functions
