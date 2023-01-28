@@ -1562,37 +1562,6 @@ function Main
                 ########################
 
 
-            ############################
-            # function CompareVersions #
-            ############################
-            function CompareVersions
-            {
-                param (
-                    [System.String] $Version1,
-                    [System.String] $Version2
-                )
-
-                ############################
-                # function CompareVersions #
-
-                $Ver1 = $Version1.Split('.')
-                $Ver2 = $Version2.Split('.')
-                for ($i = 0; $i -lt [System.Math]::Min($Ver1.Count,$Ver2.Count); $i++)
-                {
-                    if ($Ver1[$i] -ne $Ver2[$i])
-                    {
-                        return $Ver1[$i] - $Ver2[$i]
-                    }
-                }
-                if ($Ver1.Count -eq $Ver2.Count)
-                {
-                    return 0
-                }
-                return $Ver1.Count - $Ver2.Count
-            }   # function CompareVersions #
-                ############################
-
-
             ##########################
             # function FindHelpFiles #
 
@@ -1671,7 +1640,7 @@ function Main
                         {
                             if ($SubDir -match '^([0-9]\.)+[0-9]+$')
                             {
-                                if ((CompareVersions $Version $SubDir) -le 0)
+                                if ($Version -eq '' || [Version]$Version -lt [Version]$SubDir)
                                 {
                                     $Version = $SubDir
                                 }
