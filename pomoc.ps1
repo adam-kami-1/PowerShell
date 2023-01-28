@@ -234,7 +234,8 @@ function Main
             ItemsFile = (Join-Path -Path (Split-Path -Path $PROFILE -Parent) -ChildPath ".PS-pomoc.xml")
 
             # Used only during building $HelpInfo
-            Functions = @{};    # list of all global functions
+            Functions = @{}    # list of all global functions
+            Categories = @{}
 
             # Used only during displaying results
             OutputWidth = $Width
@@ -1192,6 +1193,7 @@ function Main
             function CheckModule
             {
                 param (
+                    [System.String] $For,
                     [System.String] $ModulePath,
                     [System.String] $Version = ''
                 )
@@ -1327,7 +1329,6 @@ function Main
                 function CheckXmlHelpFiles
                 {
                     param (
-                        [System.Collections.Hashtable] $LocalCommands,
                         [System.String] $Path,
                         [System.String] $ModuleName
                     )
@@ -1340,7 +1341,6 @@ function Main
                     function CheckXMLFile
                     {
                         param (
-                            [System.Collections.Hashtable] $LocalCommands,
                             [System.String] $Path,
                             [System.String] $ModuleName,
                             [System.String] $File
@@ -1361,10 +1361,10 @@ function Main
                                     {
                                         $command = ($XML.helpItems.command)[$Index]
                                         $Category = 'Cmdlet'
-                                        if ($null -ne $LocalCommands[$command.details.name])
+                                        if ($null -ne $Work.Categories[$command.details.name])
                                         {
-                                            $Category = $LocalCommands[$command.details.name]
-                                            $LocalCommands[$command.details.name] = $null
+                                            $Category = $Work.Categories[$command.details.name]
+                                            # $Work.Categories[$command.details.name] = $null               # Do we really need this ???!?!?!?!!!!!
                                         }
                                         $CmdInfo = Get-Command -Name $command.details.name -ErrorAction SilentlyContinue
                                         if ($null -ne $CmdInfo)
@@ -1393,9 +1393,10 @@ function Main
                                 }
                             }
                         }
-                        foreach ($CommandName in $LocalCommands.keys)
+                        <# 
+                        foreach ($CommandName in $Work.Categories.keys)
                         {
-                            if ($null -ne $LocalCommands[$CommandName])
+                            if ($null -ne $Work.Categories[$CommandName])
                             {
                                 $CmdInfo = Get-Command -Name $CommandName -ErrorAction SilentlyContinue
                                 if ($null -ne $CmdInfo)
@@ -1413,7 +1414,7 @@ function Main
                                                  OnlineURI = '';
                                                  Format = '';
                                                  Index = -1;
-                                                 Category = $LocalCommands[$CommandName];
+                                                 Category = $Work.Categories[$CommandName];
                                                  Component = '';
                                                  Functionality = '';
                                                  Role = '';
@@ -1422,6 +1423,7 @@ function Main
                                                  CommonParameters = $CommonParameters}
                             }
                         }
+                        #>
                     }   # function CheckXMLFile #
                         #########################
 
@@ -1456,11 +1458,11 @@ function Main
                                             $MN = 'Microsoft.PowerShell.Host'
                                         }
                                 }
-                                CheckXMLFile $LocalCommands $Path $MN $File
+                                CheckXMLFile $Path $MN $File
                             }
                             else
                             {
-                                CheckXMLFile $LocalCommands $Path $ModuleName $File
+                                CheckXMLFile $Path $ModuleName $File
                             }
                         }
                     }
@@ -1472,57 +1474,90 @@ function Main
                 # function CheckModule #
 
                 $ModuleName = Split-Path -Path $ModulePath -Leaf
-                if ($ModuleName -eq $PSUICulture)
+                if ($For -eq "HelpFile")
                 {
-                    CheckTxtHelpFiles $ModulePath ""
+                    if ($ModuleName -eq $PSUICulture)
+                    {
+                        CheckTxtHelpFiles $ModulePath ""
+                        return
+                    }
+                    if ($ModuleName -eq "v1.0" || $ModuleName -eq "7")
+                    {
+                        $ModuleName = ""
+                    }
+                    if ($Version -ne '')
+                    {
+                        $ModulePath = Join-Path -Path $ModulePath -ChildPath $Version
+                    }
+                    Write-Verbose "Checking module $ModulePath"
+                    $UICulturePath = Join-Path -Path $ModulePath -ChildPath $PSUICulture
+                    CheckTxtHelpFiles $UICulturePath $ModuleName
+                    CheckXmlHelpFiles $UICulturePath $ModuleName
                     return
                 }
-                if ($ModuleName -eq "v1.0" || $ModuleName -eq "7")
+                if ($For -eq "Manifest")
                 {
-                    $ModuleName = ""
-                }
-                if ($Version -ne '')
-                {
-                    $ModulePath = Join-Path -Path $ModulePath -ChildPath $Version
-                }
-                Write-Verbose "Checking module $ModulePath"
-                $LocalCommands = @{}
-                $ModuleManifest = Join-Path -Path $ModulePath -ChildPath "$ModuleName.psd1"
-                if (Test-Path -Path $ModuleManifest)
-                {
-                    $Info = $null
-                    $Info = Import-PowerShellDataFile -Path $ModuleManifest -ErrorAction SilentlyContinue
-                    if ($null -ne $Info)
+                    if ($Version -ne '')
                     {
-                        $LocalFunctions = $Info.FunctionsToExport
-                        if ($null -ne $LocalFunctions)
-                        {
-                            foreach ($Function in $LocalFunctions)
-                            {
-                                if (($null -ne $Function) -and ('' -ne $Function))
-                                {
-                                    $LocalCommands[$Function] = 'Function'
-                                }
-                            }
-                        }
-                        $LocalCmdlets = $Info.CmdletsToExport
-                        if ($null -ne $LocalCmdlets)
-                        {
-                            foreach ($Cmdlet in $LocalCmdlets)
-                            {
-                                if (($null -ne $Cmdlet) -and ('' -ne $Cmdlet))
-                                {
-                                    $LocalCommands[$Cmdlet] = 'Cmdlet'
-                                }
-                            }
-                        }
-                        # We need to add support for $Info.AliasesToExport !!!???!?!?!?
+                        $ModulePath = Join-Path -Path $ModulePath -ChildPath $Version
                     }
+                    Write-Verbose "Checking module $ModulePath"
+                    $ModuleManifest = Join-Path -Path $ModulePath -ChildPath "$ModuleName.psd1"
+                    if (Test-Path -Path $ModuleManifest)
+                    {
+                        $Info = $null
+                        $Info = Import-PowerShellDataFile -Path $ModuleManifest -ErrorAction SilentlyContinue
+                        if ($null -ne $Info)
+                        {
+                            $LocalFunctions = $Info.FunctionsToExport
+                            if ($null -ne $LocalFunctions)
+                            {
+                                foreach ($Function in $LocalFunctions)
+                                {
+                                    if (($null -ne $Function) -and ('' -ne $Function))
+                                    {
+                                        if ($null -ne $Work.Categories[$Function])
+                                        {
+                                            Write-Host "$Function was already defined in other manifest"
+                                        }
+                                        $Work.Categories[$Function] = 'Function'
+                                    }
+                                }
+                            }
+                            $LocalCmdlets = $Info.CmdletsToExport
+                            if ($null -ne $LocalCmdlets)
+                            {
+                                foreach ($Cmdlet in $LocalCmdlets)
+                                {
+                                    if (($null -ne $Cmdlet) -and ('' -ne $Cmdlet))
+                                    {
+                                        if ($null -ne $Work.Categories[$Cmdlet])
+                                        {
+                                            Write-Host "$Cmdlet was already defined in other manifest"
+                                        }
+                                        $Work.Categories[$Cmdlet] = 'Cmdlet'
+                                    }
+                                }
+                            }
+                            $LocalAliases = $Info.AliasesToExport
+                            if ($null -ne $LocalAliases)
+                            {
+                                foreach ($Alias in $LocalAliases)
+                                {
+                                    if (($null -ne $Alias) -and ('' -ne $Alias))
+                                    {
+                                        if ($null -ne $Work.Categories[$Alias])
+                                        {
+                                            Write-Host "$Alias was already defined in other manifest"
+                                        }
+                                        $Work.Categories[$Alias] = 'Alias'
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    return
                 }
-
-                $UICulturePath = Join-Path -Path $ModulePath -ChildPath $PSUICulture
-                CheckTxtHelpFiles $UICulturePath $ModuleName
-                CheckXmlHelpFiles $LocalCommands $UICulturePath $ModuleName
             }   # function CheckModule #
                 ########################
 
@@ -1562,7 +1597,8 @@ function Main
             # function FindHelpFiles #
 
             #----------------------------------------------------------
-            # Create a list of directories to search for help files.
+            # Create a list of directories to search for manifest and 
+            # help files.
             $DirList = @($PSHOME)
             foreach ($ModulePath in (($env:PSModulePath).Split(';')))
             {
@@ -1587,82 +1623,83 @@ function Main
                 $DirPercentComplete = 0
             }
             #----------------------------------------------------------
-            # Search for help files in module directories
-            foreach ($Directory in $DirList)
+            # First seach for manifests and create list of command 
+            # categories.
+            foreach ($SearchFor in ("Manifest", "HelpFile"))
             {
-                $SubDirList = @()
-                $Path = Join-Path -Path $Directory -ChildPath "Help"
-                if (Test-Path -Path $Path -PathType Container)
-                {
-                    $SubDirList += (Get-ChildItem -Path $Path -Directory).FullName
-                }
-                $Path = Join-Path -Path $Directory -ChildPath "Modules"
-                if (Test-Path -Path $Path -PathType Container)
-                {
-                    $SubDirList += (Get-ChildItem -Path $Path -Directory).FullName
-                }
-                if ($SubDirList.Count -eq 0)
-                {
-                    continue
-                }
-                if ($showProgress)
-                {
-                    Write-Progress -Activity "Analyzing directories" -Status "Progress:" -Id 0 `
-                        -CurrentOperation $Directory -PercentComplete $DirPercentComplete
-                    $moduleCount = 1 + $SubDirList.Count
-                    $moduleNo = 0
-                    $modulePercentComplete = 0
-                }
                 #----------------------------------------------------------
-                # Checking $Directory directory
-                CheckModule $Directory
-                #----------------------------------------------------------
-                # Checking Help and Modules directories
-                foreach ($ModulePath in $SubDirList)
+                # Search for manifests or help files in module directories
+                foreach ($Directory in $DirList)
                 {
+                    $SubDirList = @()
+                    $Path = Join-Path -Path $Directory -ChildPath "Help"
+                    if (Test-Path -Path $Path -PathType Container)
+                    {
+                        $SubDirList += (Get-ChildItem -Path $Path -Directory).FullName
+                    }
+                    $Path = Join-Path -Path $Directory -ChildPath "Modules"
+                    if (Test-Path -Path $Path -PathType Container)
+                    {
+                        $SubDirList += (Get-ChildItem -Path $Path -Directory).FullName
+                    }
+                    if ($SubDirList.Count -eq 0)
+                    {
+                        continue
+                    }
                     if ($showProgress)
                     {
-                        Write-Progress -Activity ("Checking module " + $ModulePath) -Status "Progress:" -Id 1 -ParentId 0 -PercentComplete $modulePercentComplete
+                        Write-Progress -Activity "Analyzing directories" -Status "Progress:" -Id 0 `
+                            -CurrentOperation $Directory -PercentComplete $DirPercentComplete
+                        $moduleCount = 1 + $SubDirList.Count
+                        $moduleNo = 0
+                        $modulePercentComplete = 0
                     }
-                    CheckModule $ModulePath
-                    $Version = ''
-                    foreach ($SubDir in ((Get-Childitem $ModulePath -Directory).Name))
+                    #----------------------------------------------------------
+                    # Checking $Directory directory
+                    CheckModule $SearchFor $Directory
+                    #----------------------------------------------------------
+                    # Checking Help and Modules directories
+                    foreach ($ModulePath in $SubDirList)
                     {
-                        if ($SubDir -match '^([0-9]\.)+[0-9]+$')
+                        if ($showProgress)
                         {
-                            if ((CompareVersions $Version $SubDir) -le 0)
+                            Write-Progress -Activity ("Checking module " + $ModulePath) -Status "Progress:" -Id 1 -ParentId 0 -PercentComplete $modulePercentComplete
+                        }
+                        CheckModule $SearchFor $ModulePath
+                        $Version = ''
+                        foreach ($SubDir in ((Get-Childitem $ModulePath -Directory).Name))
+                        {
+                            if ($SubDir -match '^([0-9]\.)+[0-9]+$')
                             {
-                                $Version = $SubDir
+                                if ((CompareVersions $Version $SubDir) -le 0)
+                                {
+                                    $Version = $SubDir
+                                }
                             }
                         }
-                    }
-                    if ($Version -ne '')
-                    {
-                        Write-Verbose "Checking module: $ModulePath"
-                        CheckModule $ModulePath $Version
+                        if ($Version -ne '')
+                        {
+                            Write-Verbose "Checking module: $ModulePath"
+                            CheckModule $SearchFor $ModulePath $Version
+                        }
+                        if ($showProgress)
+                        {
+                            $moduleNo += 1
+                            $modulePercentComplete = ($moduleNo*100/$moduleCount)
+                        }
                     }
                     if ($showProgress)
                     {
-                        $moduleNo += 1
-                        $modulePercentComplete = ($moduleNo*100/$moduleCount)
+                        Write-Progress -Activity "Checking modules" -Status "Progress:" -Id 1 -ParentId 0 -Completed
+                        $DirNo += 1
+                        $DirPercentComplete = ($DirNo*100/$DirList.Count)
                     }
-                }
-                if ($showProgress)
-                {
-                    Write-Progress -Activity "Checking modules" -Status "Progress:" -Id 1 -ParentId 0 -Completed
-                    $DirNo += 1
-                    $DirPercentComplete = ($DirNo*100/$DirList.Count)
                 }
             }
             if ($showProgress)
             {
                 Write-Progress -Activity "Analyzing help files" -Completed
             }
-
-
-            #----------------------------------------------------------
-            # Search for help files in PowerShell Home directory
-
             
 
             #----------------------------------------------------------
