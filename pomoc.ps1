@@ -2856,7 +2856,14 @@ function Main
                         Write-Verbose "Displaying file: $($Item.File) Item no: $($Item.Index)"
                         $XML = [System.Xml.XmlDocument](Get-Content $Item.File)
                         Write-Output $Work.Colors.Default
-                        DisplayXmlHelpFile $Item ($XML.helpItems.command)[$Item.Index]
+                        if ($null -eq $Item.Index)
+                        {
+                            DisplayXmlHelpFile $Item $XML.helpItems.command
+                        }
+                        else
+                        {
+                            DisplayXmlHelpFile $Item ($XML.helpItems.command)[$Item.Index]
+                        }
                     }
                 default
                     {
