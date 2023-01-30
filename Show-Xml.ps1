@@ -85,7 +85,7 @@ param (
 )
 
 # Try to get width of the host from the host info
-if (($Width -eq 0) -and ($Host.UI.RawUI.WindowSize.Width -ne $null))
+if (($Width -eq 0) -and ($null -ne $Host.UI.RawUI.WindowSize.Width))
 {
     $Width = $Host.UI.RawUI.WindowSize.Width
 }
@@ -175,7 +175,7 @@ function DisplayXMLItem ( [System.String] $Indent, $Item)
                 {
                     $Attributes = $Item.Attributes
                 }
-                if (($Item.FirstChild -eq $null) -or (($IndentLevel+1) -gt $Depth))
+                if (($null -eq $Item.FirstChild) -or (($IndentLevel+1) -gt $Depth))
                 {
                     $AttrIndent = '    '
                 }
