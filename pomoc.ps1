@@ -235,7 +235,7 @@ function Main
 
             # Used only during building $HelpInfo
             Functions = @{}    # list of all global functions
-            Categories = @{}
+            Manifests = @{}
 
             # Used only during displaying results
             OutputWidth = $Width
@@ -337,6 +337,27 @@ function Main
             return $Str
         }   # function ToCamelCase #
             ########################
+
+        ###################
+        # function StrDef #
+        ###################
+        function StrDef
+        {
+            param (
+                [System.String] $Str,
+                [System.String] $Default
+            )
+
+            ###################
+            # function StrDef #
+
+            if ($null -eq $Str -or '' -eq $Str)
+            {
+                return $Default
+            }
+            return $Str
+        }   # function StrDef #
+            ###################
 
 
         #==========================================================
@@ -1310,6 +1331,9 @@ function Main
                                       Format = 'txt';
                                       Index = -1;
                                       Category = 'HelpFile';
+	                                  Component = '';
+                                      Functionality = '';
+                                      Role = '';
                                       Synopsis = '';
                                       Aliases = @();
                                       CommonParameters = $false}
@@ -1347,9 +1371,55 @@ function Main
                         )
 
                         #########################
+                        # function ParseCommand #
+                        #########################
+                        function ParseCommand
+                        {
+                            param (
+                                [System.Xml.XmlElement] $Command
+                            )
+
+                            $Category = 'Cmdlet'
+                            if ($null -ne $Work.Manifests[$Command.details.name])
+                            {
+                                $Category = $Work.Manifests[$Command.details.name].Category
+                                $Work.Manifests[$Command.details.name].Used = $true
+                            }
+                            $CmdInfo = Get-Command -Name $Command.details.name -ErrorAction SilentlyContinue
+                            if ($null -ne $CmdInfo)
+                            {
+                                $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
+                            }
+                            else
+                            {
+                                $CommonParameters = $false
+                            }
+                            AddItem $true @{Name = $Command.details.name;
+                                            ModuleName = $ModuleName;
+                                            File = $FilePath;
+                                            LastWriteTime = $null;
+                                            OnlineURI = '';
+                                            Format = 'xml';
+                                            Index = $Index;
+                                            Category = $Category;
+                                            Component = '';
+                                            Functionality = '';
+                                            Role = '';
+                                            Synopsis = $Command.details.description.para;
+                                            Aliases = @();
+                                            CommonParameters = $CommonParameters}
+                        } # function ParseCommand #
+                          #########################
+
+                        #########################
                         # function CheckXMLFile #
 
                         $FilePath = Join-Path -Path $Path -ChildPath $File
+                        Write-Verbose "Checking file $FilePath"
+                        if ($File -eq "Microsoft.PowerShell.ThreadJob.dll-Help.xml")
+                        {
+                            Write-Host "Debug"
+                        }
                         $XML = [System.Xml.XmlDocument](Get-Content $FilePath)
                         if ($null -ne $XML.helpItems)
                         {
@@ -1360,70 +1430,15 @@ function Main
                                     for ($Index = 0; $Index -lt ($XML.helpItems.command).Count; $Index++)
                                     {
                                         $command = ($XML.helpItems.command)[$Index]
-                                        $Category = 'Cmdlet'
-                                        if ($null -ne $Work.Categories[$command.details.name])
-                                        {
-                                            $Category = $Work.Categories[$command.details.name]
-                                            # $Work.Categories[$command.details.name] = $null               # Do we really need this ???!?!?!?!!!!!
-                                        }
-                                        $CmdInfo = Get-Command -Name $command.details.name -ErrorAction SilentlyContinue
-                                        if ($null -ne $CmdInfo)
-                                        {
-                                            $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
-                                        }
-                                        else
-                                        {
-                                            $CommonParameters = $false
-                                        }
-                                        AddItem $true @{Name = $command.details.name;
-                                                        ModuleName = $ModuleName;
-                                                        File = $FilePath;
-                                                        LastWriteTime = $null;
-                                                        OnlineURI = '';
-                                                        Format = 'xml';
-                                                        Index = $Index;
-                                                        Category = $Category;
-                                                        Component = '';
-                                                        Functionality = '';
-                                                        Role = '';
-                                                        Synopsis = $command.details.description.para;
-                                                        Aliases = @();
-                                                        CommonParameters = $CommonParameters}
+                                        ParseCommand $command
                                     }
-                                }
-                            }
-                        }
-                        <# 
-                        foreach ($CommandName in $Work.Categories.keys)
-                        {
-                            if ($null -ne $Work.Categories[$CommandName])
-                            {
-                                $CmdInfo = Get-Command -Name $CommandName -ErrorAction SilentlyContinue
-                                if ($null -ne $CmdInfo)
-                                {
-                                    $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
                                 }
                                 else
                                 {
-                                    $CommonParameters = $false
+                                    ParseCommand $XML.helpItems.command
                                 }
-                                AddItem $false @{Name = $CommandName;
-                                                 ModuleName = $ModuleName;
-                                                 File = '';
-                                                 LastWriteTime = $null;
-                                                 OnlineURI = '';
-                                                 Format = '';
-                                                 Index = -1;
-                                                 Category = $Work.Categories[$CommandName];
-                                                 Component = '';
-                                                 Functionality = '';
-                                                 Role = '';
-                                                 Synopsis = '...';
-                                                 Aliases = @();
-                                                 CommonParameters = $CommonParameters}
                             }
                         }
-                        #>
                     }   # function CheckXMLFile #
                         #########################
 
@@ -1438,7 +1453,7 @@ function Main
                     $Pattern = '-help.xml'
                     Write-Verbose "Checking xml HelpFiles in module $Path"
                     $Files = (Get-ChildItem (Join-Path -Path $Path -ChildPath *$Pattern)).Name
-                    if ($Files.Count -gt 0)
+                    if ($null -ne $Files -and $Files.Count -gt 0)
                     {
                         foreach ($File in $Files)
                         {
@@ -1473,15 +1488,23 @@ function Main
                 ########################
                 # function CheckModule #
 
+                Write-Verbose "Function called CheckModule `"$For`" `"$ModulePath`""
                 $ModuleName = Split-Path -Path $ModulePath -Leaf
                 if ($For -eq "HelpFile")
                 {
+                    if ($ModulePath -eq "D:\Users\Adam\Documents\PowerShell\Help\en-US" -or
+                    $ModulePath -eq "D:\Users\Adam\Documents\PowerShell\Help" -or
+                    $ModulePath -eq "D:\Users\Adam\Documents\PowerShell")
+                    {
+                        Write-Host "Debug"
+                    }
                     if ($ModuleName -eq $PSUICulture)
                     {
                         CheckTxtHelpFiles $ModulePath ""
+                        CheckXmlHelpFiles $ModulePath ""
                         return
                     }
-                    if ($ModuleName -eq "v1.0" || $ModuleName -eq "7")
+                    if ($ModuleName -eq "v1.0" -or $ModuleName -eq "7")
                     {
                         $ModuleName = ""
                     }
@@ -1509,48 +1532,36 @@ function Main
                         $Info = Import-PowerShellDataFile -Path $ModuleManifest -ErrorAction SilentlyContinue
                         if ($null -ne $Info)
                         {
-                            $LocalFunctions = $Info.FunctionsToExport
-                            if ($null -ne $LocalFunctions)
+                            foreach ($Exp in (@{Type='Function'; Field='FunctionsToExport'},
+                                              @{Type='Cmdlet'; Field='CmdletsToExport'},
+                                              @{Type='Alias'; Field='AliasesToExport'}))
                             {
-                                foreach ($Function in $LocalFunctions)
+                                $Locals = $Info.($Exp.Field)
+                                if ($null -ne $Locals)
                                 {
-                                    if (($null -ne $Function) -and ('' -ne $Function))
+                                    foreach ($Cmd in $Locals)
                                     {
-                                        if ($null -ne $Work.Categories[$Function])
+                                        if (($null -ne $Cmd) -and ('' -ne $Cmd))
                                         {
-                                            Write-Host "$Function was already defined in other manifest"
+                                            $Manifest = @{Used = $false
+                                                          Category = $Exp.Type
+                                                          PowerShellVersion = StrDef $Info.PowerShellVersion "0.0"
+                                                          ModuleName = StrDef $Info.ModuleName ""
+                                                          ModuleVersion = StrDef $Info.ModuleVersion "0.0"
+                                                         }
+                                            if ($null -ne $Work.Manifests[$Cmd])
+                                            {
+                                                if ($Manifest.PowerShellVersion -lt $Work.Manifests[$Cmd].PowerShellVersion)
+                                                {
+                                                    continue
+                                                }
+                                                if ($Manifest.PowerShellVersion -eq $Work.Manifests[$Cmd].PowerShellVersion -and $Manifest.ModuleVersion -lt $Work.Manifests[$Cmd].ModuleVersion)
+                                                {
+                                                    continue
+                                                }
+                                            }
+                                            $Work.Manifests[$Cmd] = $Manifest
                                         }
-                                        $Work.Categories[$Function] = 'Function'
-                                    }
-                                }
-                            }
-                            $LocalCmdlets = $Info.CmdletsToExport
-                            if ($null -ne $LocalCmdlets)
-                            {
-                                foreach ($Cmdlet in $LocalCmdlets)
-                                {
-                                    if (($null -ne $Cmdlet) -and ('' -ne $Cmdlet))
-                                    {
-                                        if ($null -ne $Work.Categories[$Cmdlet])
-                                        {
-                                            Write-Host "$Cmdlet was already defined in other manifest"
-                                        }
-                                        $Work.Categories[$Cmdlet] = 'Cmdlet'
-                                    }
-                                }
-                            }
-                            $LocalAliases = $Info.AliasesToExport
-                            if ($null -ne $LocalAliases)
-                            {
-                                foreach ($Alias in $LocalAliases)
-                                {
-                                    if (($null -ne $Alias) -and ('' -ne $Alias))
-                                    {
-                                        if ($null -ne $Work.Categories[$Alias])
-                                        {
-                                            Write-Host "$Alias was already defined in other manifest"
-                                        }
-                                        $Work.Categories[$Alias] = 'Alias'
                                     }
                                 }
                             }
@@ -1584,6 +1595,7 @@ function Main
                 if ($ModulePath -notin $DirList)
                 {
                     $DirList += $ModulePath
+                    Write-Verbose "Path to scan for help files: $ModulePath"
                 }
             }
             if ($showProgress)
@@ -1604,12 +1616,20 @@ function Main
                     $Path = Join-Path -Path $Directory -ChildPath "Help"
                     if (Test-Path -Path $Path -PathType Container)
                     {
-                        $SubDirList += (Get-ChildItem -Path $Path -Directory).FullName
+                        $SubDirs = (Get-ChildItem -Path $Path -Directory).FullName
+                        if ($null -ne $SubDirs)
+                        {
+                            $SubDirList += $SubDirs
+                        }
                     }
                     $Path = Join-Path -Path $Directory -ChildPath "Modules"
                     if (Test-Path -Path $Path -PathType Container)
                     {
-                        $SubDirList += (Get-ChildItem -Path $Path -Directory).FullName
+                        $SubDirs = (Get-ChildItem -Path $Path -Directory).FullName
+                        if ($null -ne $SubDirs)
+                        {
+                            $SubDirList += $SubDirs
+                        }
                     }
                     if ($SubDirList.Count -eq 0)
                     {
@@ -1640,7 +1660,7 @@ function Main
                         {
                             if ($SubDir -match '^([0-9]\.)+[0-9]+$')
                             {
-                                if ($Version -eq '' || [Version]$Version -lt [Version]$SubDir)
+                                if ([Version](StrDef $Version "0.0") -lt [Version]$SubDir)
                                 {
                                     $Version = $SubDir
                                 }
@@ -1670,6 +1690,82 @@ function Main
                 Write-Progress -Activity "Analyzing help files" -Completed
             }
             
+            #----------------------------------------------------------
+            # Added help items for global functions for which we do not
+            # found yet help.
+            foreach ($Function in $Work.Functions.keys)
+            {
+                if ($null -ne $Work.Functions[$Function])
+                {
+                    $CommonParameters = $false
+                    $CmdInfo = Get-Command -Name $Function -ErrorAction SilentlyContinue
+                    if ($null -ne $CmdInfo)
+                    {
+                        $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
+                    }
+                    AddItem $false @{Name = $Function;
+                                     ModuleName = '';
+                                     File = '';
+                                     LastWriteTime = $null;
+                                     OnlineURI = '';
+                                     Format = '';
+                                     Index = -1;
+                                     Category = 'Function';
+                                     Component = '';
+                                     Functionality = '';
+                                     Role = '';
+                                     Synopsis = '...';
+                                     Aliases = @();
+                                     CommonParameters = $CommonParameters
+                                    }
+                }
+            }
+            $Work.Functions = @{}
+            
+            #----------------------------------------------------------
+            # Extract comment-based help from function or cmdlet definition.
+            Write-Host "List of item with missing help files:"
+            foreach ($CommandName in $Work.Manifests.keys)
+            {
+                if (-not $Work.Manifests[$CommandName].Used -and
+                    $Work.Manifests[$CommandName].Category -ne 'Alias')
+                {
+                    $ModuleName = $Work.Manifests[$CommandName].ModuleName
+                    $File = ''
+                    $LastWriteTime = $null
+                    $OnlineURI = ''
+                    $Category = $Work.Manifests[$CommandName].Category
+                    $Synopsis = '...'
+                    $CommonParameters = $false
+                    Write-Host ($Category + " " +
+                                $CommandName + " from module " + $ModuleName)
+                    $CmdInfo = Get-Command -Name $CommandName -ErrorAction SilentlyContinue
+                    if ($null -ne $CmdInfo)
+                    {
+                        $OnlineURI = $CmdInfo.HelpUri
+                        $Synopsis = $CmdInfo.ResolvedCommandName
+                        $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
+                        if ($ModuleName -eq '')
+                        {
+                            $ModuleName = $CmdInfo.ModuleName
+                        }
+                    }
+                    AddItem $false @{Name = $CommandName;
+                                     ModuleName = $ModuleName;
+                                     File = $File;
+                                     LastWriteTime = $LastWriteTime;
+                                     OnlineURI = $OnlineURI;
+                                     Format = '';
+                                     Index = -1;
+                                     Category = $Category;
+                                     Component = '';
+                                     Functionality = '';
+                                     Role = '';
+                                     Synopsis = $Synopsis;
+                                     Aliases = @();
+                                     CommonParameters = $CommonParameters}
+                }
+            }
 
             #----------------------------------------------------------
             # Add help items for aliases
@@ -1718,39 +1814,59 @@ function Main
                                         CommonParameters = $false}
                     }
                 }
-
+            
             #----------------------------------------------------------
-            # Added help items for functions for which we do not found yet help
-            foreach ($Function in $Work.Functions.keys)
+            # Extract comment-based help for function definition
+            Write-Host "List of item with missing help files:"
+            foreach ($CommandName in $Work.Manifests.keys)
             {
-                if ($null -ne $Work.Functions[$Function])
+                if (-not $Work.Manifests[$CommandName].Used -and
+                    $Work.Manifests[$CommandName].Category -eq 'Alias')
                 {
-                    $CmdInfo = Get-Command -Name $Function -ErrorAction SilentlyContinue
+                    $ModuleName = $Work.Manifests[$CommandName].ModuleName
+                    $File = ''
+                    $LastWriteTime = $null
+                    $OnlineURI = ''
+                    $Category = $Work.Manifests[$CommandName].Category
+                    $Synopsis = '...'
+                    $CommonParameters = $false
+                    Write-Host ($Category + " " +
+                                $CommandName + " from module " + $ModuleName)
+                    $CmdInfo = Get-Command -Name $CommandName -ErrorAction SilentlyContinue
                     if ($null -ne $CmdInfo)
                     {
+                        $OnlineURI = $CmdInfo.HelpUri
+                        $Synopsis = $CmdInfo.ResolvedCommandName
                         $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
+                        # Aliases for which we have already regular items
+                        $Item = $HelpInfo.Items[$HelpInfo.ItemIndex[$Synopsis]]
+                        if (-not $CommandName -in $Item.Aliases)
+                        {
+                            $Item.Aliases += $CommandName
+                        }
+                        if ($ModuleName -eq '')
+                        {
+                            $ModuleName = $Item.ModuleName
+                        }
+                        $File = $Item.File
+                        $LastWriteTime = $Item.LastWriteTime
                     }
-                    else
-                    {
-                        $CommonParameters = $false
-                    }
-                    AddItem $false @{Name = $Function;
-                                     ModuleName = '';
-                                     File = '';
-                                     LastWriteTime = $null;
-                                     OnlineURI = '';
+                    AddItem $false @{Name = $CommandName;
+                                     ModuleName = $ModuleName;
+                                     File = $File;
+                                     LastWriteTime = $LastWriteTime;
+                                     OnlineURI = $OnlineURI;
                                      Format = '';
                                      Index = -1;
-                                     Category = 'Function';
+                                     Category = $Category;
                                      Component = '';
                                      Functionality = '';
                                      Role = '';
-                                     Synopsis = '...';
+                                     Synopsis = $Synopsis;
                                      Aliases = @();
                                      CommonParameters = $CommonParameters}
                 }
             }
-            $Work.Functions = @{}
         }   # function FindHelpFiles #
             ##########################
 
@@ -2788,11 +2904,11 @@ function Main
             # Export description of all found help items
             Write-Verbose "Storing info about help files to $($Work.ItemsFile)"
             Export-Clixml -Path $Work.ItemsFile -Encoding UTF8 -InputObject $HelpInfo
-        }
-        # Ignore Rescan parameter
-        if ($Rescan)
-        {
-            $PSBoundParameters.Remove('Rescan')
+            # Ignore Rescan parameter
+            if ($Rescan)
+            {
+                $PSBoundParameters.Remove('Rescan')
+            }
         }
 
     } # function Main - Begin block #
@@ -2862,6 +2978,7 @@ function Main
                 }
             default
                 {
+                    # $Result = @()
                     for ($i = 0; $i -lt $found.Count; $i++)
                     {
                         Write-Output ([pscustomobject]@{Name = $HelpInfo.Items[$found[$i]].Name;
@@ -2871,7 +2988,15 @@ function Main
                                                        #File = $HelpInfo.Items[$found[$i]].File;
                                                        #Index = $HelpInfo.Items[$found[$i]].Index
                                                        })
+                        # $Result += [pscustomobject]@{Name = $HelpInfo.Items[$found[$i]].Name;
+                        #                              Category = $HelpInfo.Items[$found[$i]].Category;
+                        #                              Module = $HelpInfo.Items[$found[$i]].ModuleName;
+                        #                              Synopsis = $HelpInfo.Items[$found[$i]].Synopsis;
+                        #                              #File = $HelpInfo.Items[$found[$i]].File;
+                        #                              #Index = $HelpInfo.Items[$found[$i]].Index
+                        #                              }
                     }
+                    # $Result | Format-Table | Out-String
                 }
         }
     } # function Main - Process block #
