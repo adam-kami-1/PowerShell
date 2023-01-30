@@ -1416,10 +1416,6 @@ function Main
 
                         $FilePath = Join-Path -Path $Path -ChildPath $File
                         Write-Verbose "Checking file $FilePath"
-                        if ($File -eq "Microsoft.PowerShell.ThreadJob.dll-Help.xml")
-                        {
-                            Write-Host "Debug"
-                        }
                         $XML = [System.Xml.XmlDocument](Get-Content $FilePath)
                         if ($null -ne $XML.helpItems)
                         {
@@ -1492,12 +1488,6 @@ function Main
                 $ModuleName = Split-Path -Path $ModulePath -Leaf
                 if ($For -eq "HelpFile")
                 {
-                    if ($ModulePath -eq "D:\Users\Adam\Documents\PowerShell\Help\en-US" -or
-                    $ModulePath -eq "D:\Users\Adam\Documents\PowerShell\Help" -or
-                    $ModulePath -eq "D:\Users\Adam\Documents\PowerShell")
-                    {
-                        Write-Host "Debug"
-                    }
                     if ($ModuleName -eq $PSUICulture)
                     {
                         CheckTxtHelpFiles $ModulePath ""
@@ -1724,7 +1714,6 @@ function Main
             
             #----------------------------------------------------------
             # Extract comment-based help from function or cmdlet definition.
-            Write-Host "List of item with missing help files:"
             foreach ($CommandName in $Work.Manifests.keys)
             {
                 if (-not $Work.Manifests[$CommandName].Used -and
@@ -1737,8 +1726,6 @@ function Main
                     $Category = $Work.Manifests[$CommandName].Category
                     $Synopsis = '...'
                     $CommonParameters = $false
-                    Write-Host ($Category + " " +
-                                $CommandName + " from module " + $ModuleName)
                     $CmdInfo = Get-Command -Name $CommandName -ErrorAction SilentlyContinue
                     if ($null -ne $CmdInfo)
                     {
@@ -1817,7 +1804,6 @@ function Main
             
             #----------------------------------------------------------
             # Extract comment-based help for function definition
-            Write-Host "List of item with missing help files:"
             foreach ($CommandName in $Work.Manifests.keys)
             {
                 if (-not $Work.Manifests[$CommandName].Used -and
@@ -1830,8 +1816,6 @@ function Main
                     $Category = $Work.Manifests[$CommandName].Category
                     $Synopsis = '...'
                     $CommonParameters = $false
-                    Write-Host ($Category + " " +
-                                $CommandName + " from module " + $ModuleName)
                     $CmdInfo = Get-Command -Name $CommandName -ErrorAction SilentlyContinue
                     if ($null -ne $CmdInfo)
                     {
