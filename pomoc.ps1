@@ -1208,13 +1208,76 @@ function Main
             param ()
 
 
-            ########################
-            # function CheckModule #
-            ########################
-            function CheckModule
+            ###################################
+            # function CheckModuleForManifest #
+            ###################################
+            function CheckModuleForManifest
             {
                 param (
-                    [System.String] $For,
+                    [System.String] $ModulePath,
+                    [System.String] $Version = ''
+                )
+
+
+                Write-Verbose "Function called CheckModuleForManifest `"$ModulePath`""
+                $ModuleName = Split-Path -Path $ModulePath -Leaf
+                if ($Version -ne '')
+                {
+                    $ModulePath = Join-Path -Path $ModulePath -ChildPath $Version
+                }
+                Write-Verbose "Checking module $ModulePath"
+                $ModuleManifest = Join-Path -Path $ModulePath -ChildPath "$ModuleName.psd1"
+                if (Test-Path -Path $ModuleManifest)
+                {
+                    $Info = $null
+                    $Info = Import-PowerShellDataFile -Path $ModuleManifest -ErrorAction SilentlyContinue
+                    if ($null -ne $Info)
+                    {
+                        foreach ($Exp in (@{Type='Function'; Field='FunctionsToExport'},
+                                            @{Type='Cmdlet'; Field='CmdletsToExport'},
+                                            @{Type='Alias'; Field='AliasesToExport'}))
+                        {
+                            $Locals = $Info.($Exp.Field)
+                            if ($null -ne $Locals)
+                            {
+                                foreach ($Cmd in $Locals)
+                                {
+                                    if (($null -ne $Cmd) -and ('' -ne $Cmd))
+                                    {
+                                        $Manifest = @{Used = $false
+                                                        Category = $Exp.Type
+                                                        PowerShellVersion = StrDef $Info.PowerShellVersion "0.0"
+                                                        ModuleName = StrDef $Info.ModuleName ""
+                                                        ModuleVersion = StrDef $Info.ModuleVersion "0.0"
+                                                        }
+                                        if ($null -ne $Work.Manifests[$Cmd])
+                                        {
+                                            if ($Manifest.PowerShellVersion -lt $Work.Manifests[$Cmd].PowerShellVersion)
+                                            {
+                                                continue
+                                            }
+                                            if ($Manifest.PowerShellVersion -eq $Work.Manifests[$Cmd].PowerShellVersion -and $Manifest.ModuleVersion -lt $Work.Manifests[$Cmd].ModuleVersion)
+                                            {
+                                                continue
+                                            }
+                                        }
+                                        $Work.Manifests[$Cmd] = $Manifest
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }   # function CheckModuleForManifest #
+                ###################################
+
+
+            ###################################
+            # function CheckModuleForHelpFile #
+            ###################################
+            function CheckModuleForHelpFile
+            {
+                param (
                     [System.String] $ModulePath,
                     [System.String] $Version = ''
                 )
@@ -1358,7 +1421,6 @@ function Main
                     )
 
 
-
                     #########################
                     # function CheckXMLFile #
                     #########################
@@ -1481,87 +1543,54 @@ function Main
                     ##############################
 
 
-                ########################
-                # function CheckModule #
+                ###################################
+                # function CheckModuleForHelpFile #
 
-                Write-Verbose "Function called CheckModule `"$For`" `"$ModulePath`""
+                Write-Verbose "Function called CheckModuleForHelpFile `"$For`" `"$ModulePath`""
                 $ModuleName = Split-Path -Path $ModulePath -Leaf
-                if ($For -eq "HelpFile")
+                if ($ModuleName -eq $PSUICulture)
                 {
-                    if ($ModuleName -eq $PSUICulture)
-                    {
-                        CheckTxtHelpFiles $ModulePath ""
-                        CheckXmlHelpFiles $ModulePath ""
-                        return
-                    }
-                    if ($ModuleName -eq "v1.0" -or $ModuleName -eq "7")
-                    {
-                        $ModuleName = ""
-                    }
-                    if ($Version -ne '')
-                    {
-                        $ModulePath = Join-Path -Path $ModulePath -ChildPath $Version
-                    }
-                    Write-Verbose "Checking module $ModulePath"
-                    $UICulturePath = Join-Path -Path $ModulePath -ChildPath $PSUICulture
-                    CheckTxtHelpFiles $UICulturePath $ModuleName
-                    CheckXmlHelpFiles $UICulturePath $ModuleName
+                    CheckTxtHelpFiles $ModulePath ""
+                    CheckXmlHelpFiles $ModulePath ""
                     return
                 }
+                if ($ModuleName -eq "v1.0" -or $ModuleName -eq "7")
+                {
+                    $ModuleName = ""
+                }
+                if ($Version -ne '')
+                {
+                    $ModulePath = Join-Path -Path $ModulePath -ChildPath $Version
+                }
+                Write-Verbose "Checking module $ModulePath"
+                $UICulturePath = Join-Path -Path $ModulePath -ChildPath $PSUICulture
+                CheckTxtHelpFiles $UICulturePath $ModuleName
+                CheckXmlHelpFiles $UICulturePath $ModuleName
+            }   # function CheckModuleForHelpFile #
+                ###################################
+
+
+            ########################
+            # function CheckModule #
+            ########################
+            function CheckModule
+            {
+                param (
+                    [System.String] $For,
+                    [System.String] $ModulePath,
+                    [System.String] $Version = ''
+                )
+
                 if ($For -eq "Manifest")
                 {
-                    if ($Version -ne '')
-                    {
-                        $ModulePath = Join-Path -Path $ModulePath -ChildPath $Version
-                    }
-                    Write-Verbose "Checking module $ModulePath"
-                    $ModuleManifest = Join-Path -Path $ModulePath -ChildPath "$ModuleName.psd1"
-                    if (Test-Path -Path $ModuleManifest)
-                    {
-                        $Info = $null
-                        $Info = Import-PowerShellDataFile -Path $ModuleManifest -ErrorAction SilentlyContinue
-                        if ($null -ne $Info)
-                        {
-                            foreach ($Exp in (@{Type='Function'; Field='FunctionsToExport'},
-                                              @{Type='Cmdlet'; Field='CmdletsToExport'},
-                                              @{Type='Alias'; Field='AliasesToExport'}))
-                            {
-                                $Locals = $Info.($Exp.Field)
-                                if ($null -ne $Locals)
-                                {
-                                    foreach ($Cmd in $Locals)
-                                    {
-                                        if (($null -ne $Cmd) -and ('' -ne $Cmd))
-                                        {
-                                            $Manifest = @{Used = $false
-                                                          Category = $Exp.Type
-                                                          PowerShellVersion = StrDef $Info.PowerShellVersion "0.0"
-                                                          ModuleName = StrDef $Info.ModuleName ""
-                                                          ModuleVersion = StrDef $Info.ModuleVersion "0.0"
-                                                         }
-                                            if ($null -ne $Work.Manifests[$Cmd])
-                                            {
-                                                if ($Manifest.PowerShellVersion -lt $Work.Manifests[$Cmd].PowerShellVersion)
-                                                {
-                                                    continue
-                                                }
-                                                if ($Manifest.PowerShellVersion -eq $Work.Manifests[$Cmd].PowerShellVersion -and $Manifest.ModuleVersion -lt $Work.Manifests[$Cmd].ModuleVersion)
-                                                {
-                                                    continue
-                                                }
-                                            }
-                                            $Work.Manifests[$Cmd] = $Manifest
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    return
+                    CheckModuleForManifest $ModulePath $Version
+                }
+                else
+                {
+                    CheckModuleForHelpFile $ModulePath $Version
                 }
             }   # function CheckModule #
-                ########################
-
+            ########################
 
             ##########################
             # function FindHelpFiles #
