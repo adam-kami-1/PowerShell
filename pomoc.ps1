@@ -236,6 +236,7 @@ function Main
             # Used only during building $HelpInfo
             Functions = @{}    # list of all global functions
             Manifests = @{}
+            UICultures = @($PSUICulture)
 
             # Used only during displaying results
             OutputWidth = $Width
@@ -246,6 +247,12 @@ function Main
             Colors = @{};
             }
 
+        #----------------------------------------------------------
+        # Adding en-US UICulture as a fallback culture
+        if ("en-US" -notin $Work.UICultures)
+        {
+            $Work.UICultures += "en-US"
+        }
         #----------------------------------------------------------
         # Configuring output width
         if ($Work.OutputWidth -eq 0)
@@ -1548,11 +1555,14 @@ function Main
 
                 Write-Verbose "Function called CheckModuleForHelpFile `"$For`" `"$ModulePath`""
                 $ModuleName = Split-Path -Path $ModulePath -Leaf
-                if ($ModuleName -eq $PSUICulture)
+                foreach ($UICulture in $Work.UICultures)
                 {
-                    CheckTxtHelpFiles $ModulePath ""
-                    CheckXmlHelpFiles $ModulePath ""
-                    return
+                    if ($ModuleName -eq $UICulture)
+                    {
+                        CheckTxtHelpFiles $ModulePath ""
+                        CheckXmlHelpFiles $ModulePath ""
+                        return
+                    }
                 }
                 if ($ModuleName -eq "v1.0" -or $ModuleName -eq "7")
                 {
@@ -1563,9 +1573,12 @@ function Main
                     $ModulePath = Join-Path -Path $ModulePath -ChildPath $Version
                 }
                 Write-Verbose "Checking module $ModulePath"
-                $UICulturePath = Join-Path -Path $ModulePath -ChildPath $PSUICulture
-                CheckTxtHelpFiles $UICulturePath $ModuleName
-                CheckXmlHelpFiles $UICulturePath $ModuleName
+                foreach ($UICulture in $Work.UICultures)
+                {
+                    $UICulturePath = Join-Path -Path $ModulePath -ChildPath $UICulture
+                    CheckTxtHelpFiles $UICulturePath $ModuleName
+                    CheckXmlHelpFiles $UICulturePath $ModuleName
+                }
             }   # function CheckModuleForHelpFile #
                 ###################################
 
