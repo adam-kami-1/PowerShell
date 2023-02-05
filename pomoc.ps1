@@ -1236,40 +1236,88 @@ function Main
                 $ModuleManifest = Join-Path -Path $ModulePath -ChildPath "$ModuleName.psd1"
                 if (Test-Path -Path $ModuleManifest)
                 {
-                    $Info = $null
-                    $Info = Import-PowerShellDataFile -Path $ModuleManifest -ErrorAction SilentlyContinue
-                    if ($null -ne $Info)
+                    # $Info = $null
+                    try
                     {
-                        foreach ($Exp in (@{Type='Function'; Field='FunctionsToExport'},
-                                            @{Type='Cmdlet'; Field='CmdletsToExport'},
-                                            @{Type='Alias'; Field='AliasesToExport'}))
+                        $Info = Import-PowerShellDataFile -Path $ModuleManifest -ErrorAction SilentlyContinue
+                    }
+                    catch
+                    {
+                        $Info = @{
+                            PowerShellVersion = ""
+                            ModuleName = ""
+                            ModuleVersion = ""
+                            FunctionsToExport = @()
+                            CmdletsToExport = @()
+                            AliasesToExport = @()
+                        }
+                        foreach ($Line in (Get-Content -Path $ModuleManifest))
                         {
-                            $Locals = $Info.($Exp.Field)
-                            if ($null -ne $Locals)
+                            # Write-Host $Line
+                            switch ($line.Split("=")[0])
                             {
-                                foreach ($Cmd in $Locals)
-                                {
-                                    if (($null -ne $Cmd) -and ('' -ne $Cmd))
+                                "PowerShellVersion"
                                     {
-                                        $Manifest = @{Used = $false
-                                                        Category = $Exp.Type
-                                                        PowerShellVersion = StrDef $Info.PowerShellVersion "0.0"
-                                                        ModuleName = StrDef $Info.ModuleName ""
-                                                        ModuleVersion = StrDef $Info.ModuleVersion "0.0"
-                                                        }
-                                        if ($null -ne $Work.Manifests[$Cmd])
-                                        {
-                                            if ($Manifest.PowerShellVersion -lt $Work.Manifests[$Cmd].PowerShellVersion)
-                                            {
-                                                continue
-                                            }
-                                            if ($Manifest.PowerShellVersion -eq $Work.Manifests[$Cmd].PowerShellVersion -and $Manifest.ModuleVersion -lt $Work.Manifests[$Cmd].ModuleVersion)
-                                            {
-                                                continue
-                                            }
-                                        }
-                                        $Work.Manifests[$Cmd] = $Manifest
+                                        $Info.PowerShellVersion = $line.Split("=")[1]
+                                        break
                                     }
+                                "ModuleName"
+                                    {
+                                        $Info.ModuleName = $line.Split("=")[1]
+                                        break
+                                    }
+                                "ModuleVersion"
+                                    {
+                                        $Info.ModuleVersion = $line.Split("=")[1]
+                                        break
+                                    }
+                                "FunctionsToExport"
+                                    {
+                                        $Info.FunctionsToExport = Invoke-Expression $line.Split("=")[1]
+                                        break
+                                    }
+                                "CmdletsToExport"
+                                    {
+                                        $Info.CmdletsToExport = Invoke-Expression $line.Split("=")[1]
+                                        break
+                                    }
+                                "AliasesToExport"
+                                    {
+                                        $Info.AliasesToExport = Invoke-Expression $line.Split("=")[1]
+                                        break
+                                    }
+                            }
+                        }
+                    }
+                    foreach ($Exp in (@{Type='Function'; Field='FunctionsToExport'},
+                                        @{Type='Cmdlet'; Field='CmdletsToExport'},
+                                        @{Type='Alias'; Field='AliasesToExport'}))
+                    {
+                        $Locals = $Info.($Exp.Field)
+                        if ($null -ne $Locals)
+                        {
+                            foreach ($Cmd in $Locals)
+                            {
+                                if (($null -ne $Cmd) -and ('' -ne $Cmd))
+                                {
+                                    $Manifest = @{Used = $false
+                                                    Category = $Exp.Type
+                                                    PowerShellVersion = StrDef $Info.PowerShellVersion "0.0"
+                                                    ModuleName = StrDef $Info.ModuleName ""
+                                                    ModuleVersion = StrDef $Info.ModuleVersion "0.0"
+                                                    }
+                                    if ($null -ne $Work.Manifests[$Cmd])
+                                    {
+                                        if ($Manifest.PowerShellVersion -lt $Work.Manifests[$Cmd].PowerShellVersion)
+                                        {
+                                            continue
+                                        }
+                                        if ($Manifest.PowerShellVersion -eq $Work.Manifests[$Cmd].PowerShellVersion -and $Manifest.ModuleVersion -lt $Work.Manifests[$Cmd].ModuleVersion)
+                                        {
+                                            continue
+                                        }
+                                    }
+                                    $Work.Manifests[$Cmd] = $Manifest
                                 }
                             }
                         }
