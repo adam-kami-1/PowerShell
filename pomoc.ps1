@@ -266,7 +266,7 @@ function Main
         }
         #----------------------------------------------------------
         # Configuring output colors
-        if ($null -eq $psISE)
+        if (-not (Test-Path Variable:psISE))
         {
             $Esc=[char]0x1B;
             $F_Default = "${Esc}[39m";
@@ -566,11 +566,20 @@ function Main
                     ####################################
                     # function AddDescriptionParagraph #
 
-                    $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
+                    $Description = Select-XML -Xml $XML -XPath '/helpItems/command/description'
                     if ($null -eq $Description)
                     {
                         # There was no LONG DESCRIPTION header in file
                         $Description = $Command.AppendChild($XML.CreateElement('description'))
+                    }
+                    elseif ($null -eq (Get-Member -InputObject $Description -Name Node))
+                    {
+                        # There was no LONG DESCRIPTION header in file
+                        $Description = $Command.AppendChild($XML.CreateElement('description'))
+                    }
+                    else
+                    {
+                        $Description = $Description.Node
                     }
                     AddLinesToNewChild $XML $Description 'para' 0 $Paragraph
                 }   # function AddDescriptionParagraph #
@@ -850,15 +859,19 @@ function Main
                     {($_ -eq 'NAME') -or
                      ($_ -eq 'SYNOPSIS')}
                         {
-                            $Details = (Select-XML -Xml $XML -XPath '/helpItems/command/details').Node
-                            if ($null -eq $Details)
+                            $Details = Select-XML -Xml $XML -XPath '/helpItems/command/details'
+                            if ($null -ne $Details)
+                            {
+                                $Details = $Details.Node
+                            }
+                            else
                             {
                                 # There was no TOPIC nor item name. Put name into XML.
                                 $Details = $Command.AppendChild($XML.CreateElement('details'))
                                 $Name = $Details.AppendChild($XML.CreateElement('name'))
                                 $Name.Set_innerText($Item.DisplayName)
                             }
-                            if ($null -eq $XML.helpItems.command.details.description)
+                            if ($null -eq ($XML.helpItems.command.details | Get-Member -Name description))
                             {
                                 # The synopsis was separated with empty line from SHORT DESCRIPTION.
                                 $Description = $Details.AppendChild($XML.CreateElement('description'))
@@ -956,7 +969,16 @@ function Main
                                     {
                                         $Item.CurrentExtraSectionName = $ExtraSection.ToUpper()
                                         #Write-Verbose "ExtraSection: $($Item.CurrentExtraSectionName)"
-                                        $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
+                                        $Description = Select-XML -Xml $XML -XPath '/helpItems/command/description'
+                                        if ($null -eq $Description)
+                                        {
+                                            return
+                                        }
+                                        if ($null -eq ($Description | Get-Member -Name Node))
+                                        {
+                                            return
+                                        }
+                                        $Description = $Description.Node
                                         $Item.CurrentExtraSectionNode = $Description.AppendChild($XML.CreateElement('section'))
                                         $Name = $Item.CurrentExtraSectionNode.AppendChild($XML.CreateElement('name'))
                                         $Name.Set_innerText($Item.CurrentExtraSectionName)
@@ -1055,7 +1077,7 @@ function Main
                                 ParseRegularParagraph $Item $XML $Paragraph
                                 break
                             }
-                            if ($null -eq $XML.helpItems.command.details)
+                            if ($null -eq ($XML.helpItems.command | Get-member -Name details))
                             {
                                 # There was no TOPIC nor item name. Put name into XML.
                                 $Details = $Command.AppendChild($XML.CreateElement('details'))
@@ -1081,7 +1103,7 @@ function Main
                             if ($Item.CurrentSectionName -eq 'DESCRIPTION')
                             {
                                 $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
-                                if ($Description.para.Count -eq 1)
+                                if ($null -eq ($Description.para | Get-Member -Name Count))
                                 {
                                     # There was only one extra paragraph before section header,
                                     # So we can move it to Synopsis
@@ -1090,7 +1112,15 @@ function Main
                                     $Synopsis = (Select-XML -Xml $XML -XPath '/helpItems/command/details/description/para').Node
                                     $Synopsis.Set_innerText($Text)
                                     $Para = (Select-XML -Xml $XML -XPath '/helpItems/command/description/para').Node
-                                    $Description.RemoveChild($Para) | Out-Null
+                                    if ($null -eq (Get-Member -InputObject $Para -Name Count))
+                                    {
+                                        $Description.RemoveChild($Para) | Out-Null
+                                    }
+                                    else
+                                    {
+                                        Write-Error "Problems with Node in DESCRIPTION in $($Item.File)"
+                                        Show-XML -InputObject $XML
+                                    }
                                 }
                                 else
                                 {
@@ -1289,6 +1319,26 @@ function Main
                             }
                         }
                     }
+                    if ($null -eq $Info["ModuleName"])
+                    {
+                        $Info.ModuleName = ""
+                    }
+                    if ($null -eq $Info["FunctionsToExport"])
+                    {
+                        $Info.FunctionsToExport = @()
+                    }
+                    if ($null -eq $Info["CmdletsToExport"])
+                    {
+                        $Info.CmdletsToExport = @()
+                    }
+                    if ($null -eq $Info["AliasesToExport"])
+                    {
+                        $Info.AliasesToExport = @()
+                    }
+                    if ($null -eq $Info["PowerShellVersion"])
+                    {
+                        $Info.PowerShellVersion = ""
+                    }
                     foreach ($Exp in (@{Type='Function'; Field='FunctionsToExport'},
                                         @{Type='Cmdlet'; Field='CmdletsToExport'},
                                         @{Type='Alias'; Field='AliasesToExport'}))
@@ -1301,11 +1351,11 @@ function Main
                                 if (($null -ne $Cmd) -and ('' -ne $Cmd))
                                 {
                                     $Manifest = @{Used = $false
-                                                    Category = $Exp.Type
-                                                    PowerShellVersion = StrDef $Info.PowerShellVersion "0.0"
-                                                    ModuleName = StrDef $Info.ModuleName ""
-                                                    ModuleVersion = StrDef $Info.ModuleVersion "0.0"
-                                                    }
+                                                  Category = $Exp.Type
+                                                  PowerShellVersion = StrDef $Info.PowerShellVersion "0.0"
+                                                  ModuleName = StrDef $Info.ModuleName ""
+                                                  ModuleVersion = StrDef $Info.ModuleVersion "0.0"
+                                                 }
                                     if ($null -ne $Work.Manifests[$Cmd])
                                     {
                                         if ($Manifest.PowerShellVersion -lt $Work.Manifests[$Cmd].PowerShellVersion)
@@ -1456,7 +1506,14 @@ function Main
                                       Aliases = @();
                                       CommonParameters = $false}
                             $XML = ParseTxtHelpFile $Item
-                            $Item.Synopsis = CleanParagraph $XML.helpItems.command.details.description.para
+                            $Item.Synopsis = ""
+                            if ($null -ne ($XML.helpItems.command | Get-member -Name details))
+                            {
+                                if ($null -ne ($XML.helpItems.command.details | Get-member -Name description))
+                                {
+                                    $Item.Synopsis = CleanParagraph $XML.helpItems.command.details.description.para
+                                }
+                            }
                             AddItem $true $Item
                         }
                     }
@@ -1505,7 +1562,14 @@ function Main
                             $CmdInfo = Get-Command -Name $Command.details.name -ErrorAction SilentlyContinue
                             if ($null -ne $CmdInfo)
                             {
-                                $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
+                                if ($Category -eq 'Function')
+                                {
+                                    $CommonParameters = $CmdInfo.CmdletBinding
+                                }
+                                else
+                                {
+                                    $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
+                                }
                             }
                             else
                             {
@@ -1565,33 +1629,38 @@ function Main
                     }
                     $Pattern = '-help.xml'
                     Write-Verbose "Checking xml HelpFiles in module $Path"
-                    $Files = (Get-ChildItem (Join-Path -Path $Path -ChildPath *$Pattern)).Name
-                    if ($null -ne $Files -and $Files.Count -gt 0)
+                    $Files = @(Get-ChildItem (Join-Path -Path $Path -ChildPath *$Pattern))
+                    if ($null -eq $Files)
                     {
-                        foreach ($File in $Files)
+                        return
+                    }
+                    if ($Files.Count -eq 0)
+                    {
+                        return
+                    }
+                    foreach ($File in $Files.Name)
+                    {
+                        if ($ModuleName -eq '')
                         {
-                            if ($ModuleName -eq '')
+                            $MN = $File.Remove($File.Length - $Pattern.Length)
+                            $MN = $MN -replace '.dll',''
+                            $MN = $MN -replace 'Microsoft.PowerShell.Commands.','Microsoft.PowerShell.'
+                            switch ($MN)
                             {
-                                $MN = $File.Remove($File.Length - $Pattern.Length)
-                                $MN = $MN -replace '.dll',''
-                                $MN = $MN -replace 'Microsoft.PowerShell.Commands.','Microsoft.PowerShell.'
-                                switch ($MN)
-                                {
-                                    'System.Management.Automation'
-                                        {
-                                            $MN = 'Microsoft.PowerShell.Core'
-                                        }
-                                    'Microsoft.PowerShell.Consolehost'
-                                        {
-                                            $MN = 'Microsoft.PowerShell.Host'
-                                        }
-                                }
-                                CheckXMLFile $Path $MN $File
+                                'System.Management.Automation'
+                                    {
+                                        $MN = 'Microsoft.PowerShell.Core'
+                                    }
+                                'Microsoft.PowerShell.Consolehost'
+                                    {
+                                        $MN = 'Microsoft.PowerShell.Host'
+                                    }
                             }
-                            else
-                            {
-                                CheckXMLFile $Path $ModuleName $File
-                            }
+                            CheckXMLFile $Path $MN $File
+                        }
+                        else
+                        {
+                            CheckXMLFile $Path $ModuleName $File
                         }
                     }
                 }   # function CheckXmlHelpFiles #
@@ -1692,7 +1761,9 @@ function Main
                 # Search for manifests or help files in module directories
                 foreach ($Directory in $DirList)
                 {
+                    # $SubDirList will contain list of directories which can contain manifest of help files.
                     $SubDirList = @()
+                    # First check subdirectory "Help" of module path.
                     $Path = Join-Path -Path $Directory -ChildPath "Help"
                     if (Test-Path -Path $Path -PathType Container)
                     {
@@ -1702,6 +1773,7 @@ function Main
                             $SubDirList += $SubDirs
                         }
                     }
+                    # Next check subdirectory "Modules" of module path.
                     $Path = Join-Path -Path $Directory -ChildPath "Modules"
                     if (Test-Path -Path $Path -PathType Container)
                     {
@@ -1736,13 +1808,13 @@ function Main
                         }
                         CheckModule $SearchFor $ModulePath
                         $Version = ''
-                        foreach ($SubDir in ((Get-Childitem $ModulePath -Directory).Name))
+                        foreach ($SubDir in (Get-Childitem $ModulePath -Directory))
                         {
-                            if ($SubDir -match '^([0-9]\.)+[0-9]+$')
+                            if ($SubDir.Name -match '^([0-9]\.)+[0-9]+$')
                             {
-                                if ([Version](StrDef $Version "0.0") -lt [Version]$SubDir)
+                                if ([Version](StrDef $Version "0.0") -lt [Version]($SubDir.Name))
                                 {
-                                    $Version = $SubDir
+                                    $Version = $SubDir.Name
                                 }
                             }
                         }
@@ -1820,7 +1892,14 @@ function Main
                     if ($null -ne $CmdInfo)
                     {
                         $OnlineURI = $CmdInfo.HelpUri
-                        $Synopsis = $CmdInfo.ResolvedCommandName
+                        if ($null -ne ($CmdInfo | Get-Member -Name ResolvedCommandName))
+                        {
+                            $Synopsis = $CmdInfo.ResolvedCommandName
+                        }
+                        else
+                        {
+                            $Synopsis = ""
+                        }
                         $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
                         if ($ModuleName -eq '')
                         {
@@ -1910,7 +1989,14 @@ function Main
                     if ($null -ne $CmdInfo)
                     {
                         $OnlineURI = $CmdInfo.HelpUri
-                        $Synopsis = $CmdInfo.ResolvedCommandName
+                        if ($null -ne ($CmdInfo | Get-Member -Name ResolvedCommandName))
+                        {
+                            $Synopsis = $CmdInfo.ResolvedCommandName
+                        }
+                        else
+                        {
+                            $Synopsis = ""
+                        }
                         $CommonParameters = $CmdInfo.Definition.IndexOf('<CommonParameters>') -ne -1
                         # Aliases for which we have already regular items
                         $Item = $HelpInfo.Items[$HelpInfo.ItemIndex[$Synopsis]]
@@ -2003,7 +2089,7 @@ function Main
                 }
                 else
                 {
-                    if ($LinkText.Substring($LinkText.Length-1,1) -eq ':')
+                    if (($LinkText.Length -gt 0) -and ($LinkText.Substring($LinkText.Length-1,1) -eq ':'))
                     {
                         $LinkText = $LinkText.Substring(0,$LinkText.Length-1)
                     }
@@ -2292,6 +2378,7 @@ function Main
                     $Paragraph = $Paragraph.TrimStart()
                     if ($Paragraph.Length -eq 0)
                     {
+                        Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
                         return
                     }
                     if ($Paragraph.IndexOf("`n") -ne -1)
@@ -2455,60 +2542,66 @@ function Main
                 $Paragraph = $syntaxItem.name
                 #----------------------------------------------------------
                 # Regular parameters
-                foreach ($ParamNode in $syntaxItem.parameter)
+                if ($null -ne (Get-Member -InputObject $syntaxItem -Name parameter))
                 {
-                    $Required = $ParamNode.required -eq 'true'
-                    $Position = $ParamNode.position -ne 'named'
-                    $Paragraph += ' '
-                    if (-not $Required)
+                    foreach ($ParamNode in $syntaxItem.parameter)
                     {
-                        $Paragraph += '['
-                    }
-                    if ($Position)
-                    {
-                        $Paragraph += '['
-                    }
-                    $Paragraph += '-'+$ParamNode.name
-                    if ($Position)
-                    {
-                        $Paragraph += ']'
-                    }
-                    $TypeName = ''
-                    if ($null -ne $ParamNode.parameterValueGroup)
-                    {
-                        if ($ParamNode.parameterValueGroup.parameterValue.Count -gt 0)
+                        $Required = $ParamNode.required -eq 'true'
+                        $Position = $ParamNode.position -ne 'named'
+                        $Paragraph += ' '
+                        if (-not $Required)
                         {
-                            foreach ($Value in $ParamNode.parameterValueGroup.parameterValue)
-                            {
-                                if ($TypeName -eq '')
-                                {
-                                    $TypeName = '{'+$Value.InnerText
-                                }
-                                else
-                                {
-                                    $TypeName += ' | '+$Value.InnerText
-                                }
-                            }
-                            $TypeName += '}'
+                            $Paragraph += '['
                         }
-                    }
-                    if (($TypeName -eq '') -and ($null -ne $ParamNode.parameterValue.FirstChild.InnerText))
-                    {
-                        $TypeName = '<'+$ParamNode.parameterValue.FirstChild.InnerText+'>'
-                    }
-                    if (($TypeName -eq '') -and ($null -ne $ParamNode.type.name))
-                    {
-                        $TypeName = '<'+$ParamNode.type.name+'>'
-                    }
-                    if (($TypeName -ne '<System.Management.Automation.SwitchParameter>') -and
-                        ($TypeName -ne '<SwitchParameter>') -and
-                        ($TypeName -ne '') -and ($null -ne $TypeName))
-                    {
-                        $Paragraph += ' '+$TypeName
-                    }
-                    if (-not $Required)
-                    {
-                        $Paragraph += ']'
+                        if ($Position)
+                        {
+                            $Paragraph += '['
+                        }
+                        $Paragraph += '-'+$ParamNode.name
+                        if ($Position)
+                        {
+                            $Paragraph += ']'
+                        }
+                        $TypeName = ''
+                        if ($null -ne ($ParamNode | Get-member -Name parameterValueGroup))
+                        {
+                            if ($ParamNode.parameterValueGroup.parameterValue.Count -gt 0)
+                            {
+                                foreach ($Value in $ParamNode.parameterValueGroup.parameterValue)
+                                {
+                                    if ($TypeName -eq '')
+                                    {
+                                        $TypeName = '{'+$Value.InnerText
+                                    }
+                                    else
+                                    {
+                                        $TypeName += ' | '+$Value.InnerText
+                                    }
+                                }
+                                $TypeName += '}'
+                            }
+                        }
+                        if ($null -ne ($ParamNode | Get-member -Name parameterValue))
+                        {
+                            if (($TypeName -eq '') -and ($null -ne $ParamNode.parameterValue.FirstChild.InnerText))
+                            {
+                                $TypeName = '<'+$ParamNode.parameterValue.FirstChild.InnerText+'>'
+                            }
+                        }
+                        if (($TypeName -eq '') -and ($null -ne (Get-Member -InputObject $ParamNode -Name type)))
+                        {
+                            $TypeName = '<'+$ParamNode.type.name+'>'
+                        }
+                        if (($TypeName -ne '<System.Management.Automation.SwitchParameter>') -and
+                            ($TypeName -ne '<SwitchParameter>') -and
+                            ($TypeName -ne '') -and ($null -ne $TypeName))
+                        {
+                            $Paragraph += ' '+$TypeName
+                        }
+                        if (-not $Required)
+                        {
+                            $Paragraph += ']'
+                        }
                     }
                 }
                 #----------------------------------------------------------
@@ -2594,7 +2687,14 @@ function Main
                 $PipelineInput = NormalizeAttributeValue $ParamNode.pipelineInput
                 #Parameter set name           (All)
                 $Globbing = NormalizeAttributeValue $ParamNode.globbing
-                $Aliases = $ParamNode.aliases
+                if ($null -ne (Get-Member -InputObject $ParamNode -Name aliases))
+                {
+                    $Aliases = $ParamNode.aliases
+                }
+                else
+                {
+                    $Aliases = ''
+                }
                 if (($Aliases -eq '') -or ($Aliases -eq 'none'))
                 {
                     $Aliases = 'None'
@@ -2633,7 +2733,7 @@ function Main
                 #DisplayParagraph 2 'code' $Example.code
                 $Work.WasColon = $false
                 DisplayCollectionOfParagraphs 2 $Example
-                if ($null -ne $Example.remarks)
+                if ($null -ne (Get-Member -InputObject $Example -Name remarks))
                 {
                     $Work.WasColon = $false
                     DisplayCollectionOfParagraphs 2 $Example.remarks
@@ -2645,22 +2745,37 @@ function Main
             ###############################
             # function DisplayXmlHelpFile #
 
-            DisplayParagraph 0 'empty'
+            # DisplayParagraph 0 'empty'
 
             #----------------------------------------------------------
             # Section NAME
-            DisplayParagraph 0 'section' 'NAME'
-            DisplayParagraph 1 'regular' $CommandNode.details.name
+            if ($null -ne (Get-Member -InputObject $CommandNode -Name details))
+            {
+                DisplayParagraph 0 'section' 'NAME'
+                DisplayParagraph 1 'regular' $CommandNode.details.name
+            }
+            else
+            {
+                Write-Error ("Missing details node for help for command " + $Item.Name)
+            }
 
             #----------------------------------------------------------
             # Section SYNOPSIS
-            DisplayParagraph 0 'section' 'SYNOPSIS'
-            DisplayParagraph 1 'regular' $CommandNode.details.description.para
+            if ($null -ne (Get-Member -InputObject $CommandNode -Name details))
+            {
+                DisplayParagraph 0 'section' 'SYNOPSIS'
+                DisplayParagraph 1 'regular' $CommandNode.details.description.para
+            }
+            else
+            {
+                Write-Error ("Missing details node for help for command " + $Item.Name)
+            }
 
             #----------------------------------------------------------
             # Section SYNTAX
-            if (($null -ne $CommandNode.syntax) -and
-                ($null -ne $CommandNode.syntax.syntaxItem))
+            $Item.CommonParameters = [System.Boolean]$Item.CommonParameters # Should be set correctly during scan !!!
+            if (($null -ne (Get-Member -InputObject $CommandNode -Name syntax)) -and
+                ($null -ne (Get-Member -InputObject $CommandNode.syntax -Name syntaxItem)))
             {
                 DisplayParagraph 0 'section' 'SYNTAX'
 
@@ -2699,7 +2814,8 @@ function Main
 
             #----------------------------------------------------------
             # Section DESCRIPTION
-            if ($CommandNode.description.para.Count -gt 0)
+            if ($null -ne (Get-Member -InputObject $CommandNode -Name description) -and
+                $null -ne (Get-Member -InputObject $CommandNode.description -Name para))
             {
                 DisplayParagraph 0 'section' 'DESCRIPTION'
                 $Work.WasColon = $false
@@ -2721,8 +2837,8 @@ function Main
             #----------------------------------------------------------
             # Section PARAMETERS
             $HeaderDisplayed = $false
-            if (($null -ne $CommandNode.parameters) -and
-                ($null -ne $CommandNode.parameters.parameter))
+            if (($null -ne (Get-Member -InputObject $CommandNode -Name parameters)) -and
+                ($null -ne (Get-Member -InputObject $CommandNode.parameters -Name parameter)))
             {
                 DisplayParagraph 0 'section' 'PARAMETERS'
                 $HeaderDisplayed = $true
@@ -2750,13 +2866,13 @@ function Main
                     'Verbose, Debug, ErrorAction, ErrorVariable, WarningAction, '+
                     'WarningVariable, OutBuffer, PipelineVariable, and OutVariable. '+
                     'For more information, see about_CommonParameters '+
-                    '(https:/go.microsoft.com/fwlink/?LinkID=113216).')
+                    '(https://go.microsoft.com/fwlink/?LinkID=113216).')
             }
 
             #----------------------------------------------------------
             # Section INPUTS
-            if (($null -ne $CommandNode.InputTypes) -and
-                ($null -ne $CommandNode.InputTypes.InputType))
+            if (($null -ne (Get-Member -InputObject $CommandNode -Name InputTypes)) -and
+                ($null -ne (Get-Member -InputObject $CommandNode.InputTypes -Name InputType)))
             {
                 $HeaderDisplayed = $false
                 foreach ($InputType in $CommandNode.InputTypes.InputType)
@@ -2771,8 +2887,9 @@ function Main
                         }
                         DisplayParagraph 1 'compact' $InputType.type.name
                     }
-                    if (($null -ne $InputType.description.para) -and
-                        ($null -ne $InputType.description.para[0]))
+                    # if (($null -ne $InputType.description.para) -and
+                    #     ($null -ne $InputType.description.para[0]))
+                    if ($null -ne (Get-Member -InputObject $InputType.description -Name para))
                     {
                         if (-not $HeaderDisplayed)
                         {
@@ -2791,8 +2908,8 @@ function Main
 
             #----------------------------------------------------------
             # Section OUTPUTS
-            if (($null -ne $CommandNode.returnValues) -and
-                ($null -ne $CommandNode.returnValues.returnValue))
+            if (($null -ne (Get-Member -InputObject $CommandNode -Name returnValues)) -and
+                ($null -ne (Get-Member -InputObject $CommandNode.returnValues -Name returnValue)))
             {
                 $HeaderDisplayed = $false
                 foreach ($returnValue in $CommandNode.returnValues.returnValue)
@@ -2807,8 +2924,9 @@ function Main
                         }
                         DisplayParagraph 1 'compact' $returnValue.type.name
                     }
-                    if (($null -ne $returnValue.description.para) -and
-                        ($null -ne $returnValue.description.para[0]))
+                    # if (($null -ne $returnValue.description.para) -and
+                    #     ($null -ne $returnValue.description.para[0]))
+                    if ($null -ne (Get-Member -InputObject $returnValue.description -Name para))
                     {
                         if (-not $HeaderDisplayed)
                         {
@@ -2827,10 +2945,9 @@ function Main
 
             #----------------------------------------------------------
             # Section NOTES
-            if (($null -ne $CommandNode.alertSet) -and
-                ($null -ne $CommandNode.alertSet.alert) -and
-                ($CommandNode.alertSet.alert.para.Count -ne 0) -and
-                ($null -ne $CommandNode.alertSet.alert.para[0]))
+            if (($null -ne (Get-Member -InputObject $CommandNode -Name alertSet)) -and
+                ($null -ne (Get-Member -InputObject $CommandNode.alertSet -Name alert)) -and
+                ($null -ne (Get-Member -InputObject $CommandNode.alertSet.alert -Name para)))
             {
                 DisplayParagraph 0 'section' 'NOTES'
                 foreach ($alert in $CommandNode.alertSet.alert)
@@ -2842,8 +2959,8 @@ function Main
 
             #----------------------------------------------------------
             # Section EXAMPLES
-            if (($null -ne $CommandNode.examples) -and
-                ($null -ne $CommandNode.examples.example))
+            if (($null -ne (Get-member -InputObject $CommandNode -Name examples)) -and
+                ($null -ne (Get-member -InputObject $CommandNode.examples -Name example)))
             {
                 if ('name' -eq $CommandNode.examples.FirstChild.name)
                 {
@@ -2868,8 +2985,8 @@ function Main
 
             #----------------------------------------------------------
             # Section RELATED LINKS
-            if (($null -ne $CommandNode.relatedLinks) -and
-                ($null -ne $CommandNode.relatedLinks.navigationLink))
+            if (($null -ne (Get-Member -InputObject $CommandNode -Name relatedLinks)) -and
+                ($null -ne (Get-Member -InputObject $CommandNode.relatedLinks -Name navigationLink)))
             {
                 DisplayParagraph 0 'section' 'RELATED LINKS'
                 $Links = @()
@@ -2942,7 +3059,14 @@ function Main
                 default
                     {
                         Write-Verbose "Unknown format in $($Work.ItemsFile), fallback to Get-Help"
-                        Microsoft.PowerShell.Core\Get-Help -Name $Item.Name -Full
+                        try
+                        {
+                            Microsoft.PowerShell.Core\Get-Help -Name $Item.Name -Full
+                        }
+                        catch
+                        {
+                            Write-Verbose "Error during: Get-Help -Name $Item.Name -Full"
+                        }
                     }
             }
         }   # function DisplayHelpItem #
@@ -2970,7 +3094,7 @@ function Main
         }
         #----------------------------------------------------------
         # If items file exists and we are not required to recreate it,
-        # loads its contents else recreate it.
+        # loads its contents.
         if ((Test-Path -Path $Work.ItemsFile) -and -not $Rescan)
         {
             # Import description of all previously found help items
@@ -3013,6 +3137,23 @@ function Main
         #----------------------------------------------------------
         # Searching help items to display
         $found = @()
+        # Write-Verbose "There are $($HelpInfo.Items.Count) items in our Items File"
+        if ($null -eq $Category)
+        {
+            $Category = @()
+        }
+        if ($null -eq $Component)
+        {
+            $Component = @()
+        }
+        if ($null -eq $Functionality)
+        {
+            $Functionality = @()
+        }
+        if ($null -eq $Role)
+        {
+            $Role = @()
+        }
         for ($i = 0; $i -lt $HelpInfo.Items.Count; $i++)
         {
             if (($HelpInfo.Items[$i].Name -like $Name) -and
@@ -3051,7 +3192,14 @@ function Main
                     {
                         $PSBoundParameters['Full'] = $true
                     }
-                    Microsoft.PowerShell.Core\Get-Help @PSBoundParameters
+                    try
+                    {
+                        Microsoft.PowerShell.Core\Get-Help @PSBoundParameters
+                    }
+                    catch
+                    {
+                        Write-Verbose "Error during: Get-Help @PSBoundParameters"
+                    }
                 }
             1
                 {
