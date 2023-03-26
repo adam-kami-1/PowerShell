@@ -617,18 +617,19 @@ function Main
                             $Alert = (Select-XML -Xml $XML -XPath '/helpItems/command/alertSet/alert').Node
                             if ($AddToPrevious)
                             {
-                                # Add to previous
+                                # Add to previous !?!?!? !!! ???
                             }
                             else
                             {
                                 AddLinesToNewChild $XML $Alert 'para' 0 $Paragraph
                             }
                         }
+                        #elseif ($null -ne (Get-Member -InputObject $Item -Name CurrentExtraSectionNode))
                         elseif ($null -ne $Item.CurrentExtraSectionNode)
                         {
                             if ($AddToPrevious)
                             {
-                                # Add to previous
+                                # Add to previous !?!?!? !!! ???
                             }
                             else
                             {
@@ -649,7 +650,7 @@ function Main
                         {
                             if ($AddToPrevious)
                             {
-                                # Add to previous
+                                # Add to previous !?!?!? !!! ???
                             }
                             else
                             {
@@ -770,6 +771,7 @@ function Main
                         $Item.CurrentSectionName = 'EXAMPLE'
                         $ParentNode = $Item.CurrentExtraSectionNode
                     }
+                    #elseif ($null -ne (Get-Member -InputObject $Item -Name CurrentExtraSectionNode))
                     elseif ($null -ne $Item.CurrentExtraSectionNode)
                     {
                         $ParentNode = $Item.CurrentExtraSectionNode
@@ -777,7 +779,14 @@ function Main
                     else
                     {
                         # There is formatted paragraph or code ????!!!!
-                        $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
+                        $Description = Select-XML -Xml $XML -XPath '/helpItems/command/description'
+                        if ($null -ne $Description)
+                        {
+                            if ($null -ne (Get-Member -InputObject $Description -Name Node))
+                            {
+                                $Description = $Description.Node
+                            }
+                        }
                         if ($null -eq $Description)
                         {
                             # There was no LONG DESCRIPTION header in file
@@ -785,8 +794,11 @@ function Main
                         }
                         $ParentNode = $Description
                     }
-                    $Child = $ParentNode.AppendChild($XML.CreateElement('code'))
-                    $Child.Set_innerText($Paragraph)
+                    if ($null -ne $ParentNode)
+                    {
+                        $Child = $ParentNode.AppendChild($XML.CreateElement('code'))
+                        $Child.Set_innerText($Paragraph)
+                    }
                 }   # function StoreCodeParagraph #
                     ###############################
 
@@ -871,7 +883,7 @@ function Main
                                 $Name = $Details.AppendChild($XML.CreateElement('name'))
                                 $Name.Set_innerText($Item.DisplayName)
                             }
-                            if ($null -eq ($XML.helpItems.command.details | Get-Member -Name description))
+                            if ($null -eq (Get-Member -InputObject $XML.helpItems.command.details -Name description))
                             {
                                 # The synopsis was separated with empty line from SHORT DESCRIPTION.
                                 $Description = $Details.AppendChild($XML.CreateElement('description'))
@@ -974,7 +986,7 @@ function Main
                                         {
                                             return
                                         }
-                                        if ($null -eq ($Description | Get-Member -Name Node))
+                                        if ($null -eq (Get-Member -InputObject $Description -Name Node))
                                         {
                                             return
                                         }
@@ -998,6 +1010,7 @@ function Main
             #############################
             # function ParseTxtHelpFile #
 
+            $Item.CurrentExtraSectionNode = $null
             Write-Verbose "Parsing HelpFile $($Item.File)"
             # Convert contents of the HelpFile into array of paragraphs
             $File = Get-Content $Item.File
@@ -1052,7 +1065,7 @@ function Main
                 }
                 switch -Regex ($FirstLine)
                 {
-                    ('^(TOPIC|'+$Item.DisplayName+')$')
+                    ('^(TOPIC|'+$Item.DisplayName+'|'+$Item.Name+')$')
                         {
                             if ($Item.CurrentSectionName -eq '')
                             {
@@ -1077,7 +1090,7 @@ function Main
                                 ParseRegularParagraph $Item $XML $Paragraph
                                 break
                             }
-                            if ($null -eq ($XML.helpItems.command | Get-member -Name details))
+                            if ($null -eq (Get-member -InputObject $XML.helpItems.command -Name details))
                             {
                                 # There was no TOPIC nor item name. Put name into XML.
                                 $Details = $Command.AppendChild($XML.CreateElement('details'))
@@ -1103,7 +1116,7 @@ function Main
                             if ($Item.CurrentSectionName -eq 'DESCRIPTION')
                             {
                                 $Description = (Select-XML -Xml $XML -XPath '/helpItems/command/description').Node
-                                if ($null -eq ($Description.para | Get-Member -Name Count))
+                                if ($null -eq (Get-Member -InputObject $Description.para -Name Count))
                                 {
                                     # There was only one extra paragraph before section header,
                                     # So we can move it to Synopsis
@@ -1118,6 +1131,7 @@ function Main
                                     }
                                     else
                                     {
+                                        return $XML
                                         Write-Error "Problems with Node in DESCRIPTION in $($Item.File)"
                                         Show-XML -InputObject $XML
                                     }
@@ -1139,9 +1153,11 @@ function Main
                             $Item.CurrentSectionName = 'DESCRIPTION'
                             $Item.CurrentExtraSectionNode = $null
                         }
+                    <# 
                     '^EXAMPLES$'
                         {
-                            if ($Item.Name -ne 'about_Preference_Variables')
+                            if ($Item.Name -ne 'about_Preference_Variables' -and
+                                $Item.Name -ne 'about_Comment_Based_Help')
                             {
                                 $Examples = $Command.AppendChild($XML.CreateElement('examples'))
                                 $Item.CurrentExtraSectionNode = $null
@@ -1152,9 +1168,11 @@ function Main
                                 ParseRegularParagraph $Item $XML $Paragraph
                             }
                         }
+                     #>
                     '^(NOTES|REMARKS)$'
                         {
-                            if ($Item.Name -ne 'about_Updatable_Help')
+                            #if ($Item.Name -ne 'about_Updatable_Help')
+                            if ($Item.Name -ne 'about_Comment_Based_Help')
                             {
                                 $AlertSet = $Command.AppendChild($XML.CreateElement('alertSet'))
                                 $Alert = $AlertSet.AppendChild($XML.CreateElement('alert'))
@@ -1166,7 +1184,7 @@ function Main
                                 ParseRegularParagraph $Item $XML $Paragraph
                             }
                         }
-                    '^SEE ALSO$'
+                    '^(SEE ALSO|RELATED LINKS)$'
                         {
                             $RelatedLinks = $Command.AppendChild($XML.CreateElement('relatedLinks'))
                             if ($Item.OnlineURI -ne '')
@@ -1507,11 +1525,14 @@ function Main
                                       CommonParameters = $false}
                             $XML = ParseTxtHelpFile $Item
                             $Item.Synopsis = ""
-                            if ($null -ne ($XML.helpItems.command | Get-member -Name details))
+                            if ($null -ne (Get-member -InputObject $XML -Name helpItems))
                             {
-                                if ($null -ne ($XML.helpItems.command.details | Get-member -Name description))
+                                if ($null -ne (Get-member -InputObject $XML.helpItems.command -Name details))
                                 {
-                                    $Item.Synopsis = CleanParagraph $XML.helpItems.command.details.description.para
+                                    if ($null -ne (Get-member -InputObject $XML.helpItems.command.details -Name description))
+                                    {
+                                        $Item.Synopsis = CleanParagraph $XML.helpItems.command.details.description.para
+                                    }
                                 }
                             }
                             AddItem $true $Item
@@ -1564,7 +1585,14 @@ function Main
                             {
                                 if ($Category -eq 'Function')
                                 {
-                                    $CommonParameters = $CmdInfo.CmdletBinding
+                                    if ($null -eq (Get-Member -InputObject $CmdInfo -Name CmdletBinding))
+                                    {
+                                        $CommonParameters = $false
+                                    }
+                                    else
+                                    {
+                                        $CommonParameters = $CmdInfo.CmdletBinding
+                                    }
                                 }
                                 else
                                 {
@@ -1612,6 +1640,7 @@ function Main
                                 }
                                 else
                                 {
+                                    $Index = $null
                                     ParseCommand $XML.helpItems.command
                                 }
                             }
@@ -1747,16 +1776,16 @@ function Main
                     Write-Verbose "Path to scan for help files: $ModulePath"
                 }
             }
-            if ($showProgress)
-            {
-                $DirNo = 0
-                $DirPercentComplete = 0
-            }
             #----------------------------------------------------------
             # First seach for manifests and create list of command 
             # categories.
             foreach ($SearchFor in ("Manifest", "HelpFile"))
             {
+                if ($showProgress)
+                {
+                    $DirNo = 0
+                    $DirPercentComplete = 0
+                }
                 #----------------------------------------------------------
                 # Search for manifests or help files in module directories
                 foreach ($Directory in $DirList)
@@ -1892,7 +1921,7 @@ function Main
                     if ($null -ne $CmdInfo)
                     {
                         $OnlineURI = $CmdInfo.HelpUri
-                        if ($null -ne ($CmdInfo | Get-Member -Name ResolvedCommandName))
+                        if ($null -ne (Get-Member -InputObject $CmdInfo -Name ResolvedCommandName))
                         {
                             $Synopsis = $CmdInfo.ResolvedCommandName
                         }
@@ -1989,7 +2018,7 @@ function Main
                     if ($null -ne $CmdInfo)
                     {
                         $OnlineURI = $CmdInfo.HelpUri
-                        if ($null -ne ($CmdInfo | Get-Member -Name ResolvedCommandName))
+                        if ($null -ne (Get-Member -InputObject $CmdInfo -Name ResolvedCommandName))
                         {
                             $Synopsis = $CmdInfo.ResolvedCommandName
                         }
@@ -2563,7 +2592,7 @@ function Main
                             $Paragraph += ']'
                         }
                         $TypeName = ''
-                        if ($null -ne ($ParamNode | Get-member -Name parameterValueGroup))
+                        if ($null -ne (Get-member -InputObject $ParamNode -Name parameterValueGroup))
                         {
                             if ($ParamNode.parameterValueGroup.parameterValue.Count -gt 0)
                             {
@@ -2581,7 +2610,7 @@ function Main
                                 $TypeName += '}'
                             }
                         }
-                        if ($null -ne ($ParamNode | Get-member -Name parameterValue))
+                        if ($null -ne (Get-member -InputObject $ParamNode -Name parameterValue))
                         {
                             if (($TypeName -eq '') -and ($null -ne $ParamNode.parameterValue.FirstChild.InnerText))
                             {
@@ -2746,6 +2775,8 @@ function Main
             # function DisplayXmlHelpFile #
 
             # DisplayParagraph 0 'empty'
+
+            $Item.CurrentExtraSectionNode = $null
 
             #----------------------------------------------------------
             # Section NAME
