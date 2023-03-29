@@ -1057,11 +1057,11 @@ function Main
             {
                 if ($Paragraph.IndexOf("`n") -ne -1)
                 {
-                    $FirstLine = $Paragraph.Substring(0,$Paragraph.IndexOf("`n")).Trim()
+                    $FirstLine = $Paragraph.Substring(0,$Paragraph.IndexOf("`n")).TrimEnd()
                 }
                 else
                 {
-                    $FirstLine = $Paragraph.Trim()
+                    $FirstLine = $Paragraph.TrimEnd()
                 }
                 switch -Regex ($FirstLine)
                 {
@@ -1248,7 +1248,7 @@ function Main
                     Write-Host ("  Old file was: "+$HelpInfo.Items[$HelpInfo.ItemIndex[$Item.Name]].File)
                     Write-Host ("  New file is:  "+$Item.File)
                     !!!!????!?!?!?! #>
-                    # $HelpInfo.Items[$HelpInfo.ItemIndex[$Item.Name]] = $Item
+                    $HelpInfo.Items[$HelpInfo.ItemIndex[$Item.Name]] = $Item
                 }
             }
         }   # function AddItem #
@@ -2845,8 +2845,7 @@ function Main
 
             #----------------------------------------------------------
             # Section DESCRIPTION
-            if ($null -ne (Get-Member -InputObject $CommandNode -Name description) -and
-                $null -ne (Get-Member -InputObject $CommandNode.description -Name para))
+            if ($null -ne (Get-Member -InputObject $CommandNode -Name description))
             {
                 DisplayParagraph 0 'section' 'DESCRIPTION'
                 $Work.WasColon = $false
