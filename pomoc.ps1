@@ -2090,12 +2090,20 @@ function Main
 
                 if ($URI -ne '')
                 {
-                    if (($URI.Substring(0,8) -ne 'https://') -and ($URI.Substring(0,7) -ne 'http://'))
+                    if (($URI -eq 'About/' + $LinkText + '.md') -or ($URI -eq './' + $LinkText + '.md') -or ($URI -eq $LinkText + '.md'))
+                    {
+                        $URI = ''
+                    }
+                    elseif ($URI.Substring(0,32) -eq '/powershell/scripting/developer/')
+                    {
+                        $URI = 'https://learn.microsoft.com/en-us' + $URI
+                    }
+                    elseif (($URI.Substring(0,8) -ne 'https://') -and ($URI.Substring(0,7) -ne 'http://'))
                     {
                         Write-Error "Unknown link for ${LinkText}: $URI"
                     }
                 }
-                else
+                if ($URI -eq '')
                 {
                     $version = '{0}.{1}' -f $PSVersionTable.PSVersion.Major, $PSVersionTable.PSVersion.Minor
                     if ($null -ne $HelpInfo.ItemIndex[$LinkText])
