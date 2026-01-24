@@ -2799,6 +2799,10 @@ function Main
                 DisplayParagraph 1 'subsection' $Example.title.Trim('- ')
                 #DisplayParagraph 2 'code' $Example.code
                 $Work.WasColon = $false
+                if ($null -ne (Get-Member -InputObject $Example -Name introduction))
+                {
+                    $Example = $Example.introduction
+                }
                 DisplayCollectionOfParagraphs 2 $Example
                 if ($null -ne (Get-Member -InputObject $Example -Name remarks))
                 {
