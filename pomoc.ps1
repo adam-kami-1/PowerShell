@@ -2712,7 +2712,14 @@ function Main
 
                 $Required = NormalizeAttributeValue $ParamNode.required
                 $Position = NormalizeAttributeValue $ParamNode.position
-                $DefVal = NormalizeAttributeValue $ParamNode.defaultValue
+                if ($null -ne (Get-Member -InputObject $ParamNode -Name defaultValue))
+                {
+                    $DefVal = NormalizeAttributeValue $ParamNode.defaultValue
+                }
+                else
+                {
+                    $DefVal = 'None'
+                }
                 $PipelineInput = NormalizeAttributeValue $ParamNode.pipelineInput
                 #Parameter set name           (All)
                 $Globbing = NormalizeAttributeValue $ParamNode.globbing
@@ -2729,8 +2736,39 @@ function Main
                     $Aliases = 'None'
                 }
                 #Dynamic?                     false
+                
+                $TypeName = ''
+                if ($null -ne (Get-member -InputObject $ParamNode -Name parameterValueGroup))
+                {
+                    if ($ParamNode.parameterValueGroup.parameterValue.Count -gt 0)
+                    {
+                        foreach ($Value in $ParamNode.parameterValueGroup.parameterValue)
+                        {
+                            if ($TypeName -eq '')
+                            {
+                                $TypeName = '{'+$Value.InnerText
+                            }
+                            else
+                            {
+                                $TypeName += ' | '+$Value.InnerText
+                            }
+                        }
+                        $TypeName += '}'
+                    }
+                }
+                if ($null -ne (Get-member -InputObject $ParamNode -Name parameterValue))
+                {
+                    if (($TypeName -eq '') -and ($null -ne $ParamNode.parameterValue.FirstChild.InnerText))
+                    {
+                        $TypeName = '<'+$ParamNode.parameterValue.FirstChild.InnerText+'>'
+                    }
+                }
+                if (($TypeName -eq '') -and ($null -ne (Get-Member -InputObject $ParamNode -Name type)))
+                {
+                    $TypeName = '<'+$ParamNode.type.name+'>'
+                }
 
-                DisplayParagraph 1 'subsection' ('-'+$ParamNode.name+' <'+$ParamNode.type.name+'>')
+                DisplayParagraph 1 'subsection' ('-'+$ParamNode.name+' '+$TypeName)
 
                 $Work.WasColon = $false
                 DisplayCollectionOfParagraphs 2 $ParamNode.Description
