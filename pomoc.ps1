@@ -2657,6 +2657,79 @@ function Main
                 ################################
 
 
+            #################################
+            # function ParseSingleParameter #
+            #################################
+            function ParseSingleParameter
+            {
+                param (
+                    [System.Xml.XmlElement] $ParamNode
+                )
+
+                $Parameter = @{
+                    Name = $ParamNode.name
+                    Required = NormalizeAttributeValue $ParamNode.required
+                    VariableLength = NormalizeAttributeValue $ParamNode.variableLength # WTF?
+                    Position = NormalizeAttributeValue $ParamNode.position
+                    DefVal = 'None'
+                    PipelineInput = NormalizeAttributeValue $ParamNode.pipelineInput
+                    Globbing = NormalizeAttributeValue $ParamNode.globbing
+                    Aliases = ''
+                    TypeName = ''
+                    #Parameter set name           (All)
+                    #Dynamic?                     false
+                }
+
+                if ($null -ne (Get-Member -InputObject $ParamNode -Name defaultValue))
+                {
+                    $Parameter.DefVal = NormalizeAttributeValue $ParamNode.defaultValue
+                }
+                if ($null -ne (Get-Member -InputObject $ParamNode -Name aliases))
+                {
+                    $Parameter.Aliases = $ParamNode.aliases
+                }
+                if (($Parameter.Aliases -eq '') -or ($Parameter.Aliases -eq 'none'))
+                {
+                    $Parameter.Aliases = 'None'
+                }
+                if ($null -ne (Get-member -InputObject $ParamNode -Name parameterValueGroup))
+                {
+                    if ($ParamNode.parameterValueGroup.parameterValue.Count -gt 0)
+                    {
+                        foreach ($Value in $ParamNode.parameterValueGroup.parameterValue)
+                        {
+                            if ($Parameter.TypeName -eq '')
+                            {
+                                $Parameter.TypeName = '{'+$Value.InnerText
+                            }
+                            else
+                            {
+                                $Parameter.TypeName += ' | '+$Value.InnerText
+                            }
+                        }
+                        $Parameter.TypeName += '}'
+                    }
+                }
+                if ($null -ne (Get-member -InputObject $ParamNode -Name parameterValue))
+                {
+                    if (($Parameter.TypeName -eq '') -and ($null -ne $ParamNode.parameterValue.FirstChild.InnerText))
+                    {
+                        $Parameter.TypeName = '<'+$ParamNode.parameterValue.FirstChild.InnerText+'>'
+                    }
+                }
+                if (($Parameter.TypeName -eq '') -and ($null -ne (Get-Member -InputObject $ParamNode -Name type)))
+                {
+                    $Parameter.TypeName = '<'+$ParamNode.type.name+'>'
+                }
+                if (($Parameter.TypeName -eq '<System.Management.Automation.SwitchParameter>') -and ($Parameter.DefVal -eq 'None'))
+                {
+                    $Parameter.DefVal = 'False'
+                }
+                return $Parameter
+            } # function ParseSingleParameter #
+              #################################
+
+
             ###################################
             # function DisplaySingleParameter #
             ###################################
@@ -2723,75 +2796,19 @@ function Main
                 ###################################
                 # function DisplaySingleParameter #
 
-                $Required = NormalizeAttributeValue $ParamNode.required
-                $Position = NormalizeAttributeValue $ParamNode.position
-                if ($null -ne (Get-Member -InputObject $ParamNode -Name defaultValue))
-                {
-                    $DefVal = NormalizeAttributeValue $ParamNode.defaultValue
-                }
-                else
-                {
-                    $DefVal = 'None'
-                }
-                $PipelineInput = NormalizeAttributeValue $ParamNode.pipelineInput
-                #Parameter set name           (All)
-                $Globbing = NormalizeAttributeValue $ParamNode.globbing
-                if ($null -ne (Get-Member -InputObject $ParamNode -Name aliases))
-                {
-                    $Aliases = $ParamNode.aliases
-                }
-                else
-                {
-                    $Aliases = ''
-                }
-                if (($Aliases -eq '') -or ($Aliases -eq 'none'))
-                {
-                    $Aliases = 'None'
-                }
-                #Dynamic?                     false
-                
-                $TypeName = ''
-                if ($null -ne (Get-member -InputObject $ParamNode -Name parameterValueGroup))
-                {
-                    if ($ParamNode.parameterValueGroup.parameterValue.Count -gt 0)
-                    {
-                        foreach ($Value in $ParamNode.parameterValueGroup.parameterValue)
-                        {
-                            if ($TypeName -eq '')
-                            {
-                                $TypeName = '{'+$Value.InnerText
-                            }
-                            else
-                            {
-                                $TypeName += ' | '+$Value.InnerText
-                            }
-                        }
-                        $TypeName += '}'
-                    }
-                }
-                if ($null -ne (Get-member -InputObject $ParamNode -Name parameterValue))
-                {
-                    if (($TypeName -eq '') -and ($null -ne $ParamNode.parameterValue.FirstChild.InnerText))
-                    {
-                        $TypeName = '<'+$ParamNode.parameterValue.FirstChild.InnerText+'>'
-                    }
-                }
-                if (($TypeName -eq '') -and ($null -ne (Get-Member -InputObject $ParamNode -Name type)))
-                {
-                    $TypeName = '<'+$ParamNode.type.name+'>'
-                }
+                $Parameter = ParseSingleParameter $ParamNode
 
-                DisplayParagraph 1 'subsection' ('-'+$ParamNode.name+' '+$TypeName)
+                DisplayParagraph 1 'subsection' ('-' + $ParamNode.Name + ' ' + $Parameter.TypeName)
 
                 $Work.WasColon = $false
                 DisplayCollectionOfParagraphs 2 $ParamNode.Description
 
-                DisplayParagraph 2 'formatted' "Required?                    $Required"
-                DisplayParagraph 2 'formatted' "Position?                    $Position"
-                DisplayParagraph 2 'formatted' "Default value                $DefVal"
-                DisplayParagraph 2 'formatted' "Accept pipeline input?       $PipelineInput"
-                DisplayParagraph 2 'formatted' "Accept wildcard characters?  $Globbing"
-                DisplayParagraph 2 'formatted' "Aliases                      $Aliases"
+                DisplayParagraph 2 'formatted' "Required?                    $($Parameter.Required)"
+                DisplayParagraph 2 'formatted' "Position?                    $($Parameter.Position)"
+                DisplayParagraph 2 'formatted' "Default value                $($Parameter.DefVal)"
+                DisplayParagraph 2 'formatted' "Accept pipeline input?       $($Parameter.PipelineInput)"
+                DisplayParagraph 2 'formatted' "Accept wildcard characters?  $($Parameter.Globbing)"
+                DisplayParagraph 2 'formatted' "Aliases                      $($Parameter.Aliases)"
                 DisplayParagraph 0 'empty'
             }   # function DisplaySingleParameter #
                 ###################################
