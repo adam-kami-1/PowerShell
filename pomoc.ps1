@@ -2090,7 +2090,12 @@ function Main
 
                 if ($URI -ne '')
                 {
-                    if (($URI -eq 'About/' + $LinkText + '.md') -or ($URI -eq './' + $LinkText + '.md') -or ($URI -eq $LinkText + '.md'))
+                    if (($URI -eq 'About/' + $LinkText + '.md') -or
+                        ($URI -eq './' + $LinkText + '.md') -or
+                        ($URI -eq '../Microsoft.PowerShell.Core/' + $LinkText + '.md') -or
+                        ($URI -eq '../Microsoft.PowerShell.Management/' + $LinkText + '.md') -or
+                        ($URI -eq '../Microsoft.PowerShell.Utility/' + $LinkText + '.md') -or
+                        ($URI -eq $LinkText + '.md'))
                     {
                         $URI = ''
                     }
