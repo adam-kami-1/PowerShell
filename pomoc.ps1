@@ -2568,95 +2568,6 @@ function Main
                 ##########################################
 
 
-            ################################
-            # function DisplaySingleSyntax #
-            ################################
-            function DisplaySingleSyntax
-            {
-                param (
-                    [System.Xml.XmlElement] $syntaxItem,
-                    [System.Boolean] $CommonParameters
-                )
-
-                ################################
-                # function DisplaySingleSyntax #
-
-                $Paragraph = $syntaxItem.name
-                #----------------------------------------------------------
-                # Regular parameters
-                if ($null -ne (Get-Member -InputObject $syntaxItem -Name parameter))
-                {
-                    foreach ($ParamNode in $syntaxItem.parameter)
-                    {
-                        $Required = $ParamNode.required -eq 'true'
-                        $Position = $ParamNode.position -ne 'named'
-                        $Paragraph += ' '
-                        if (-not $Required)
-                        {
-                            $Paragraph += '['
-                        }
-                        if ($Position)
-                        {
-                            $Paragraph += '['
-                        }
-                        $Paragraph += '-'+$ParamNode.name
-                        if ($Position)
-                        {
-                            $Paragraph += ']'
-                        }
-                        $TypeName = ''
-                        if ($null -ne (Get-member -InputObject $ParamNode -Name parameterValueGroup))
-                        {
-                            if ($ParamNode.parameterValueGroup.parameterValue.Count -gt 0)
-                            {
-                                foreach ($Value in $ParamNode.parameterValueGroup.parameterValue)
-                                {
-                                    if ($TypeName -eq '')
-                                    {
-                                        $TypeName = '{'+$Value.InnerText
-                                    }
-                                    else
-                                    {
-                                        $TypeName += ' | '+$Value.InnerText
-                                    }
-                                }
-                                $TypeName += '}'
-                            }
-                        }
-                        if ($null -ne (Get-member -InputObject $ParamNode -Name parameterValue))
-                        {
-                            if (($TypeName -eq '') -and ($null -ne $ParamNode.parameterValue.FirstChild.InnerText))
-                            {
-                                $TypeName = '<'+$ParamNode.parameterValue.FirstChild.InnerText+'>'
-                            }
-                        }
-                        if (($TypeName -eq '') -and ($null -ne (Get-Member -InputObject $ParamNode -Name type)))
-                        {
-                            $TypeName = '<'+$ParamNode.type.name+'>'
-                        }
-                        if (($TypeName -ne '<System.Management.Automation.SwitchParameter>') -and
-                            ($TypeName -ne '<SwitchParameter>') -and
-                            ($TypeName -ne '') -and ($null -ne $TypeName))
-                        {
-                            $Paragraph += ' '+$TypeName
-                        }
-                        if (-not $Required)
-                        {
-                            $Paragraph += ']'
-                        }
-                    }
-                }
-                #----------------------------------------------------------
-                # Common parameters
-                if ($CommonParameters)
-                {
-                    $Paragraph += ' [<CommonParameters>]'
-                }
-                DisplayParagraph 1 'hanging' $Paragraph
-            }   # function DisplaySingleSyntax #
-                ################################
-
-
             #################################
             # function ParseSingleParameter #
             #################################
@@ -2666,6 +2577,61 @@ function Main
                     [System.Xml.XmlElement] $ParamNode
                 )
 
+
+                ####################################
+                # function NormalizeAttributeValue #
+                ####################################
+                function NormalizeAttributeValue
+                {
+                    param (
+                        [System.String] $Value
+                    )
+
+                    ####################################
+                    # function NormalizeAttributeValue #
+                    switch -regex ($Value.Trim()){
+                        '^True$'
+                            {
+                                'True'
+                            }
+                        '^False$'
+                            {
+                                'False'
+                            }
+                        '^None$'
+                            {
+                                'None'
+                            }
+                        '^Named$'
+                            {
+                                'Named'
+                            }
+                        '^True *\(?ByPropertyName\)?$'
+                            {
+                                'True (ByPropertyName)'
+                            }
+                        '^True *\(?ByValue\)?$'
+                            {
+                                'True (ByValue)'
+                            }
+                        '^True *\(?ByValue, *ByPropertyName\)?$'
+                            {
+                                'True (ByValue, ByPropertyName)'
+                            }
+                        '^True *\(?ByPropertyName, *ByValue\)?$'
+                            {
+                                'True (ByValue, ByPropertyName)'
+                            }
+                        default
+                            {
+                                $Value
+                            }
+                    }
+                }   # function NormalizeAttributeValue #
+                    ####################################
+
+                #################################
+                # function ParseSingleParameter #
                 $Parameter = @{
                     Name = $ParamNode.name
                     Required = NormalizeAttributeValue $ParamNode.required
@@ -2730,6 +2696,67 @@ function Main
               #################################
 
 
+            ################################
+            # function DisplaySingleSyntax #
+            ################################
+            function DisplaySingleSyntax
+            {
+                param (
+                    [System.Xml.XmlElement] $syntaxItem,
+                    [System.Boolean] $CommonParameters
+                )
+
+                ################################
+                # function DisplaySingleSyntax #
+
+                $Paragraph = $syntaxItem.name
+                #----------------------------------------------------------
+                # Regular parameters
+                if ($null -ne (Get-Member -InputObject $syntaxItem -Name parameter))
+                {
+                    foreach ($ParamNode in $syntaxItem.parameter)
+                    {
+                        $Parameter = ParseSingleParameter $ParamNode
+
+                        $Optional = $Parameter.Required -eq 'False' # whole parameter is optional
+                        $Positional = $Parameter.Position -ne 'Named' # parameter name is optional
+                        $Paragraph += ' '
+                        if ($Optional)
+                        {
+                            $Paragraph += '['
+                        }
+                        if ($Positional)
+                        {
+                            $Paragraph += '['
+                        }
+                        $Paragraph += '-'+$Parameter.Name
+                        if ($Positional)
+                        {
+                            $Paragraph += ']'
+                        }
+                        if (($Parameter.TypeName -ne '<System.Management.Automation.SwitchParameter>') -and
+                            ($Parameter.TypeName -ne '<SwitchParameter>') -and
+                            ($Parameter.TypeName -ne '') -and ($null -ne $Parameter.TypeName))
+                        {
+                            $Paragraph += ' '+$Parameter.TypeName
+                        }
+                        if ($Optional)
+                        {
+                            $Paragraph += ']'
+                        }
+                    }
+                }
+                #----------------------------------------------------------
+                # Common parameters
+                if ($CommonParameters)
+                {
+                    $Paragraph += ' [<CommonParameters>]'
+                }
+                DisplayParagraph 1 'hanging' $Paragraph
+            }   # function DisplaySingleSyntax #
+                ################################
+
+
             ###################################
             # function DisplaySingleParameter #
             ###################################
@@ -2738,59 +2765,6 @@ function Main
                 param (
                     [System.Xml.XmlElement] $ParamNode
                 )
-
-
-                ####################################
-                # function NormalizeAttributeValue #
-                ####################################
-                function NormalizeAttributeValue
-                {
-                    param (
-                        [System.String] $Value
-                    )
-                
-                    ####################################
-                    # function NormalizeAttributeValue #
-                    switch -regex ($Value.Trim()){
-                        '^True$'
-                            {
-                                'True'
-                            }
-                        '^False$'
-                            {
-                                'False'
-                            }
-                        '^None$'
-                            {
-                                'None'
-                            }
-                        '^Named$'
-                            {
-                                'Named'
-                            }
-                        '^True *\(?ByPropertyName\)?$'
-                            {
-                                'True (ByPropertyName)'
-                            }
-                        '^True *\(?ByValue\)?$'
-                            {
-                                'True (ByValue)'
-                            }
-                        '^True *\(?ByValue, *ByPropertyName\)?$'
-                            {
-                                'True (ByValue, ByPropertyName)'
-                            }
-                        '^True *\(?ByPropertyName, *ByValue\)?$'
-                            {
-                                'True (ByValue, ByPropertyName)'
-                            }
-                        default
-                            {
-                                $Value
-                            }
-                    }
-                }   # function NormalizeAttributeValue #
-                    ####################################
 
 
                 ###################################
