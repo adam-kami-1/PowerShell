@@ -2438,52 +2438,92 @@ function Main
                 #####################################
 
 
-            ##########################################
-            # function DisplayCollectionOfParagraphs #
-            ##########################################
-            function DisplayCollectionOfParagraphs
+            ###########################################
+            # function DisplayParagraphFromCollection #
+            ###########################################
+            function DisplayParagraphFromCollection
             {
                 param (
                     [System.Int32] $IndentLevel,
-                    $Collection,
+                    [System.String] $Paragraph,
                     [System.String] $DisplayedLinesVar = ''
                 )
 
-
                 ###########################################
                 # function DisplayParagraphFromCollection #
-                ###########################################
-                function DisplayParagraphFromCollection
-                {
-                    param (
-                        [System.Int32] $IndentLevel,
-                        [System.String] $Paragraph,
-                        [System.String] $DisplayedLinesVar = ''
-                    )
 
-                    ###########################################
-                    # function DisplayParagraphFromCollection #
-                    
-                    $DisplayedLines = 0
-                    $Paragraph = $Paragraph.TrimEnd(" `n")
-                    $Paragraph = $Paragraph.TrimStart()
-                    if ($Paragraph.Length -eq 0)
+                $DisplayedLines = 0
+                $Paragraph = $Paragraph.TrimEnd(" `n")
+                $Paragraph = $Paragraph.TrimStart()
+                if ($Paragraph.Length -eq 0)
+                {
+                    Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
+                    return
+                }
+                if ($Paragraph.IndexOf("`n") -ne -1)
+                {
+                    # Instead of $Work.WasColon there should be used info about colon in last paragraph
+                    DisplayCollectionOfParagraphs $IndentLevel ($Paragraph.Split("`n")) 'Displayed'
+                    $DisplayedLines += $Displayed
+                }
+                else
+                {
+                    if (-not $Work.WasColon)
                     {
-                        Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
-                        return
-                    }
-                    if ($Paragraph.IndexOf("`n") -ne -1)
-                    {
-                        # Instead of $Work.WasColon there should be used info about colon in last paragraph
-                        DisplayCollectionOfParagraphs $IndentLevel ($Paragraph.Split("`n")) 'Displayed'
-                        $DisplayedLines += $Displayed
+                        #----------------------------------------------------------
+                        # Previous paragraph/line was not the list heading paragraph
+                        if ($Paragraph.Substring($Paragraph.Length-1, 1) -eq ':')
+                        {
+                            # List heading paragraph
+                            $Work.WasColon = $true
+                            DisplayAndCountParagraph $IndentLevel 'compact' $Paragraph 'Displayed'
+                            $DisplayedLines += $Displayed
+                        }
+                        else
+                        {
+                            # Regular paragraph
+                            DisplayAndCountParagraph $IndentLevel 'regular' $Paragraph 'Displayed'
+                            $DisplayedLines += $Displayed
+                        }
                     }
                     else
                     {
-                        if (-not $Work.WasColon)
+                        #----------------------------------------------------------
+                        # Previous paragraph/line was the list heading paragraph or the list item
+                        if ($Paragraph -match '^[0-9]+ =')
                         {
-                            #----------------------------------------------------------
-                            # Previous paragraph/line was not the list heading paragraph
+                            # Numbered list item
+                            DisplayAndCountParagraph $IndentLevel 'numberedlist' $Paragraph 'Displayed'
+                            $DisplayedLines += $Displayed
+                        }
+                        elseif (($Paragraph.Length -gt 2) -and
+                                ($Paragraph.Substring(0, 2) -eq '- '))
+                        {
+                            # Bulleted list item
+                            DisplayAndCountParagraph $IndentLevel 'bulletedlist' $Paragraph 'Displayed'
+                            $DisplayedLines += $Displayed
+                        }
+                        elseif (($Paragraph.Length -gt 3) -and
+                                ($Paragraph.Substring(0, 3) -eq '-- '))
+                        {
+                            # Bulleted list item
+                            DisplayAndCountParagraph $IndentLevel 'bulletedlist' ('- '+$Paragraph.Substring(3)) 'Displayed'
+                            $DisplayedLines += $Displayed
+                        }
+                        elseif (($Paragraph.Length -gt 2) -and
+                                ($Paragraph.Substring(0, 2) -eq '--'))
+                        {
+                            # Bulleted list item
+                            DisplayAndCountParagraph $IndentLevel 'bulletedlist' ('- '+$Paragraph.Substring(2)) 'Displayed'
+                            $DisplayedLines += $Displayed
+                        }
+                        else
+                        {
+                            # End of the list
+                            Write-Output (FormatParagraph $IndentLevel 'empty').Text
+                            $DisplayedLines += 1
+                            $Work.WasColon = $false
+                            # But it could be begin of the next list
                             if ($Paragraph.Substring($Paragraph.Length-1, 1) -eq ':')
                             {
                                 # List heading paragraph
@@ -2498,69 +2538,72 @@ function Main
                                 $DisplayedLines += $Displayed
                             }
                         }
-                        else
-                        {
-                            #----------------------------------------------------------
-                            # Previous paragraph/line was the list heading paragraph or the list item
-                            if ($Paragraph -match '^[0-9]+ =')
-                            {
-                                # Numbered list item
-                                DisplayAndCountParagraph $IndentLevel 'numberedlist' $Paragraph 'Displayed'
-                                $DisplayedLines += $Displayed
-                            }
-                            elseif (($Paragraph.Length -gt 2) -and
-                                    ($Paragraph.Substring(0, 2) -eq '- '))
-                            {
-                                # Bulleted list item
-                                DisplayAndCountParagraph $IndentLevel 'bulletedlist' $Paragraph 'Displayed'
-                                $DisplayedLines += $Displayed
-                            }
-                            elseif (($Paragraph.Length -gt 3) -and
-                                    ($Paragraph.Substring(0, 3) -eq '-- '))
-                            {
-                                # Bulleted list item
-                                DisplayAndCountParagraph $IndentLevel 'bulletedlist' ('- '+$Paragraph.Substring(3)) 'Displayed'
-                                $DisplayedLines += $Displayed
-                            }
-                            elseif (($Paragraph.Length -gt 2) -and
-                                    ($Paragraph.Substring(0, 2) -eq '--'))
-                            {
-                                # Bulleted list item
-                                DisplayAndCountParagraph $IndentLevel 'bulletedlist' ('- '+$Paragraph.Substring(2)) 'Displayed'
-                                $DisplayedLines += $Displayed
-                            }
-                            else
-                            {
-                                # End of the list
-                                Write-Output (FormatParagraph $IndentLevel 'empty').Text
-                                $DisplayedLines += 1
-                                $Work.WasColon = $false
-                                # But it could be begin of the next list
-                                if ($Paragraph.Substring($Paragraph.Length-1, 1) -eq ':')
-                                {
-                                    # List heading paragraph
-                                    $Work.WasColon = $true
-                                    DisplayAndCountParagraph $IndentLevel 'compact' $Paragraph 'Displayed'
-                                    $DisplayedLines += $Displayed
-                                }
-                                else
-                                {
-                                    # Regular paragraph
-                                    DisplayAndCountParagraph $IndentLevel 'regular' $Paragraph 'Displayed'
-                                    $DisplayedLines += $Displayed
-                                }
-                            }
-                        }
                     }
-                    if ($DisplayedLinesVar -ne '')
-                    {
-                        Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
-                    }
-                }   # function DisplayParagraphFromCollection #
-                    ###########################################
+                }
+                if ($DisplayedLinesVar -ne '')
+                {
+                    Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
+                }
+            }   # function DisplayParagraphFromCollection #
+                ###########################################
+
+
+            ##########################################
+            # function DisplayCollectionOfParagraphs #
+            ##########################################
+            function DisplayCollectionOfParagraphs
+            {
+                param (
+                    [System.Int32] $IndentLevel,
+                    $Collection,
+                    [System.String] $DisplayedLinesVar = ''
+                )
 
                 ##########################################
                 # function DisplayCollectionOfParagraphs #
+
+                $DisplayedLines = 0
+                switch ($Collection.GetType().FullName)
+                {
+                    {($_ -eq 'System.Object[]') -or
+                     ($_ -eq 'System.String[]')}
+                        {
+                            foreach ($Paragraph in $Collection)
+                            {
+                                DisplayParagraphFromCollection $IndentLevel $Paragraph 'Displayed'
+                                $DisplayedLines += $Displayed
+                            }
+                        }
+                    default
+                        {
+                        }
+                }
+                if ($Work.WasColon)
+                {
+                    Write-Output (FormatParagraph $IndentLevel 'empty').Text
+                    $DisplayedLines += 1
+                }
+                if ($DisplayedLinesVar -ne '')
+                {
+                    Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
+                }
+            }   # function DisplayCollectionOfParagraphs #
+                ##########################################
+
+
+            #############################################
+            # function DisplayXMLCollectionOfParagraphs #
+            #############################################
+            function DisplayXMLCollectionOfParagraphs
+            {
+                param (
+                    [System.Int32] $IndentLevel,
+                    $Collection,
+                    [System.String] $DisplayedLinesVar = ''
+                )
+
+                #############################################
+                # function DisplayXMLCollectionOfParagraphs #
 
                 $DisplayedLines = 0
                 switch ($Collection.GetType().FullName)
@@ -2591,15 +2634,14 @@ function Main
                                 }
                             }
                         }
-                    {($_ -eq 'System.Object[]') -or
-                     ($_ -eq 'System.String[]')}
-                        {
-                            foreach ($Paragraph in $Collection)
-                            {
-                                DisplayParagraphFromCollection $IndentLevel $Paragraph 'Displayed'
-                                $DisplayedLines += $Displayed
-                            }
-                        }
+                    # {($_ -eq 'System.Object[]')}
+                    #     {
+                    #         foreach ($Paragraph in $Collection)
+                    #         {
+                    #             DisplayParagraphFromCollection $IndentLevel $Paragraph 'Displayed'
+                    #             $DisplayedLines += $Displayed
+                    #         }
+                    #     }
                     default
                         {
                         }
@@ -2613,8 +2655,8 @@ function Main
                 {
                     Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
                 }
-            }   # function DisplayCollectionOfParagraphs #
-                ##########################################
+            }   # function DisplayXMLCollectionOfParagraphs #
+                #############################################
 
 
             #################################
@@ -2824,7 +2866,7 @@ function Main
                 Write-Output (FormatParagraph 1 'subsection' ('-' + $ParamNode.Name + ' ' + $Parameter.TypeName)).Text
 
                 $Work.WasColon = $false
-                DisplayCollectionOfParagraphs 2 $ParamNode.Description
+                DisplayXMLCollectionOfParagraphs 2 $ParamNode.Description
 
                 Write-Output (FormatParagraph 2 'formatted' "Required?                    $($Parameter.Required)").Text
                 Write-Output (FormatParagraph 2 'formatted' "Position?                    $($Parameter.Position)").Text
@@ -2856,11 +2898,11 @@ function Main
                 {
                     $Example = $Example.introduction
                 }
-                DisplayCollectionOfParagraphs 2 $Example
+                DisplayXMLCollectionOfParagraphs 2 $Example
                 if ($null -ne (Get-Member -InputObject $Example -Name remarks))
                 {
                     $Work.WasColon = $false
-                    DisplayCollectionOfParagraphs 2 $Example.remarks
+                    DisplayXMLCollectionOfParagraphs 2 $Example.remarks
                 }
             }   # function DisplaySingleExample #
                 #################################
@@ -2944,7 +2986,7 @@ function Main
             {
                 Write-Output (FormatParagraph 0 'section' 'DESCRIPTION').Text
                 $Work.WasColon = $false
-                DisplayCollectionOfParagraphs 1 $CommandNode.description
+                DisplayXMLCollectionOfParagraphs 1 $CommandNode.description
 
                 #----------------------------------------------------------
                 # Display extra sections
@@ -2954,7 +2996,7 @@ function Main
                     {
                         Write-Output (FormatParagraph 0 'extrasection' $Child.FirstChild.InnerText).Text
                         $Work.WasColon = $false
-                        DisplayCollectionOfParagraphs 1 $Child
+                        DisplayXMLCollectionOfParagraphs 1 $Child
                     }
                 }
             }
@@ -3022,7 +3064,7 @@ function Main
                             $HeaderDisplayed = $true
                         }
                         $Work.WasColon = $false
-                        DisplayCollectionOfParagraphs 2 $InputType.description 'DisplayedLines'
+                        DisplayXMLCollectionOfParagraphs 2 $InputType.description 'DisplayedLines'
                     }
                     if ($HeaderDisplayed -and ($DisplayedLines -eq 0))
                     {
@@ -3059,7 +3101,7 @@ function Main
                             $HeaderDisplayed = $true
                         }
                         $Work.WasColon = $false
-                        DisplayCollectionOfParagraphs 2 $returnValue.description 'DisplayedLines'
+                        DisplayXMLCollectionOfParagraphs 2 $returnValue.description 'DisplayedLines'
                     }
                     if ($HeaderDisplayed -and ($DisplayedLines -eq 0))
                     {
@@ -3078,7 +3120,7 @@ function Main
                 foreach ($alert in $CommandNode.alertSet.alert)
                 {
                     $Work.WasColon = $false
-                    DisplayCollectionOfParagraphs 1 $alert
+                    DisplayXMLCollectionOfParagraphs 1 $alert
                 }
             }
 
