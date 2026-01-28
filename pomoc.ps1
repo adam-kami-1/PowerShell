@@ -2143,10 +2143,10 @@ function Main
                 ###########################
 
 
-            #############################
-            # function DisplayParagraph #
-            #############################
-            function DisplayParagraph
+            ############################
+            # function FormatParagraph #
+            ############################
+            function FormatParagraph
             {
                 param (
                     [System.Int32] $IndentLevel,
@@ -2164,7 +2164,7 @@ function Main
                     ### Compact paragraphs:
                     # 'empty' - empty line
                     # 'compact' - compact paragraph, like regular but without empty line after it
-                    # 'bulletedlist' - compact paragraph being element of bulleted list, if wrapped then 
+                    # 'bulletedlist' - compact paragraph being element of bulleted list, if wrapped then
                     #                  next lines indented 2 characters
                     # 'numberedlist'
                     # 'formatted' - multiline compact paragraph containing already formatted text
@@ -2172,13 +2172,14 @@ function Main
                     # 'subsection' - compact paragraph coloured with $Work.Colors.SubSection
                     # 'extrasection' - compact paragraph coloured with $Work.Colors.ExtraSection
                     [System.String] $ParagraphType,
-                    [System.String] $Text = '',
-                    [System.String] $DisplayedLinesVar = ''
+                    [System.String] $Text = ''
                 )
 
-                #############################
-                # function DisplayParagraph #
+                ############################
+                # function FormatParagraph #
 
+                $ResultText = ''
+                $ResultLines = 0
                 if ($Text.Trim() -eq '')
                 {
                     $ParagraphType = 'empty'
@@ -2200,13 +2201,12 @@ function Main
                 }
                 $IndentWidth = $Work.IndentSize * $IndentLevel
                 $TextWidth = $Work.OutputWidth-$IndentWidth
-                $DisplayedLines = 0
                 switch -wildcard ($ParagraphType)
                 {
                     'empty'
                         {
-                            Write-Output ''
-                            $DisplayedLines++
+                            $ResultText += "`n"
+                            $ResultLines++
                             break
                         }
                     'code'
@@ -2233,21 +2233,22 @@ function Main
                                     {
                                         $Line = $Line.Substring(0, $TextWidth-3)+'...'
                                     }
-                                    Write-Output ((' ' * $IndentWidth)+$Work.Colors.Code+$Line+$Work.Colors.Default)
-                                    $DisplayedLines++
+                                    $ResultText += (' ' * $IndentWidth) + $Work.Colors.Code + $Line + $Work.Colors.Default + "`n"
+                                    $ResultLines++
                                     $LastLineWasEmpty = ($Line.Trim().Length -eq 0)
                                 }
                                 else
                                 {
-                                    DisplayParagraph $IndentLevel 'regular' $Line 'D'
-                                    $DisplayedLines += $D
+                                    $Res = FormatParagraph $IndentLevel 'regular' $Line
+                                    $ResultText += $Res.Text
+                                    $ResultLines += $Res.Lines
                                     $LastLineWasEmpty = $true
                                 }
                             }
                             if (-not $LastLineWasEmpty)
                             {
-                                Write-Output ''
-                                $DisplayedLines++
+                                $ResultText += "`n"
+                                $ResultLines++
                             }
                             break
                         }
@@ -2260,8 +2261,8 @@ function Main
                                 {
                                     $Line = $Line.Substring(0, $TextWidth-3)+'...'
                                 }
-                                Write-Output ((' ' * $IndentWidth)+$Line)
-                                $DisplayedLines++
+                                $ResultText += (' ' * $IndentWidth) + $Line + "`n"
+                                $ResultLines++
                             }
                             break
                         }
@@ -2366,9 +2367,9 @@ function Main
                             # Display all paragraph lines
                             foreach ($Line in $Lines)
                             {
-                                Write-Output ((' ' * $IndentWidth)+$StartColor+$Line+$EndColor)
-                                $DisplayedLines++
-                                if ($DisplayedLines -eq 1)
+                                $ResultText += (' ' * $IndentWidth) + $StartColor + $Line + $EndColor + "`n"
+                                $ResultLines++
+                                if ($ResultLines -eq 1)
                                 {
                                     $IndentWidth += $HangSize
                                 }
@@ -2377,17 +2378,106 @@ function Main
                             # Display extra empty line for regular paragraphs
                             if (-not $Compact)
                             {
-                                Write-Output ''
-                                $DisplayedLines++
+                                $ResultText += "`n"
+                                $ResultLines++
                             }
                         }
                 }
-                if ($DisplayedLinesVar -ne '')
+                if (($ResultText.Length -gt 0) -and ($ResultText.Chars($ResultText.Length - 1) -eq "`n"))
                 {
-                    Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $DisplayedLines
+                    $ResultText = $ResultText.Substring(0, $ResultText.Length - 1)
                 }
+                return @{'Text' = $ResultText; 'Lines' = $ResultLines}
+            }   # function FormatParagraph #
+                ############################
+
+
+            #############################
+            # function DisplayParagraph #
+            #############################
+            function DisplayParagraph
+            {
+                param (
+                    [System.Int32] $IndentLevel,
+
+                    # All regular paragraphs displays empty line after it.
+                    # All compact paragraphs do not displays empty line after it.
+                    #
+                    # Allowed values for $ParagraphType:
+                    #
+                    ### Regular paragraphs:
+                    # 'regular' - regular paragraph
+                    # 'hanging' - regular paragraph with all except first line indented one more level
+                    # 'code' - multiline paragraph containing code (formatting supressed) except $Work.Colors.Code
+                    #
+                    ### Compact paragraphs:
+                    # 'empty' - empty line
+                    # 'compact' - compact paragraph, like regular but without empty line after it
+                    # 'bulletedlist' - compact paragraph being element of bulleted list, if wrapped then
+                    #                  next lines indented 2 characters
+                    # 'numberedlist'
+                    # 'formatted' - multiline compact paragraph containing already formatted text
+                    # 'section' - compact paragraph coloured with $Work.Colors.Section
+                    # 'subsection' - compact paragraph coloured with $Work.Colors.SubSection
+                    # 'extrasection' - compact paragraph coloured with $Work.Colors.ExtraSection
+                    [System.String] $ParagraphType,
+                    [System.String] $Text = ''
+                )
+
+                #############################
+                # function DisplayParagraph #
+
+                # $Res = FormatParagraph $IndentLevel $ParagraphType $Text
+                # Write-Output $Res.Text
+                Write-Output (FormatParagraph $IndentLevel $ParagraphType $Text).Text
             }   # function DisplayParagraph #
                 #############################
+
+
+            #####################################
+            # function DisplayAndCountParagraph #
+            #####################################
+            function DisplayAndCountParagraph
+            {
+                param (
+                    [System.Int32] $IndentLevel,
+
+                    # All regular paragraphs displays empty line after it.
+                    # All compact paragraphs do not displays empty line after it.
+                    #
+                    # Allowed values for $ParagraphType:
+                    #
+                    ### Regular paragraphs:
+                    # 'regular' - regular paragraph
+                    # 'hanging' - regular paragraph with all except first line indented one more level
+                    # 'code' - multiline paragraph containing code (formatting supressed) except $Work.Colors.Code
+                    #
+                    ### Compact paragraphs:
+                    # 'empty' - empty line
+                    # 'compact' - compact paragraph, like regular but without empty line after it
+                    # 'bulletedlist' - compact paragraph being element of bulleted list, if wrapped then
+                    #                  next lines indented 2 characters
+                    # 'numberedlist'
+                    # 'formatted' - multiline compact paragraph containing already formatted text
+                    # 'section' - compact paragraph coloured with $Work.Colors.Section
+                    # 'subsection' - compact paragraph coloured with $Work.Colors.SubSection
+                    # 'extrasection' - compact paragraph coloured with $Work.Colors.ExtraSection
+                    [System.String] $ParagraphType,
+                    [System.String] $Text = '',
+                    [System.String] $DisplayedLinesVar = ''
+                )
+
+                #####################################
+                # function DisplayAndCountParagraph #
+
+                $Res = FormatParagraph $IndentLevel $ParagraphType $Text
+                Write-Output $Res.Text
+                if ($DisplayedLinesVar -ne '')
+                {
+                    Set-Variable -Scope 1 -Name $DisplayedLinesVar -Value $Res.Lines
+                }
+            }   # function DisplayAndCountParagraph #
+                #####################################
 
 
             ##########################################
@@ -2440,13 +2530,13 @@ function Main
                             {
                                 # List heading paragraph
                                 $Work.WasColon = $true
-                                DisplayParagraph $IndentLevel 'compact' $Paragraph 'Displayed'
+                                DisplayAndCountParagraph $IndentLevel 'compact' $Paragraph 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
                             else
                             {
                                 # Regular paragraph
-                                DisplayParagraph $IndentLevel 'regular' $Paragraph 'Displayed'
+                                DisplayAndCountParagraph $IndentLevel 'regular' $Paragraph 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
                         }
@@ -2457,28 +2547,28 @@ function Main
                             if ($Paragraph -match '^[0-9]+ =')
                             {
                                 # Numbered list item
-                                DisplayParagraph $IndentLevel 'numberedlist' $Paragraph 'Displayed'
+                                DisplayAndCountParagraph $IndentLevel 'numberedlist' $Paragraph 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
                             elseif (($Paragraph.Length -gt 2) -and
                                     ($Paragraph.Substring(0, 2) -eq '- '))
                             {
                                 # Bulleted list item
-                                DisplayParagraph $IndentLevel 'bulletedlist' $Paragraph 'Displayed'
+                                DisplayAndCountParagraph $IndentLevel 'bulletedlist' $Paragraph 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
                             elseif (($Paragraph.Length -gt 3) -and
                                     ($Paragraph.Substring(0, 3) -eq '-- '))
                             {
                                 # Bulleted list item
-                                DisplayParagraph $IndentLevel 'bulletedlist' ('- '+$Paragraph.Substring(3)) 'Displayed'
+                                DisplayAndCountParagraph $IndentLevel 'bulletedlist' ('- '+$Paragraph.Substring(3)) 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
                             elseif (($Paragraph.Length -gt 2) -and
                                     ($Paragraph.Substring(0, 2) -eq '--'))
                             {
                                 # Bulleted list item
-                                DisplayParagraph $IndentLevel 'bulletedlist' ('- '+$Paragraph.Substring(2)) 'Displayed'
+                                DisplayAndCountParagraph $IndentLevel 'bulletedlist' ('- '+$Paragraph.Substring(2)) 'Displayed'
                                 $DisplayedLines += $Displayed
                             }
                             else
@@ -2492,13 +2582,13 @@ function Main
                                 {
                                     # List heading paragraph
                                     $Work.WasColon = $true
-                                    DisplayParagraph $IndentLevel 'compact' $Paragraph 'Displayed'
+                                    DisplayAndCountParagraph $IndentLevel 'compact' $Paragraph 'Displayed'
                                     $DisplayedLines += $Displayed
                                 }
                                 else
                                 {
                                     # Regular paragraph
-                                    DisplayParagraph $IndentLevel 'regular' $Paragraph 'Displayed'
+                                    DisplayAndCountParagraph $IndentLevel 'regular' $Paragraph 'Displayed'
                                     $DisplayedLines += $Displayed
                                 }
                             }
@@ -2537,7 +2627,7 @@ function Main
                                                 $DisplayedLines += 1
                                                 $Work.WasColon = $false
                                             }
-                                            DisplayParagraph $IndentLevel 'code' $Child.InnerText 'Displayed'
+                                            DisplayAndCountParagraph $IndentLevel 'code' $Child.InnerText 'Displayed'
                                             $DisplayedLines += $Displayed
                                         }
                                 }
