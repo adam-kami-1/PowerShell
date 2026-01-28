@@ -2100,7 +2100,8 @@ function Main
                     {
                         $URI = ''
                     }
-                    elseif ($URI.Substring(0,32) -eq '/powershell/scripting/developer/')
+                    elseif (($URI.Substring(0,32) -eq '/powershell/scripting/developer/') -or
+                            ($URI.Substring(0,15) -eq '/windows/win32/'))
                     {
                         $URI = 'https://learn.microsoft.com/en-us' + $URI
                     }
