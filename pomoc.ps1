@@ -2392,48 +2392,6 @@ function Main
                 ############################
 
 
-            #############################
-            # function DisplayParagraph #
-            #############################
-            function DisplayParagraph
-            {
-                param (
-                    [System.Int32] $IndentLevel,
-
-                    # All regular paragraphs displays empty line after it.
-                    # All compact paragraphs do not displays empty line after it.
-                    #
-                    # Allowed values for $ParagraphType:
-                    #
-                    ### Regular paragraphs:
-                    # 'regular' - regular paragraph
-                    # 'hanging' - regular paragraph with all except first line indented one more level
-                    # 'code' - multiline paragraph containing code (formatting supressed) except $Work.Colors.Code
-                    #
-                    ### Compact paragraphs:
-                    # 'empty' - empty line
-                    # 'compact' - compact paragraph, like regular but without empty line after it
-                    # 'bulletedlist' - compact paragraph being element of bulleted list, if wrapped then
-                    #                  next lines indented 2 characters
-                    # 'numberedlist'
-                    # 'formatted' - multiline compact paragraph containing already formatted text
-                    # 'section' - compact paragraph coloured with $Work.Colors.Section
-                    # 'subsection' - compact paragraph coloured with $Work.Colors.SubSection
-                    # 'extrasection' - compact paragraph coloured with $Work.Colors.ExtraSection
-                    [System.String] $ParagraphType,
-                    [System.String] $Text = ''
-                )
-
-                #############################
-                # function DisplayParagraph #
-
-                # $Res = FormatParagraph $IndentLevel $ParagraphType $Text
-                # Write-Output $Res.Text
-                Write-Output (FormatParagraph $IndentLevel $ParagraphType $Text).Text
-            }   # function DisplayParagraph #
-                #############################
-
-
             #####################################
             # function DisplayAndCountParagraph #
             #####################################
@@ -2574,7 +2532,7 @@ function Main
                             else
                             {
                                 # End of the list
-                                DisplayParagraph $IndentLevel 'empty'
+                                Write-Output (FormatParagraph $IndentLevel 'empty').Text
                                 $DisplayedLines += 1
                                 $Work.WasColon = $false
                                 # But it could be begin of the next list
@@ -2623,7 +2581,7 @@ function Main
                                         {
                                             if ($Work.WasColon)
                                             {
-                                                DisplayParagraph $IndentLevel 'empty'
+                                                Write-Output (FormatParagraph $IndentLevel 'empty').Text
                                                 $DisplayedLines += 1
                                                 $Work.WasColon = $false
                                             }
@@ -2648,7 +2606,7 @@ function Main
                 }
                 if ($Work.WasColon)
                 {
-                    DisplayParagraph $IndentLevel 'empty'
+                    Write-Output (FormatParagraph $IndentLevel 'empty').Text
                     $DisplayedLines += 1
                 }
                 if ($DisplayedLinesVar -ne '')
@@ -2843,7 +2801,7 @@ function Main
                 {
                     $Paragraph += ' [<CommonParameters>]'
                 }
-                DisplayParagraph 1 'hanging' $Paragraph
+                Write-Output (FormatParagraph 1 'hanging' $Paragraph).Text
             }   # function DisplaySingleSyntax #
                 ################################
 
@@ -2863,18 +2821,18 @@ function Main
 
                 $Parameter = ParseSingleParameter $ParamNode
 
-                DisplayParagraph 1 'subsection' ('-' + $ParamNode.Name + ' ' + $Parameter.TypeName)
+                Write-Output (FormatParagraph 1 'subsection' ('-' + $ParamNode.Name + ' ' + $Parameter.TypeName)).Text
 
                 $Work.WasColon = $false
                 DisplayCollectionOfParagraphs 2 $ParamNode.Description
 
-                DisplayParagraph 2 'formatted' "Required?                    $($Parameter.Required)"
-                DisplayParagraph 2 'formatted' "Position?                    $($Parameter.Position)"
-                DisplayParagraph 2 'formatted' "Default value                $($Parameter.DefVal)"
-                DisplayParagraph 2 'formatted' "Accept pipeline input?       $($Parameter.PipelineInput)"
-                DisplayParagraph 2 'formatted' "Accept wildcard characters?  $($Parameter.Globbing)"
-                DisplayParagraph 2 'formatted' "Aliases                      $($Parameter.Aliases)"
-                DisplayParagraph 0 'empty'
+                Write-Output (FormatParagraph 2 'formatted' "Required?                    $($Parameter.Required)").Text
+                Write-Output (FormatParagraph 2 'formatted' "Position?                    $($Parameter.Position)").Text
+                Write-Output (FormatParagraph 2 'formatted' "Default value                $($Parameter.DefVal)").Text
+                Write-Output (FormatParagraph 2 'formatted' "Accept pipeline input?       $($Parameter.PipelineInput)").Text
+                Write-Output (FormatParagraph 2 'formatted' "Accept wildcard characters?  $($Parameter.Globbing)").Text
+                Write-Output (FormatParagraph 2 'formatted' "Aliases                      $($Parameter.Aliases)").Text
+                Write-Output (FormatParagraph 0 'empty').Text
             }   # function DisplaySingleParameter #
                 ###################################
 
@@ -2891,8 +2849,8 @@ function Main
                 #################################
                 # function DisplaySingleExample #
 
-                DisplayParagraph 1 'subsection' $Example.title.Trim('- ')
-                #DisplayParagraph 2 'code' $Example.code
+                Write-Output (FormatParagraph 1 'subsection' $Example.title.Trim('- ')).Text
+                #Write-Output (FormatParagraph 2 'code' $Example.code).Text
                 $Work.WasColon = $false
                 if ($null -ne (Get-Member -InputObject $Example -Name introduction))
                 {
@@ -2911,7 +2869,7 @@ function Main
             ###############################
             # function DisplayXmlHelpFile #
 
-            # DisplayParagraph 0 'empty'
+            # Write-Output (FormatParagraph 0 'empty').Text
 
             $Item.CurrentExtraSectionNode = $null
 
@@ -2919,8 +2877,8 @@ function Main
             # Section NAME
             if ($null -ne (Get-Member -InputObject $CommandNode -Name details))
             {
-                DisplayParagraph 0 'section' 'NAME'
-                DisplayParagraph 1 'regular' $CommandNode.details.name
+                Write-Output (FormatParagraph 0 'section' 'NAME').Text
+                Write-Output (FormatParagraph 1 'regular' $CommandNode.details.name).Text
             }
             else
             {
@@ -2931,8 +2889,8 @@ function Main
             # Section SYNOPSIS
             if ($null -ne (Get-Member -InputObject $CommandNode -Name details))
             {
-                DisplayParagraph 0 'section' 'SYNOPSIS'
-                DisplayParagraph 1 'regular' $CommandNode.details.description.para
+                Write-Output (FormatParagraph 0 'section' 'SYNOPSIS').Text
+                Write-Output (FormatParagraph 1 'regular' $CommandNode.details.description.para).Text
             }
             else
             {
@@ -2945,7 +2903,7 @@ function Main
             if (($null -ne (Get-Member -InputObject $CommandNode -Name syntax)) -and
                 ($null -ne (Get-Member -InputObject $CommandNode.syntax -Name syntaxItem)))
             {
-                DisplayParagraph 0 'section' 'SYNTAX'
+                Write-Output (FormatParagraph 0 'section' 'SYNTAX').Text
 
                 if ($CommandNode.syntax.syntaxItem.Count -ne 0)
                 {
@@ -2964,7 +2922,7 @@ function Main
             # Section ALIASES
             if (($null -ne $Item.Aliases) -and ($Item.Aliases.Count -gt 0))
             {
-                DisplayParagraph 0 'section' 'ALIASES'
+                Write-Output (FormatParagraph 0 'section' 'ALIASES').Text
                 $Paragraph = ''
                 foreach ($Alias in $Item.Aliases)
                 {
@@ -2977,14 +2935,14 @@ function Main
                         $Paragraph += ", $Alias"
                     }
                 }
-                DisplayParagraph 1 'regular' $Paragraph
+                Write-Output (FormatParagraph 1 'regular' $Paragraph).Text
             }
 
             #----------------------------------------------------------
             # Section DESCRIPTION
             if ($null -ne (Get-Member -InputObject $CommandNode -Name description))
             {
-                DisplayParagraph 0 'section' 'DESCRIPTION'
+                Write-Output (FormatParagraph 0 'section' 'DESCRIPTION').Text
                 $Work.WasColon = $false
                 DisplayCollectionOfParagraphs 1 $CommandNode.description
 
@@ -2994,7 +2952,7 @@ function Main
                 {
                     if ($Child.LocalName -eq 'section')
                     {
-                        DisplayParagraph 0 'extrasection' $Child.FirstChild.InnerText
+                        Write-Output (FormatParagraph 0 'extrasection' $Child.FirstChild.InnerText).Text
                         $Work.WasColon = $false
                         DisplayCollectionOfParagraphs 1 $Child
                     }
@@ -3007,7 +2965,7 @@ function Main
             if (($null -ne (Get-Member -InputObject $CommandNode -Name parameters)) -and
                 ($null -ne (Get-Member -InputObject $CommandNode.parameters -Name parameter)))
             {
-                DisplayParagraph 0 'section' 'PARAMETERS'
+                Write-Output (FormatParagraph 0 'section' 'PARAMETERS').Text
                 $HeaderDisplayed = $true
                 if ($CommandNode.parameters.parameter.Count -ne 0)
                 {
@@ -3025,15 +2983,15 @@ function Main
             {
                 if (-not $HeaderDisplayed)
                 {
-                    DisplayParagraph 0 'section' 'PARAMETERS'
+                    Write-Output (FormatParagraph 0 'section' 'PARAMETERS').Text
                 }
-                DisplayParagraph 1 'subsection' ('<CommonParameters>')
+                Write-Output (FormatParagraph 1 'subsection' ('<CommonParameters>')).Text
 
-                DisplayParagraph 2 'regular' ('This cmdlet supports the common parameters: '+
+                Write-Output (FormatParagraph 2 'regular' ('This cmdlet supports the common parameters: '+
                     'Verbose, Debug, ErrorAction, ErrorVariable, WarningAction, '+
                     'WarningVariable, OutBuffer, PipelineVariable, and OutVariable. '+
                     'For more information, see about_CommonParameters '+
-                    '(https://go.microsoft.com/fwlink/?LinkID=113216).')
+                    '(https://go.microsoft.com/fwlink/?LinkID=113216).')).Text
             }
 
             #----------------------------------------------------------
@@ -3049,10 +3007,10 @@ function Main
                     {
                         if (-not $HeaderDisplayed)
                         {
-                            DisplayParagraph 0 'section' 'INPUTS'
+                            Write-Output (FormatParagraph 0 'section' 'INPUTS').Text
                             $HeaderDisplayed = $true
                         }
-                        DisplayParagraph 1 'compact' $InputType.type.name
+                        Write-Output (FormatParagraph 1 'compact' $InputType.type.name).Text
                     }
                     # if (($null -ne $InputType.description.para) -and
                     #     ($null -ne $InputType.description.para[0]))
@@ -3060,7 +3018,7 @@ function Main
                     {
                         if (-not $HeaderDisplayed)
                         {
-                            DisplayParagraph 0 'section' 'INPUTS'
+                            Write-Output (FormatParagraph 0 'section' 'INPUTS').Text
                             $HeaderDisplayed = $true
                         }
                         $Work.WasColon = $false
@@ -3068,7 +3026,7 @@ function Main
                     }
                     if ($HeaderDisplayed -and ($DisplayedLines -eq 0))
                     {
-                        DisplayParagraph 2 'empty'
+                        Write-Output (FormatParagraph 2 'empty').Text
                     }
                 }
             }
@@ -3086,10 +3044,10 @@ function Main
                     {
                         if (-not $HeaderDisplayed)
                         {
-                            DisplayParagraph 0 'section' 'OUTPUTS'
+                            Write-Output (FormatParagraph 0 'section' 'OUTPUTS').Text
                             $HeaderDisplayed = $true
                         }
-                        DisplayParagraph 1 'compact' $returnValue.type.name
+                        Write-Output (FormatParagraph 1 'compact' $returnValue.type.name).Text
                     }
                     # if (($null -ne $returnValue.description.para) -and
                     #     ($null -ne $returnValue.description.para[0]))
@@ -3097,7 +3055,7 @@ function Main
                     {
                         if (-not $HeaderDisplayed)
                         {
-                            DisplayParagraph 0 'section' 'OUTPUTS'
+                            Write-Output (FormatParagraph 0 'section' 'OUTPUTS').Text
                             $HeaderDisplayed = $true
                         }
                         $Work.WasColon = $false
@@ -3105,7 +3063,7 @@ function Main
                     }
                     if ($HeaderDisplayed -and ($DisplayedLines -eq 0))
                     {
-                        DisplayParagraph 2 'empty'
+                        Write-Output (FormatParagraph 2 'empty').Text
                     }
                 }
             }
@@ -3116,7 +3074,7 @@ function Main
                 ($null -ne (Get-Member -InputObject $CommandNode.alertSet -Name alert)) -and
                 ($null -ne (Get-Member -InputObject $CommandNode.alertSet.alert -Name para)))
             {
-                DisplayParagraph 0 'section' 'NOTES'
+                Write-Output (FormatParagraph 0 'section' 'NOTES').Text
                 foreach ($alert in $CommandNode.alertSet.alert)
                 {
                     $Work.WasColon = $false
@@ -3131,11 +3089,11 @@ function Main
             {
                 if ('name' -eq $CommandNode.examples.FirstChild.name)
                 {
-                    DisplayParagraph 0 'section' $CommandNode.examples.FirstChild.InnerText
+                    Write-Output (FormatParagraph 0 'section' $CommandNode.examples.FirstChild.InnerText).Text
                 }
                 else
                 {
-                    DisplayParagraph 0 'section' 'EXAMPLES'
+                    Write-Output (FormatParagraph 0 'section' 'EXAMPLES').Text
                 }
                 if ($CommandNode.examples.example.Count -ne 0)
                 {
@@ -3155,7 +3113,7 @@ function Main
             if (($null -ne (Get-Member -InputObject $CommandNode -Name relatedLinks)) -and
                 ($null -ne (Get-Member -InputObject $CommandNode.relatedLinks -Name navigationLink)))
             {
-                DisplayParagraph 0 'section' 'RELATED LINKS'
+                Write-Output (FormatParagraph 0 'section' 'RELATED LINKS').Text
                 $Links = @()
                 if (($CommandNode.relatedLinks.navigationLink -is [System.Object[]]) -and
                     ($CommandNode.relatedLinks.navigationLink.Count -gt 0))
@@ -3179,8 +3137,8 @@ function Main
             # Section REMARKS
             if ($false)
             {
-                DisplayParagraph 0 'section' 'REMARKS'
-                DisplayParagraph 1 'regular' 'Remarks will be described later !!!'
+                Write-Output (FormatParagraph 0 'section' 'REMARKS').Text
+                Write-Output (FormatParagraph 1 'regular' 'Remarks will be described later !!!').Text
             }
 
         }   # function DisplayXmlHelpFile #
