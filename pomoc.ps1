@@ -109,7 +109,7 @@ pomoc displays full help on the selected item.
 .DESCRIPTION
 This is planed as a replacement of Get-Help cmdlet.
 .EXAMPLE
-pomoc -Name Get_Command
+pomoc -Name Get-Command
 .EXAMPLE
 [PSCustomObject]@{Name="Get-Help"} | pomoc
 #>
@@ -2088,24 +2088,71 @@ function Main
                 ###########################
                 # function BuildLinkValue #
 
+                if ($LinkText -eq 'about_Formatting')
+                {
+                    $LinkText = 'about_Format.ps1xml'
+                }
+                if ($LinkText.ToLower().EndsWith('.md'))
+                {
+                    $LinkText = $LinkText -replace '.[mM][dD]$',''
+                }
                 if ($URI -ne '')
                 {
                     if (($URI -eq 'About/' + $LinkText + '.md') -or
+                        ($URI -eq '/powershell/module/microsoft.powershell.core/About/' + $LinkText) -or
+                        ($URI -eq '/powershell/module/psreadline/' + $LinkText) -or
                         ($URI -eq './' + $LinkText + '.md') -or
+                        ($URI -eq '../CimCmdlets/' + $LinkText + '.md') -or
                         ($URI -eq '../Microsoft.PowerShell.Core/' + $LinkText + '.md') -or
                         ($URI -eq '../Microsoft.PowerShell.Core/About/' + $LinkText + '.md') -or
+                        ($URI -match '\.\./Microsoft.PowerShell.Core/About/' + $LinkText + '\.md#\w+') -or
+                        ($URI -eq '../Microsoft.PowerShell.Diagnostics/' + $LinkText + '.md') -or
                         ($URI -eq '../Microsoft.PowerShell.Management/' + $LinkText + '.md') -or
+                        ($URI -eq '../Microsoft.PowerShell.Security/' + $LinkText + '.md') -or
+                        ($URI -eq '../Microsoft.PowerShell.Security/About/' + $LinkText + '.md') -or
                         ($URI -eq '../Microsoft.PowerShell.Utility/' + $LinkText + '.md') -or
+                        ($URI -eq '../Microsoft.WsMan.Management/' + $LinkText + '.md') -or
+                        ($URI -eq '../Microsoft.WsMan.Management/About/' + $LinkText + '.md') -or
+                        ($URI -eq '../PSReadLine/About/' + $LinkText + '.md') -or
+                        ($URI -eq '../PSWorkflow/About/' + $LinkText + '.md') -or
+                        ($URI -eq '../storage/' + $LinkText + '.md') -or
                         ($URI -eq $LinkText + '.md'))
                     {
                         $URI = ''
                     }
-                    elseif (($URI.Substring(0,32) -eq '/powershell/scripting/developer/') -or
-                            ($URI.Substring(0,15) -eq '/windows/win32/'))
+                    elseif (($URI -eq '../Microsoft.PowerShell.Core/About/about_' + $LinkText.Replace(' ', '_') + '.md') -or
+                            ($URI -eq '../Microsoft.WsMan.Management/About/about_' + $LinkText.Replace(' ', '_') + '.md'))
+                    {
+                        $LinkText = 'about_' + $LinkText.Replace(' ', '_')
+                        $URI = ''
+                    }
+                    elseif ($URI.ToLower().StartsWith('/dotnet/api/') -or
+                            $URI.ToLower().StartsWith('/dotnet/standard/') -or
+                            $URI.ToLower().StartsWith('/nuget/concepts/') -or
+                            $URI.ToLower().StartsWith('/powershell/module/') -or
+                            $URI.ToLower().StartsWith('/powershell/scripting/') -or
+                            $URI.ToLower().StartsWith('/powershell/utility-modules/') -or
+                            $URI.ToLower().StartsWith('/previous-versions/dotnet/articles/') -or
+                            $URI.ToLower().StartsWith('/uwp/api/') -or
+                            $URI.ToLower().StartsWith('/windows/desktop/') -or
+                            $URI.ToLower().StartsWith('/windows/win32/') -or
+                            $URI.ToLower().StartsWith('/windows-hardware/drivers/install/'))
                     {
                         $URI = 'https://learn.microsoft.com/en-us' + $URI
                     }
-                    elseif (($URI.Substring(0,8) -ne 'https://') -and ($URI.Substring(0,7) -ne 'http://'))
+                    elseif ($URI.ToLower().StartsWith('xref:'))
+                    {
+                        $URI = 'https://learn.microsoft.com/en-us/dotnet/api/' + $URI.Substring(5)
+                        if ($URI.ToLower().EndsWith('%2a'))
+                        {
+                            $URI = $URI -replace '%2[aA]$',''
+                        }
+                    }
+                    elseif ($URI.StartsWith('./') -and $URI.ToLower().EndsWith('.md'))
+                    {
+                        $URI = 'https://learn.microsoft.com/en-us/powershell/module/' + (($URI -replace '.[mM][dD]$','') -replace '^./','')
+                    }
+                    elseif ((-not $URI.ToLower().StartsWith('https://')) -and (-not $URI.ToLower().StartsWith('http://')))
                     {
                         Write-Error "Unknown link for ${LinkText}: $URI"
                     }
