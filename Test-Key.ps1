@@ -10,7 +10,7 @@ None
 .OUTPUTS
 None
 .NOTES
-To end script break it with 'Break' key:
+To end the script, break it with 'Break' key:
 Press 'Break' (Ctrl+[Pause/Break]) and any usual key to enter debug mode.
 Then use 'q' to quit script.
 
