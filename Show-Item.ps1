@@ -38,12 +38,10 @@ param (
                ValueFromPipelineByPropertyName=$true)]
     [System.Management.Automation.PSObject] $InputObject = $null
 )
+
 Begin
 {
-    $Height = [System.Console]::WindowHeight - 1
-    $Width = [System.Console]::WindowWidth
-
-        function Show-Object
+    function Show-Object
     {
         Param (
             [System.Management.Automation.PSObject] $InputObject
@@ -54,52 +52,88 @@ Begin
         }
         else
         {
-            Write-Output $InputObject | less.exe -S
+            Write-Output $InputObject | less.exe
         }
     } # function Show-Object
 
+    # Check the terminal type. In smart terminal (not dumb terminal)
+    # we have acces to System.Console and can use less.exe.
+    $SmartTerminal = $true
+    if ($env:TERM -eq 'emacs')
+    {
+        $SmartTerminal = $false
+    }
+    $Height = -1
+    $Width = 80
+    if ($SmartTerminal)
+    {
+        $Height = [System.Console]::WindowHeight - 1
+        $Width = [System.Console]::WindowWidth
+    }
+
+    # Check which Parameter Set is used
     $Count = -1
     if ('' -ne $Path)
     {
+        # Parameter Set Name is "Path"
         $InputObject = Get-Content -Path $Path
         Show-Object $InputObject
     }
-    elseif ($null -eq $InputObject)
+    elseif ($null -ne $InputObject)
     {
-        $Count = 0
-        $TmpFile = 'D:\Users\Adam\TMP\less.buf'
-        Out-File -InputObject '' -FilePath $TmpFile
+        # Parameter Set Name is "InputObject",
+        # $InputObject received as parameter
+        Show-Object $InputObject
     }
     else
     {
-        Show-Object $InputObject
+        # Parameter Set Name is "InputObject",
+        # $InputObject will be piped in Process block
+        $Count = 0
+        if ($SmartTerminal)
+        {
+            $TmpFile = 'D:\Users\Adam\TMP\less.buf'
+            Out-File -InputObject '' -FilePath $TmpFile
+        }
     }
 }
+
 Process
 {
     if ($Count -ge 0)
     {
-        Out-File -InputObject $InputObject -FilePath $TmpFile -Append
-        if ($Count -lt $Height)
+        if ($SmartTerminal)
         {
-            # Display at least only first $Width characters of every line
-            Write-Host ($InputObject -replace ('(.{'+$Width+'})(.*)'),'$1')
+            Out-File -InputObject $InputObject -FilePath $TmpFile -Append
+        }
+        if (($Count -lt $Height) -or -not $SmartTerminal)
+        {
+            # # Display at least only first $Width characters of every line
+            # Write-Host ($InputObject -replace ('(.{'+$Width+'})(.*)'),'$1')
+            # $Count += 1
+
+            # Display whole line
+            Write-Host $InputObject
+            $Count += [int]($InputObject.Length / $Width + 0.5)
         }
         else
         {
-            Write-Host ("`r" + '-\|/'[[int]($count / 10) % 4]) -NoNewline
+            Write-Host ("`r" + '-\|/'[[int]($count / 100) % 4]) -NoNewline
+            $Count += 1
         }
-        $Count += 1
     }
 }
 End
 {
     if ($Count -ge 0)
     {
-        if ($Count -ge $Height)
+        if (($Count -ge $Height) -and $SmartTerminal)
         {
-            less.exe -SF $TmpFile
+            less.exe $TmpFile
         }
-        Remove-Item $TmpFile
+        if ($SmartTerminal)
+        {
+            Remove-Item $TmpFile
+        }
     }
 }
